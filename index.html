@@ -9,7 +9,7 @@
             margin: 0;
             padding: 0;
             overflow: hidden;
-            background-color: #0d0d0f;
+            background-color: #0c0c0e;
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
             touch-action: none;
             user-select: none;
@@ -31,7 +31,7 @@
             align-items: flex-start;
         }
         .info-card {
-            background: rgba(18, 18, 22, 0.85);
+            background: rgba(18, 18, 22, 0.88);
             backdrop-filter: blur(8px);
             border: 1px solid rgba(255, 255, 255, 0.12);
             color: #f0f0f0;
@@ -51,18 +51,14 @@
             font-size: 13px;
             font-weight: 600;
             cursor: pointer;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.4);
         }
-        .btn-reset:active {
-            background: #404050;
-        }
+        .btn-reset:active { background: #404050; }
         #status-pill {
             margin-top: 5px;
             font-weight: bold;
             color: #ffaa44;
         }
 
-        /* 하단 발화 버튼 컨트롤 바 */
         #bottom-bar {
             position: absolute;
             bottom: 30px;
@@ -74,14 +70,13 @@
         }
         .btn-fire {
             pointer-events: auto;
-            background: linear-gradient(135deg, #444, #333);
+            background: #333;
             border: 2px solid #555;
-            color: #888;
-            padding: 14px 38px;
+            color: #777;
+            padding: 14px 40px;
             border-radius: 30px;
             font-size: 16px;
             font-weight: 800;
-            letter-spacing: 1px;
             box-shadow: 0 6px 20px rgba(0,0,0,0.6);
             transition: all 0.2s ease;
             cursor: not-allowed;
@@ -96,7 +91,6 @@
         }
         .btn-fire.ready:active {
             transform: scale(0.96);
-            background: linear-gradient(135deg, #cc2200, #991100);
         }
     </style>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -106,10 +100,10 @@
 
     <div id="ui-overlay">
         <div class="info-card">
-            <div>🔥 <b>조작 가이드</b></div>
-            <div>• 화면 드래그: 카메라 회전 및 줌</div>
-            <div>• 나무 표면 탭: <b>목표 지점 조준(타깃)</b></div>
-            <div>• 하단 FIRE 버튼: <b>조준 지점에 불 붙이기</b></div>
+            <div>🪵 <b>물리 연소 시뮬레이터</b></div>
+            <div>• 화면 드래그: 카메라 360도 회전</div>
+            <div>• 나무 표면 탭: <b>단일 발화점 조준</b></div>
+            <div>• FIRE 버튼: <b>선택 지점 점화</b></div>
             <div id="status-pill">상태: 점화 위치를 선택하세요</div>
         </div>
         <button class="btn-reset" onclick="resetBlock()">새 나무로 리셋</button>
@@ -126,8 +120,9 @@
         const statusPill = document.getElementById('status-pill');
         const fireBtn = document.getElementById('fire-btn');
 
+        // --- 1. 3D 씬 및 카메라 ---
         const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x0e0e12);
+        scene.background = new THREE.Color(0x0a0a0d);
 
         const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
         camera.position.set(0, 1.8, 3.2);
@@ -136,38 +131,37 @@
         renderer.setSize(window.innerWidth, window.innerHeight);
         renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
         renderer.toneMapping = THREE.ACESFilmicToneMapping;
-        renderer.toneMappingExposure = 1.1;
+        renderer.toneMappingExposure = 1.15;
         container.appendChild(renderer.domElement);
 
         const controls = new THREE.OrbitControls(camera, renderer.domElement);
         controls.enableDamping = true;
-        controls.dampingFactor = 0.05;
+        controls.dampingFactor = 0.06;
         controls.minDistance = 1.2;
         controls.maxDistance = 6.0;
 
-        // 조명 설정
-        const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+        // 조명
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.55);
         scene.add(ambientLight);
 
-        const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
-        dirLight.position.set(2, 4, 3);
+        const dirLight = new THREE.DirectionalLight(0xffeedd, 0.75);
+        dirLight.position.set(3, 5, 4);
         scene.add(dirLight);
 
-        const firePointLight = new THREE.PointLight(0xff5500, 0, 5, 2.0);
+        const firePointLight = new THREE.PointLight(0xff5500, 0, 4.5, 2.0);
         scene.add(firePointLight);
 
-        // 바닥 평면
         const floorGeo = new THREE.PlaneGeometry(10, 10);
-        const floorMat = new THREE.MeshStandardMaterial({ color: 0x141416, roughness: 0.9, metalness: 0.1 });
+        const floorMat = new THREE.MeshStandardMaterial({ color: 0x121215, roughness: 0.9 });
         const floor = new THREE.Mesh(floorGeo, floorMat);
         floor.rotation.x = -Math.PI / 2;
-        floor.position.y = -0.6;
+        floor.position.y = -0.55;
         scene.add(floor);
 
-        // --- 표면 조준 링 커서 (Target Cursor) 생성 ---
-        const cursorGeo = new THREE.RingGeometry(0.04, 0.065, 32);
+        // --- 2. 3D 표면 조준 링 커서 ---
+        const cursorGeo = new THREE.RingGeometry(0.035, 0.06, 32);
         const cursorMat = new THREE.MeshBasicMaterial({
-            color: 0xff2200,
+            color: 0xff3300,
             side: THREE.DoubleSide,
             transparent: true,
             opacity: 0.9,
@@ -175,148 +169,162 @@
         });
         const targetCursor = new THREE.Mesh(cursorGeo, cursorMat);
         targetCursor.visible = false;
-        targetCursor.renderOrder = 999; // 항상 표면 위에 보이게
+        targetCursor.renderOrder = 999;
         scene.add(targetCursor);
 
-        let selectedUV = null;
+        let selectedLocalPoint = null;
 
-        // --- 연소 시뮬레이션 그리드 ---
-        const SIM_SIZE = 256;
-        const simCanvas = document.createElement('canvas');
-        simCanvas.width = SIM_SIZE;
-        simCanvas.height = SIM_SIZE;
-        const simCtx = simCanvas.getContext('2d');
+        // --- 3. 3차원 정점 물리 시뮬레이션 데이터 구축 ---
+        // 가로 1.6, 높이 0.5, 두께 0.5 (적절한 밀도의 그리드 분할)
+        const woodGeo = new THREE.BoxGeometry(1.6, 0.5, 0.5, 28, 12, 12);
+        const posAttr = woodGeo.attributes.position;
+        const vertexCount = posAttr.count;
 
-        let tempGrid = new Float32Array(SIM_SIZE * SIM_SIZE);
-        let nextTempGrid = new Float32Array(SIM_SIZE * SIM_SIZE);
-        let fuelGrid = new Float32Array(SIM_SIZE * SIM_SIZE);
-        let charGrid = new Float32Array(SIM_SIZE * SIM_SIZE);
-        let isBurning = false;
+        // 정점별 상태 배열: 온도, 남은 연료, 탄화도
+        const tempArr = new Float32Array(vertexCount);
+        const nextTempArr = new Float32Array(vertexCount);
+        const fuelArr = new Float32Array(vertexCount);
+        const charArr = new Float32Array(vertexCount);
 
-        function initSimulationData() {
-            for (let i = 0; i < SIM_SIZE * SIM_SIZE; i++) {
-                tempGrid[i] = 0.0;
-                fuelGrid[i] = 1.0;
-                charGrid[i] = 0.0;
+        // 셰이더로 전달할 버텍스 어트리뷰트 (x: Temp, y: Fuel, z: Char)
+        const burnAttrData = new Float32Array(vertexCount * 3);
+        const burnAttribute = new THREE.BufferAttribute(burnAttrData, 3);
+        woodGeo.setAttribute('aBurn', burnAttribute);
+
+        // 3D 이웃 정점 연결망(Neighbor Graph) 사전 계산 (모서리 자동 연결)
+        const neighbors = new Array(vertexCount);
+        const CONNECT_DIST = 0.085;
+        const CONNECT_DIST_SQ = CONNECT_DIST * CONNECT_DIST;
+
+        for (let i = 0; i < vertexCount; i++) {
+            neighbors[i] = [];
+            const xi = posAttr.getX(i), yi = posAttr.getY(i), zi = posAttr.getZ(i);
+            for (let j = 0; j < vertexCount; j++) {
+                if (i === j) continue;
+                const dx = xi - posAttr.getX(j);
+                const dy = yi - posAttr.getY(j);
+                const dz = zi - posAttr.getZ(j);
+                if (dx * dx + dy * dy + dz * dz <= CONNECT_DIST_SQ) {
+                    neighbors[i].push(j);
+                }
             }
-            isBurning = false;
+        }
+
+        function initSimulation() {
+            for (let i = 0; i < vertexCount; i++) {
+                tempArr[i] = 0.0;
+                fuelArr[i] = 1.0;  // 100% 신선한 나무
+                charArr[i] = 0.0;  // 0% 탄화
+                burnAttrData[i * 3]     = 0.0;
+                burnAttrData[i * 3 + 1] = 1.0;
+                burnAttrData[i * 3 + 2] = 0.0;
+            }
+            burnAttribute.needsUpdate = true;
             firePointLight.intensity = 0;
-            selectedUV = null;
+            selectedLocalPoint = null;
             targetCursor.visible = false;
             fireBtn.classList.remove('ready');
-
             statusPill.innerText = "상태: 점화 위치를 선택하세요";
             statusPill.style.color = "#ffaa44";
-
-            const imgData = simCtx.createImageData(SIM_SIZE, SIM_SIZE);
-            const data = imgData.data;
-            for (let i = 0; i < SIM_SIZE * SIM_SIZE; i++) {
-                data[i * 4] = 0;
-                data[i * 4 + 1] = 255;
-                data[i * 4 + 2] = 0;
-                data[i * 4 + 3] = 0;
-            }
-            simCtx.putImageData(imgData, 0, 0);
         }
-        initSimulationData();
+        initSimulation();
 
-        const simTexture = new THREE.CanvasTexture(simCanvas);
-        simTexture.generateMipmaps = false;
-        simTexture.minFilter = THREE.LinearFilter;
-        simTexture.magFilter = THREE.LinearFilter;
-
-        // 나뭇결 기본 텍스처
-        const woodCanvas = document.createElement('canvas');
-        woodCanvas.width = 512;
-        woodCanvas.height = 512;
-        const woodCtx = woodCanvas.getContext('2d');
-        const woodGrad = woodCtx.createLinearGradient(0, 0, 512, 512);
-        woodGrad.addColorStop(0, '#543622');
-        woodGrad.addColorStop(0.5, '#754a2e');
-        woodGrad.addColorStop(1, '#442817');
-        woodCtx.fillStyle = woodGrad;
-        woodCtx.fillRect(0, 0, 512, 512);
-        woodCtx.fillStyle = 'rgba(25, 14, 8, 0.18)';
-        for (let i = 0; i < 512; i += 4) {
-            woodCtx.fillRect(0, i + Math.sin(i * 0.12) * 2, 512, 1.6);
-        }
-        const woodTexture = new THREE.CanvasTexture(woodCanvas);
-
-        // 셰이더 (표면 탄화, 잉걸불 및 중심축 수축)
+        // --- 4. 3D 절차적 나무 및 탄화 셰이더 ---
         const woodMaterial = new THREE.ShaderMaterial({
             uniforms: {
-                _WoodTex: { value: woodTexture },
-                _SimTex: { value: simTexture },
-                _Shrink: { value: 0.12 }
+                _Erosion: { value: 0.025 } // 깊은 함몰 방지: 표면만 최대 2.5cm 미세 삭마
             },
             vertexShader: `
-                varying vec2 vUv;
+                attribute vec3 aBurn; // x: Temp, y: Fuel, z: Char
+                varying vec3 vBurn;
+                varying vec3 vPosition;
                 varying vec3 vNormal;
-                uniform sampler2D _SimTex;
-                uniform float _Shrink;
+                uniform float _Erosion;
 
                 void main() {
-                    vUv = uv;
+                    vBurn = aBurn;
                     vNormal = normalize(normalMatrix * normal);
-                    
-                    vec4 sim = texture2D(_SimTex, uv);
-                    float burned = clamp(1.0 - sim.g, 0.0, 1.0);
+                    vPosition = position;
 
-                    // 중심축(원점) 방향으로 수축
-                    vec3 shrinkDir = normalize(position);
-                    vec3 displacedPos = position - shrinkDir * (burned * _Shrink);
+                    // 표면 삭마: 완전히 재가 된 부분만 법선 방향으로 얇게 깎임 (함몰 없음)
+                    float burnedOut = (1.0 - aBurn.y);
+                    vec3 displacedPos = position - normal * (burnedOut * _Erosion);
 
                     gl_Position = projectionMatrix * modelViewMatrix * vec4(displacedPos, 1.0);
                 }
             `,
             fragmentShader: `
-                uniform sampler2D _WoodTex;
-                uniform sampler2D _SimTex;
-                varying vec2 vUv;
+                varying vec3 vBurn;
+                varying vec3 vPosition;
                 varying vec3 vNormal;
 
+                // 3D 프로시저럴 노이즈
+                float hash(vec3 p) {
+                    p = fract(p * 0.3183099 + 0.1);
+                    p *= 17.0;
+                    return fract(p.x * p.y * p.z * (p.x + p.y + p.z));
+                }
+                float noise(vec3 x) {
+                    vec3 i = floor(x);
+                    vec3 f = fract(x);
+                    f = f * f * (3.0 - 2.0 * f);
+                    return mix(mix(mix(hash(i + vec3(0,0,0)), hash(i + vec3(1,0,0)), f.x),
+                                   mix(hash(i + vec3(0,1,0)), hash(i + vec3(1,1,0)), f.x), f.y),
+                               mix(mix(hash(i + vec3(0,0,1)), hash(i + vec3(1,0,1)), f.x),
+                                   mix(hash(i + vec3(0,1,1)), hash(i + vec3(1,1,1)), f.x), f.y), f.z);
+                }
+
                 void main() {
-                    vec4 woodCol = texture2D(_WoodTex, vUv);
-                    vec4 sim = texture2D(_SimTex, vUv);
-                    float temp = sim.r;
-                    float fuel = sim.g;
-                    float charAmount = sim.a;
+                    float temp = vBurn.x;
+                    float fuel = vBurn.y;
+                    float charAmount = vBurn.z;
 
+                    // 1. 나뭇결 텍스처 (3D 프로시저럴)
+                    float grain = noise(vPosition * vec3(2.0, 15.0, 15.0));
+                    vec3 woodLight = vec3(0.48, 0.32, 0.18);
+                    vec3 woodDark  = vec3(0.28, 0.17, 0.09);
+                    vec3 woodCol = mix(woodDark, woodLight, grain);
+
+                    // 2. 탄화(숯) 표현: 거친 균열 노이즈 적용
+                    float crack = noise(vPosition * 30.0);
                     vec3 charCol = vec3(0.04, 0.04, 0.04);
-                    vec3 baseCol = mix(woodCol.rgb, charCol, charAmount);
-                    vec3 emberCol = vec3(2.8, 0.45, 0.02) * pow(temp, 2.2) * (fuel * 1.5 + 0.15);
+                    vec3 surfaceCol = mix(woodCol, charCol, clamp(charAmount * 1.3, 0.0, 1.0));
 
+                    // 3. 잉걸불(Glow): 틈새에서 타오르는 내부 불씨
+                    float emberMask = pow(temp, 2.2) * (fuel * 1.4 + 0.15);
+                    vec3 emberCol = vec3(3.2, 0.45, 0.02) * emberMask * (crack * 0.6 + 0.5);
+
+                    // 조명 음영
                     vec3 lightDir = normalize(vec3(1.0, 2.0, 1.5));
-                    float diff = max(dot(vNormal, lightDir), 0.2);
+                    float diff = max(dot(vNormal, lightDir), 0.18);
 
-                    gl_FragColor = vec4(baseCol * diff + emberCol, 1.0);
+                    gl_FragColor = vec4(surfaceCol * diff + emberCol, 1.0);
                 }
             `
         });
 
-        const woodGeo = new THREE.BoxGeometry(1.6, 0.5, 0.5, 48, 24, 24);
         const woodBlock = new THREE.Mesh(woodGeo, woodMaterial);
         scene.add(woodBlock);
 
-        // 파티클 시스템
-        const PARTICLE_COUNT = 500;
-        const particleGeo = new THREE.BufferGeometry();
-        const pPositions = new Float32Array(PARTICLE_COUNT * 3);
-        const pColors = new Float32Array(PARTICLE_COUNT * 3);
-        const pLifes = new Float32Array(PARTICLE_COUNT);
-        const pMaxLifes = new Float32Array(PARTICLE_COUNT);
-        const pVelocities = new Float32Array(PARTICLE_COUNT * 3);
+        // --- 5. 화염 파티클 시스템 ---
+        const PARTICLE_COUNT = 450;
+        const pGeo = new THREE.BufferGeometry();
+        const pPos = new Float32Array(PARTICLE_COUNT * 3);
+        const pCol = new Float32Array(PARTICLE_COUNT * 3);
+        const pLife = new Float32Array(PARTICLE_COUNT);
+        const pMaxLife = new Float32Array(PARTICLE_COUNT);
+        const pVel = new Float32Array(PARTICLE_COUNT * 3);
 
         for (let i = 0; i < PARTICLE_COUNT; i++) {
-            pPositions[i * 3 + 1] = -100;
-            pLifes[i] = 1.0;
+            pPos[i * 3 + 1] = -100;
+            pLife[i] = 1.0;
         }
 
-        particleGeo.setAttribute('position', new THREE.BufferAttribute(pPositions, 3));
-        particleGeo.setAttribute('color', new THREE.BufferAttribute(pColors, 3));
+        pGeo.setAttribute('position', new THREE.BufferAttribute(pPos, 3));
+        pGeo.setAttribute('color', new THREE.BufferAttribute(pCol, 3));
 
-        const particleMat = new THREE.PointsMaterial({
-            size: 0.13,
+        const pMat = new THREE.PointsMaterial({
+            size: 0.12,
             vertexColors: true,
             transparent: true,
             opacity: 0.85,
@@ -324,10 +332,10 @@
             depthWrite: false
         });
 
-        const fireParticles = new THREE.Points(particleGeo, particleMat);
+        const fireParticles = new THREE.Points(pGeo, pMat);
         scene.add(fireParticles);
 
-        // --- 터치 입력 -> 지점 조준(커서 배치) 처리 ---
+        // --- 6. 터치 조준 및 발화 로직 ---
         const raycaster = new THREE.Raycaster();
         const mouse = new THREE.Vector2();
         let touchStartX = 0, touchStartY = 0;
@@ -343,8 +351,6 @@
             if (e.changedTouches.length === 1) {
                 const deltaX = Math.abs(e.changedTouches[0].clientX - touchStartX);
                 const deltaY = Math.abs(e.changedTouches[0].clientY - touchStartY);
-
-                // 단순 탭 동작일 때만 표면 타깃 지정
                 if (deltaX < 12 && deltaY < 12) {
                     mouse.x = (e.changedTouches[0].clientX / window.innerWidth) * 2 - 1;
                     mouse.y = -(e.changedTouches[0].clientY / window.innerHeight) * 2 + 1;
@@ -353,22 +359,11 @@
             }
         });
 
-        // PC 마우스 클릭 대응
-        window.addEventListener('mousedown', (e) => {
-            if (e.target.tagName === 'BUTTON') return;
-            touchStartX = e.clientX;
-            touchStartY = e.clientY;
-        });
-
         window.addEventListener('mouseup', (e) => {
             if (e.target.tagName === 'BUTTON') return;
-            const deltaX = Math.abs(e.clientX - touchStartX);
-            const deltaY = Math.abs(e.clientY - touchStartY);
-            if (deltaX < 6 && deltaY < 6) {
-                mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
-                mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
-                selectTargetPoint();
-            }
+            mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+            selectTargetPoint();
         });
 
         function selectTargetPoint() {
@@ -376,188 +371,192 @@
             const intersects = raycaster.intersectObject(woodBlock);
             if (intersects.length > 0) {
                 const hit = intersects[0];
-                selectedUV = hit.uv;
+                selectedLocalPoint = woodBlock.worldToLocal(hit.point.clone());
 
-                // 조준 링 커서를 표면에 밀착 배치
                 targetCursor.position.copy(hit.point).add(hit.face.normal.clone().multiplyScalar(0.005));
                 targetCursor.lookAt(hit.point.clone().add(hit.face.normal));
                 targetCursor.visible = true;
 
-                // FIRE 버튼 활성화
                 fireBtn.classList.add('ready');
-                statusPill.innerText = "조준 완료! 'FIRE' 버튼을 누르세요 🎯";
+                statusPill.innerText = "조준 완료! FIRE를 누르면 이 지점만 발화합니다 🎯";
                 statusPill.style.color = "#00ffaa";
             }
         }
 
-        // FIRE 버튼 클릭 시 점화 실행
         function triggerIgnition() {
-            if (!selectedUV) return;
+            if (!selectedLocalPoint) return;
 
-            const cx = Math.floor(selectedUV.x * SIM_SIZE);
-            const cy = Math.floor(selectedUV.y * SIM_SIZE);
-            const radius = 10;
+            // 3D 유클리드 거리 기준으로 선택 지점 주변만 정확히 점화 (다른 면에 절대 안 튐)
+            const IGNITE_RADIUS = 0.12;
+            const IGNITE_RADIUS_SQ = IGNITE_RADIUS * IGNITE_RADIUS;
 
-            for (let y = -radius; y <= radius; y++) {
-                for (let x = -radius; x <= radius; x++) {
-                    const px = cx + x;
-                    const py = cy + y;
-                    if (px >= 0 && px < SIM_SIZE && py >= 0 && py < SIM_SIZE) {
-                        if (x * x + y * y <= radius * radius) {
-                            tempGrid[py * SIM_SIZE + px] = 1.0;
-                        }
-                    }
+            for (let i = 0; i < vertexCount; i++) {
+                const dx = posAttr.getX(i) - selectedLocalPoint.x;
+                const dy = posAttr.getY(i) - selectedLocalPoint.y;
+                const dz = posAttr.getZ(i) - selectedLocalPoint.z;
+                if (dx * dx + dy * dy + dz * dz <= IGNITE_RADIUS_SQ) {
+                    tempArr[i] = 1.0;
                 }
             }
 
-            isBurning = true;
             statusPill.innerText = "상태: 연소 진행 중 🔥";
             statusPill.style.color = "#ff4422";
-
-            // 발화 후 커서 숨김
             targetCursor.visible = false;
-            selectedUV = null;
+            selectedLocalPoint = null;
             fireBtn.classList.remove('ready');
         }
 
-        // --- 연소 물리 연산 ---
-        const DIFFUSION = 0.16;
-        const BURN_RATE = 0.0035;
-        const COOLING = 0.0016;
-        const IGNITION_TEMP = 0.32;
+        // --- 7. 3차원 물리 연소 스텝 루프 ---
+        const DIFFUSION = 0.08;
+        const BURN_RATE = 0.0028;
+        const COOLING = 0.0014;
+        const IGNITION_TEMP = 0.35;
 
-        function stepCombustion() {
+        function stepPhysicalCombustion() {
             let activeFlames = 0;
+            let burningVertices = [];
             let totalTemp = 0;
-            let flameCenterX = 0, flameCenterY = 0, flameCount = 0;
 
-            const imgData = simCtx.createImageData(SIM_SIZE, SIM_SIZE);
-            const data = imgData.data;
+            for (let i = 0; i < vertexCount; i++) {
+                let temp = tempArr[i];
+                let fuel = fuelArr[i];
+                let ch = charArr[i];
 
-            for (let y = 1; y < SIM_SIZE - 1; y++) {
-                const row = y * SIM_SIZE;
-                for (let x = 1; x < SIM_SIZE - 1; x++) {
-                    const idx = row + x;
-                    let temp = tempGrid[idx];
-                    let fuel = fuelGrid[idx];
-                    let ch = charGrid[idx];
-
-                    const lap = (tempGrid[idx - 1] + tempGrid[idx + 1] + tempGrid[idx - SIM_SIZE] + tempGrid[idx + SIM_SIZE]) - (4.0 * temp);
-                    temp += lap * DIFFUSION;
-
-                    if (temp > IGNITION_TEMP && fuel > 0.001) {
-                        const reaction = Math.min(fuel, BURN_RATE);
-                        fuel -= reaction;
-                        temp += reaction * 1.8;
-                        ch = Math.min(1.0, ch + reaction * 2.5);
-                        activeFlames++;
-
-                        flameCenterX += (x / SIM_SIZE - 0.5) * 1.6;
-                        flameCenterY += (y / SIM_SIZE - 0.5) * 0.5;
-                        flameCount++;
-                    }
-
-                    temp = Math.max(0.0, temp - COOLING);
-
-                    nextTempGrid[idx] = temp;
-                    fuelGrid[idx] = fuel;
-                    charGrid[idx] = ch;
-                    totalTemp += temp;
-
-                    const pIdx = idx * 4;
-                    data[pIdx]     = Math.floor(Math.min(temp, 1.0) * 255);
-                    data[pIdx + 1] = Math.floor(fuel * 255);
-                    data[pIdx + 2] = Math.floor((temp > IGNITION_TEMP ? fuel : 0) * 255);
-                    data[pIdx + 3] = Math.floor(ch * 255);
+                // 3D 이웃 정점들과의 열 전도 확산
+                const nList = neighbors[i];
+                let nTempSum = 0;
+                for (let k = 0; k < nList.length; k++) {
+                    nTempSum += tempArr[nList[k]];
                 }
+                if (nList.length > 0) {
+                    let avgTemp = nTempSum / nList.length;
+                    temp += (avgTemp - temp) * DIFFUSION;
+                }
+
+                // 표면 연소 반응
+                if (temp > IGNITION_TEMP && fuel > 0.001) {
+                    const reaction = Math.min(fuel, BURN_RATE);
+                    fuel -= reaction;
+                    temp += reaction * 1.6; // 발열
+                    ch = Math.min(1.0, ch + reaction * 2.2); // 탄화
+                    activeFlames++;
+                    burningVertices.push(i);
+                }
+
+                // 대기 냉각
+                temp = Math.max(0.0, temp - COOLING);
+
+                nextTempArr[i] = temp;
+                fuelArr[i] = fuel;
+                charArr[i] = ch;
+                totalTemp += temp;
+
+                // 버텍스 셰이더 어트리뷰트 업데이트
+                burnAttrData[i * 3]     = temp;
+                burnAttrData[i * 3 + 1] = fuel;
+                burnAttrData[i * 3 + 2] = ch;
             }
 
-            let swap = tempGrid;
-            tempGrid = nextTempGrid;
-            nextTempGrid = swap;
+            // 배열 스왑
+            for (let i = 0; i < vertexCount; i++) {
+                tempArr[i] = nextTempArr[i];
+            }
+            burnAttribute.needsUpdate = true;
 
-            simCtx.putImageData(imgData, 0, 0);
-            simTexture.needsUpdate = true;
+            // 광원 및 파티클 연동
+            if (burningVertices.length > 0) {
+                // 연소 지점 중심 좌표 산출
+                let cx = 0, cy = 0, cz = 0;
+                for (let k = 0; k < burningVertices.length; k++) {
+                    const vIdx = burningVertices[k];
+                    cx += posAttr.getX(vIdx);
+                    cy += posAttr.getY(vIdx);
+                    cz += posAttr.getZ(vIdx);
+                }
+                const count = burningVertices.length;
+                const localCenter = new THREE.Vector3(cx / count, cy / count + 0.15, cz / count);
+                const worldCenter = woodBlock.localToWorld(localCenter);
 
-            if (flameCount > 0) {
-                firePointLight.intensity = THREE.MathUtils.lerp(firePointLight.intensity, Math.min(flameCount * 0.02, 3.5), 0.1);
-                firePointLight.position.set(flameCenterX / flameCount, flameCenterY / flameCount + 0.3, 0);
-                spawnFireParticles(flameCount);
+                firePointLight.intensity = THREE.MathUtils.lerp(firePointLight.intensity, Math.min(count * 0.04, 3.5), 0.1);
+                firePointLight.position.copy(worldCenter);
+
+                spawnParticlesAtBurnPoints(burningVertices);
             } else {
                 firePointLight.intensity = THREE.MathUtils.lerp(firePointLight.intensity, 0, 0.05);
             }
 
-            if (isBurning && activeFlames === 0 && totalTemp < 8.0) {
-                isBurning = false;
+            // 전소 완료 판정
+            if (activeFlames === 0 && totalTemp < 3.0 && statusPill.innerText.includes("연소")) {
                 statusPill.innerText = "상태: 완전 연소 후 불 꺼짐 💨";
                 statusPill.style.color = "#888899";
             }
         }
 
-        function spawnFireParticles(intensity) {
-            const count = Math.min(Math.floor(intensity * 0.4), 8);
-            for (let i = 0; i < count; i++) {
-                const pIdx = Math.floor(Math.random() * PARTICLE_COUNT);
-                if (pLifes[pIdx] >= 1.0) {
-                    pLifes[pIdx] = 0.0;
-                    pMaxLifes[pIdx] = 0.6 + Math.random() * 0.4;
-                    
-                    pPositions[pIdx * 3]     = firePointLight.position.x + (Math.random() - 0.5) * 0.35;
-                    pPositions[pIdx * 3 + 1] = firePointLight.position.y - 0.1;
-                    pPositions[pIdx * 3 + 2] = (Math.random() - 0.5) * 0.3;
+        // 실제 불타는 정점 위치에서 불꽃 파티클 방출
+        function spawnParticlesAtBurnPoints(burningIndices) {
+            const count = Math.min(Math.floor(burningIndices.length * 0.35), 6);
+            for (let k = 0; k < count; k++) {
+                const randVIdx = burningIndices[Math.floor(Math.random() * burningIndices.length)];
+                const localPos = new THREE.Vector3(posAttr.getX(randVIdx), posAttr.getY(randVIdx), posAttr.getZ(randVIdx));
+                const worldPos = woodBlock.localToWorld(localPos);
 
-                    pVelocities[pIdx * 3]     = (Math.random() - 0.5) * 0.25;
-                    pVelocities[pIdx * 3 + 1] = 0.8 + Math.random() * 0.7;
-                    pVelocities[pIdx * 3 + 2] = (Math.random() - 0.5) * 0.25;
+                const pIdx = Math.floor(Math.random() * PARTICLE_COUNT);
+                if (pLife[pIdx] >= 1.0) {
+                    pLife[pIdx] = 0.0;
+                    pMaxLife[pIdx] = 0.5 + Math.random() * 0.4;
+
+                    pPos[pIdx * 3]     = worldPos.x + (Math.random() - 0.5) * 0.08;
+                    pPos[pIdx * 3 + 1] = worldPos.y + 0.02;
+                    pPos[pIdx * 3 + 2] = worldPos.z + (Math.random() - 0.5) * 0.08;
+
+                    pVel[pIdx * 3]     = (Math.random() - 0.5) * 0.2;
+                    pVel[pIdx * 3 + 1] = 0.7 + Math.random() * 0.6;
+                    pVel[pIdx * 3 + 2] = (Math.random() - 0.5) * 0.2;
                 }
             }
         }
 
         function updateParticles(dt) {
             for (let i = 0; i < PARTICLE_COUNT; i++) {
-                if (pLifes[i] < 1.0) {
-                    pLifes[i] += dt / pMaxLifes[i];
-                    
-                    pPositions[i * 3]     += pVelocities[i * 3] * dt;
-                    pPositions[i * 3 + 1] += pVelocities[i * 3 + 1] * dt;
-                    pPositions[i * 3 + 2] += pVelocities[i * 3 + 2] * dt;
+                if (pLife[i] < 1.0) {
+                    pLife[i] += dt / pMaxLife[i];
+                    pPos[i * 3]     += pVel[i * 3] * dt;
+                    pPos[i * 3 + 1] += pVel[i * 3 + 1] * dt;
+                    pPos[i * 3 + 2] += pVel[i * 3 + 2] * dt;
 
-                    const life = pLifes[i];
-                    if (life < 0.4) {
-                        pColors[i * 3] = 1.0; pColors[i * 3 + 1] = 0.85; pColors[i * 3 + 2] = 0.1;
-                    } else if (life < 0.7) {
-                        pColors[i * 3] = 0.9; pColors[i * 3 + 1] = 0.25; pColors[i * 3 + 2] = 0.02;
+                    const l = pLife[i];
+                    if (l < 0.35) {
+                        pCol[i * 3] = 1.0; pCol[i * 3 + 1] = 0.85; pCol[i * 3 + 2] = 0.1;
+                    } else if (l < 0.7) {
+                        pCol[i * 3] = 0.95; pCol[i * 3 + 1] = 0.3; pCol[i * 3 + 2] = 0.02;
                     } else {
-                        pColors[i * 3] = 0.12; pColors[i * 3 + 1] = 0.12; pColors[i * 3 + 2] = 0.12;
+                        pCol[i * 3] = 0.15; pCol[i * 3 + 1] = 0.15; pCol[i * 3 + 2] = 0.15;
                     }
                 } else {
-                    pPositions[i * 3 + 1] = -100;
+                    pPos[i * 3 + 1] = -100;
                 }
             }
-            particleGeo.attributes.position.needsUpdate = true;
-            particleGeo.attributes.color.needsUpdate = true;
+            pGeo.attributes.position.needsUpdate = true;
+            pGeo.attributes.color.needsUpdate = true;
         }
 
         function resetBlock() {
-            initSimulationData();
-            simTexture.needsUpdate = true;
+            initSimulation();
         }
 
-        // 조준 링 펄스 애니메이션용 시간 변수
         let cursorTime = 0;
         const clock = new THREE.Clock();
         function animate() {
             requestAnimationFrame(animate);
             const dt = clock.getDelta();
 
-            // 조준 링 반짝임 효과
             if (targetCursor.visible) {
-                cursorTime += dt * 5.0;
+                cursorTime += dt * 6.0;
                 const scale = 1.0 + Math.sin(cursorTime) * 0.12;
                 targetCursor.scale.set(scale, scale, 1.0);
             }
 
-            stepCombustion();
+            stepPhysicalCombustion();
             updateParticles(dt);
             controls.update();
             renderer.render(scene, camera);

@@ -1,541 +1,679 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>나무토막 연소 시뮬레이터</title>
-    <style>
-        body, html {
-            margin: 0;
-            padding: 0;
-            overflow: hidden;
-            background-color: #050507;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            touch-action: none;
-            user-select: none;
-            -webkit-user-select: none;
-        }
-        #canvas-container {
-            width: 100vw;
-            height: 100vh;
-            display: block;
-        }
-        #ui-overlay {
-            position: absolute;
-            top: 12px;
-            left: 12px;
-            right: 12px;
-            pointer-events: none;
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-        }
-        .info-card {
-            background: rgba(16, 16, 22, 0.92);
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.15);
-            color: #f0f0f0;
-            padding: 12px 16px;
-            border-radius: 12px;
-            font-size: 13px;
-            line-height: 1.5;
-            box-shadow: 0 6px 25px rgba(0, 0, 0, 0.7);
-        }
-        .btn-reset {
-            pointer-events: auto;
-            background: #252530;
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            color: #fff;
-            padding: 10px 16px;
-            border-radius: 10px;
-            font-size: 13px;
-            font-weight: 600;
-            cursor: pointer;
-        }
-        .btn-reset:active { background: #404050; }
-        #status-pill {
-            margin-top: 6px;
-            font-weight: bold;
-            color: #ffaa44;
-        }
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <title>Pokémon Arkanoid 3D FX - Space & Live YouTube</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: none;
+    }
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden;
+      background-color: #04020a;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-family: 'Courier New', Courier, monospace;
+    }
 
-        #bottom-bar {
-            position: absolute;
-            bottom: 28px;
-            left: 0;
-            width: 100%;
-            display: flex;
-            justify-content: center;
-            pointer-events: none;
-        }
-        .btn-fire {
-            pointer-events: auto;
-            background: linear-gradient(135deg, #ff4500, #cc1100);
-            border: 2px solid #ff7744;
-            color: #ffffff;
-            padding: 15px 45px;
-            border-radius: 35px;
-            font-size: 16px;
-            font-weight: 800;
-            letter-spacing: 1px;
-            box-shadow: 0 6px 28px rgba(255, 69, 0, 0.65);
-            cursor: pointer;
-            transform: scale(1.0);
-            transition: transform 0.15s ease;
-        }
-        .btn-fire:active {
-            transform: scale(0.94);
-        }
-    </style>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    /* 🌟 우주공간 배경 (유튜브 영역 바깥쪽) */
+    .space-stars {
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(ellipse at center, #110924 0%, #030108 100%);
+      overflow: hidden;
+      z-index: 0;
+    }
+    .star {
+      position: absolute;
+      border-radius: 50%;
+      background: #ffffff;
+      animation: twinkle linear infinite;
+    }
+    @keyframes twinkle {
+      0%, 100% { opacity: 0.3; transform: scale(0.8); }
+      50% { opacity: 1.0; transform: scale(1.3); }
+    }
+
+    /* 게임 컨테이너 (스마트폰 세로 비율) */
+    #gameContainer {
+      position: relative;
+      background-color: #000;
+      box-shadow: 0 0 35px rgba(255, 105, 180, 0.4);
+      overflow: hidden;
+      z-index: 2;
+      border: 3px solid rgba(255, 192, 203, 0.4);
+      border-radius: 12px;
+    }
+
+    /* 🌟 유튜브 영상 영역 (게임 배경 좌우 폭에 정확히 맞춤) */
+    #ytPlayerWrapper {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: #000;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      overflow: hidden;
+      z-index: 1;
+      pointer-events: none;
+    }
+    #ytBox {
+      position: relative;
+      width: 100%;
+      height: 100%;
+    }
+    #ytBox iframe, #ytPlayer {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 177.77vh; /* 16:9 비율 유지 */
+      min-width: 100%;
+      height: 100%;
+      transform: translate(-50%, -50%);
+      pointer-events: none;
+      filter: brightness(0.65) contrast(1.1);
+    }
+
+    /* 캔버스 게임 레이어 */
+    #gameCanvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 2;
+      background: transparent;
+      cursor: none; /* 마우스 커서 숨김 */
+    }
+
+    /* 오버레이 UI */
+    .overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(10, 5, 20, 0.85);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      color: #fff;
+      z-index: 10;
+      backdrop-filter: blur(4px);
+    }
+    .btn {
+      margin-top: 18px;
+      padding: 14px 32px;
+      font-size: 18px;
+      font-weight: bold;
+      background: linear-gradient(45deg, #ff4081, #ff80ab);
+      color: #fff;
+      border: none;
+      border-radius: 25px;
+      cursor: pointer;
+      box-shadow: 0 4px 15px rgba(255, 64, 129, 0.5);
+    }
+  </style>
+  <script src="https://www.youtube.com/iframe_api"></script>
 </head>
 <body>
 
-    <div id="ui-overlay">
-        <div class="info-card">
-            <div>🪵 <b>화염 연소 시뮬레이터</b></div>
-            <div>• 화면 드래그: 카메라 360도 회전</div>
-            <div>• 나무 표면 터치: <b>발화 시작점 지정</b></div>
-            <div>• FIRE 버튼: <b>불 붙이기 (즉시 확산)</b></div>
-            <div id="status-pill">상태: 나무를 터치하거나 FIRE를 누르세요</div>
-        </div>
-        <button class="btn-reset" onclick="resetSimulation()">새 나무로 리셋</button>
+  <!-- 우주 공간 별무리 효과 -->
+  <div class="space-stars" id="starField"></div>
+
+  <div id="gameContainer">
+    <!-- 유튜브 라이브 비디오 레이어 -->
+    <div id="ytPlayerWrapper">
+      <div id="ytBox">
+        <div id="ytPlayer"></div>
+      </div>
     </div>
+    <!-- 2D/3D 스타일 게임 렌더링 캔버스 -->
+    <canvas id="gameCanvas"></canvas>
+  </div>
 
-    <div id="bottom-bar">
-        <button id="fire-btn" class="btn-fire" onclick="triggerIgnition()">🔥 FIRE (불 붙이기)</button>
-    </div>
+  <!-- 시작 화면 -->
+  <div class="overlay" id="startOverlay">
+    <h1 style="color: #ff69b4; margin-bottom: 6px; text-shadow: 0 0 10px #ff1493;">POKÉMON ARKANOID</h1>
+    <p style="color: #ffd700; font-size: 14px; margin-bottom: 4px;">★ 블링블링 라이브 에디션 ★</p>
+    <p style="color: #bbb; font-size: 12px;">ESC 키: 즉시 종료 | [M] 3개 분열 [G] 3배 거대 [I] 무적 관통</p>
+    <button class="btn" onclick="startGame()">게임 시작</button>
+  </div>
 
-    <div id="canvas-container"></div>
+  <!-- 게임 오버 / 클리어 화면 -->
+  <div class="overlay" id="gameOverOverlay" style="display: none;">
+    <h1 id="overTitle" style="color: #ff4081;">GAME OVER</h1>
+    <p id="finalScore" style="font-size: 16px;">SCORE: 0</p>
+    <button class="btn" id="overBtn" onclick="restartGame()">다시하기</button>
+  </div>
 
-    <script>
-        const container = document.getElementById('canvas-container');
-        const statusPill = document.getElementById('status-pill');
-        const fireBtn = document.getElementById('fire-btn');
+  <script>
+    // --- 1. 우주 배경 별 파티클 동적 생성 ---
+    const starField = document.getElementById('starField');
+    for (let i = 0; i < 70; i++) {
+      const star = document.createElement('div');
+      star.className = 'star';
+      const size = Math.random() * 2.5 + 1.2;
+      star.style.width = `${size}px`;
+      star.style.height = `${size}px`;
+      star.style.left = `${Math.random() * 100}vw`;
+      star.style.top = `${Math.random() * 100}vh`;
+      star.style.animationDuration = `${Math.random() * 3 + 2}s`;
+      starField.appendChild(star);
+    }
 
-        // --- 1. 3D 씬 및 카메라 ---
-        const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x060608);
+    // --- 2. 유튜브 라이브 플레이어 (김PD님 요청 영상 ID 탑재) ---
+    let ytPlayer = null;
+    // 요청하신 실시간 라이브 영상 ID: jzx_n25g3kA
+    const TARGET_VIDEO_ID = 'jzx_n25g3kA';
 
-        const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
-        camera.position.set(0, 1.8, 3.2);
+    function onYouTubeIframeAPIReady() {
+      ytPlayer = new YT.Player('ytPlayer', {
+        videoId: TARGET_VIDEO_ID,
+        playerVars: {
+          autoplay: 1,
+          mute: 1,
+          controls: 0,
+          disablekb: 1,
+          fs: 0,
+          rel: 0,
+          modestbranding: 1,
+          playsinline: 1,
+          loop: 1,
+          playlist: TARGET_VIDEO_ID
+        },
+        events: {
+          onReady: (e) => {
+            e.target.mute();
+            e.target.playVideo();
+          }
+        }
+      });
+    }
 
-        const renderer = new THREE.WebGLRenderer({ antialias: true });
-        renderer.setSize(window.innerWidth, window.innerHeight);
-        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-        renderer.toneMapping = THREE.ACESFilmicToneMapping;
-        renderer.toneMappingExposure = 1.3;
-        container.appendChild(renderer.domElement);
+    function activateAudio() {
+      if (ytPlayer && ytPlayer.playVideo) {
+        ytPlayer.unMute();
+        ytPlayer.setVolume(50);
+        ytPlayer.playVideo();
+      }
+    }
 
-        const controls = new THREE.OrbitControls(camera, renderer.domElement);
-        controls.enableDamping = true;
-        controls.dampingFactor = 0.06;
-        controls.minDistance = 1.1;
-        controls.maxDistance = 6.0;
+    // --- 3. 부드러운 마림바/실로폰 Web Audio FX 엔진 ---
+    let audioCtx = null;
+    function initAudio() {
+      if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      }
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+    }
 
-        // 조명
-        const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
-        scene.add(ambientLight);
+    function playMarimbaTone(freq, duration = 0.25, vol = 0.25) {
+      if (!audioCtx) return;
+      try {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        const now = audioCtx.currentTime;
 
-        const dirLight = new THREE.DirectionalLight(0xffeedd, 0.6);
-        dirLight.position.set(3, 5, 4);
-        scene.add(dirLight);
+        osc.type = 'sine'; // 귀를 찌르지 않는 포근한 사인파
+        osc.frequency.setValueAtTime(freq, now);
 
-        const firePointLight = new THREE.PointLight(0xff4500, 0, 6.0, 1.8);
-        scene.add(firePointLight);
+        gain.gain.setValueAtTime(vol, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
 
-        const floorGeo = new THREE.PlaneGeometry(12, 12);
-        const floorMat = new THREE.MeshStandardMaterial({ color: 0x0e0e11, roughness: 0.95 });
-        const floor = new THREE.Mesh(floorGeo, floorMat);
-        floor.rotation.x = -Math.PI / 2;
-        floor.position.y = -0.55;
-        scene.add(floor);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start(now);
+        osc.stop(now + duration);
+      } catch (e) {}
+    }
 
-        // --- 2. 조준 링 커서 ---
-        const cursorGeo = new THREE.RingGeometry(0.04, 0.07, 32);
-        const cursorMat = new THREE.MeshBasicMaterial({
-            color: 0xff3300,
-            side: THREE.DoubleSide,
-            transparent: true,
-            opacity: 0.95,
-            depthTest: false
+    const sound = {
+      paddle: () => playMarimbaTone(220, 0.15, 0.35),
+      wall: () => playMarimbaTone(440, 0.08, 0.18),
+      combo: (c) => {
+        const scale = [261.63, 293.66, 329.63, 392.00, 440.00, 523.25, 587.33, 659.25, 783.99, 880.00];
+        const f = scale[Math.min(c - 1, scale.length - 1)];
+        playMarimbaTone(f, 0.28, 0.3);
+      },
+      glassBreak: () => {
+        [523, 659, 784, 1046].forEach((f, i) => {
+          setTimeout(() => playMarimbaTone(f, 0.3, 0.25), i * 40);
         });
-        const targetCursor = new THREE.Mesh(cursorGeo, cursorMat);
-        targetCursor.visible = false;
-        targetCursor.renderOrder = 999;
-        scene.add(targetCursor);
-
-        let selectedLocalPoint = null;
-
-        // --- 3. 나무 모델 및 커스텀 셰이더 ---
-        const woodGeo = new THREE.BoxGeometry(1.6, 0.5, 0.5, 40, 16, 16);
-        const posAttr = woodGeo.attributes.position;
-        const vertexCount = posAttr.count;
-
-        // 버텍스 어트리뷰트 (x: 연소진행도 0~1, y: 현재 불꽃세기 0~1)
-        const burnAttrData = new Float32Array(vertexCount * 3);
-        const burnAttribute = new THREE.BufferAttribute(burnAttrData, 3);
-        woodGeo.setAttribute('aBurn', burnAttribute);
-
-        const woodMaterial = new THREE.ShaderMaterial({
-            vertexShader: `
-                precision highp float;
-                attribute vec3 aBurn; // x: progress (0:원목 ~ 1:재), y: flame (0~1)
-                varying vec3 vBurn;
-                varying vec3 vPosition;
-                varying vec3 vNormal;
-
-                void main() {
-                    vBurn = aBurn;
-                    vNormal = normalize(normalMatrix * normal);
-                    vPosition = position;
-
-                    // 연소 진행에 따라 표면이 얇게 깎여나감 (최대 2.5cm)
-                    vec3 displacedPos = position - normal * (aBurn.x * 0.025);
-                    gl_Position = projectionMatrix * modelViewMatrix * vec4(displacedPos, 1.0);
-                }
-            `,
-            fragmentShader: `
-                precision highp float;
-                varying vec3 vBurn;
-                varying vec3 vPosition;
-                varying vec3 vNormal;
-
-                float hash(vec3 p) {
-                    p = fract(p * 0.3183099 + 0.1);
-                    p *= 17.0;
-                    return fract(p.x * p.y * p.z * (p.x + p.y + p.z));
-                }
-                float noise(vec3 x) {
-                    vec3 i = floor(x);
-                    vec3 f = fract(x);
-                    f = f * f * (3.0 - 2.0 * f);
-                    return mix(mix(mix(hash(i + vec3(0,0,0)), hash(i + vec3(1,0,0)), f.x),
-                                   mix(hash(i + vec3(0,1,0)), hash(i + vec3(1,1,0)), f.x), f.y),
-                               mix(mix(hash(i + vec3(0,0,1)), hash(i + vec3(1,0,1)), f.x),
-                                   mix(hash(i + vec3(0,1,1)), hash(i + vec3(1,1,1)), f.x), f.y), f.z);
-                }
-
-                void main() {
-                    float progress = vBurn.x; // 0 (원목) -> 1 (완전소진)
-                    float flame = vBurn.y;    // 활성 화염 세기
-
-                    // 1. 나뭇결 알베도
-                    float grain = noise(vPosition * vec3(2.5, 18.0, 18.0));
-                    vec3 woodLight = vec3(0.55, 0.36, 0.20);
-                    vec3 woodDark  = vec3(0.28, 0.16, 0.08);
-                    vec3 woodCol = mix(woodDark, woodLight, grain);
-
-                    // 2. 검은 숯 변색
-                    float crack = noise(vPosition * 35.0);
-                    vec3 charCol = vec3(0.04, 0.04, 0.04);
-                    vec3 surfaceCol = mix(woodCol, charCol, smoothstep(0.05, 0.45, progress));
-
-                    // 3. 붉은 잉걸불(Glow) - 숯 틈새에서 이글거리는 불씨
-                    float emberIntensity = smoothstep(0.1, 0.75, progress) * (1.0 - smoothstep(0.7, 0.98, progress));
-                    vec3 emberCol = vec3(3.2, 0.4, 0.02) * emberIntensity * (crack * 0.6 + 0.5);
-
-                    // 4. 활활 타오르는 화염 림 (Wavefront)
-                    vec3 activeFlameCol = vec3(4.5, 1.4, 0.1) * pow(flame, 1.4);
-
-                    vec3 lightDir = normalize(vec3(1.0, 2.0, 1.5));
-                    float diff = max(dot(vNormal, lightDir), 0.2);
-
-                    gl_FragColor = vec4(surfaceCol * diff + emberCol + activeFlameCol, 1.0);
-                }
-            `
+      },
+      item: () => {
+        [392, 523, 659, 784].forEach((f, i) => {
+          setTimeout(() => playMarimbaTone(f, 0.25, 0.3), i * 60);
         });
+      }
+    };
 
-        const woodBlock = new THREE.Mesh(woodGeo, woodMaterial);
-        scene.add(woodBlock);
+    // --- 4. 게임 엔진 & 캔버스 세팅 (갤럭시 S25 울트라 세로 비율) ---
+    const container = document.getElementById('gameContainer');
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    const startOverlay = document.getElementById('startOverlay');
+    const gameOverOverlay = document.getElementById('gameOverOverlay');
+    const overTitle = document.getElementById('overTitle');
+    const finalScore = document.getElementById('finalScore');
+    const overBtn = document.getElementById('overBtn');
 
-        // --- 4. 화염 & 불티 파티클 시스템 ---
-        const PARTICLE_COUNT = 900;
-        const pGeo = new THREE.BufferGeometry();
-        const pPos = new Float32Array(PARTICLE_COUNT * 3);
-        const pCol = new Float32Array(PARTICLE_COUNT * 3);
-        const pLife = new Float32Array(PARTICLE_COUNT);
-        const pMaxLife = new Float32Array(PARTICLE_COUNT);
-        const pVel = new Float32Array(PARTICLE_COUNT * 3);
+    const GAME_W = 360;
+    const GAME_H = 640;
 
-        for (let i = 0; i < PARTICLE_COUNT; i++) {
-            pPos[i * 3 + 1] = -100;
-            pLife[i] = 1.0;
+    function resizeContainer() {
+      const scale = Math.min((window.innerWidth * 0.94) / GAME_W, (window.innerHeight * 0.94) / GAME_H);
+      const w = Math.floor(GAME_W * scale);
+      const h = Math.floor(GAME_H * scale);
+
+      container.style.width = `${w}px`;
+      container.style.height = `${h}px`;
+      canvas.width = GAME_W * scale;
+      canvas.height = GAME_H * scale;
+    }
+    window.addEventListener('resize', resizeContainer);
+    resizeContainer();
+
+    // ESC 키 입력 시 게임 종료
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        isPlaying = false;
+        gameOver();
+      }
+    });
+
+    let score = 0;
+    let lives = 3;
+    let currentStage = 1;
+    let isPlaying = false;
+    let frameCount = 0;
+    let comboStreak = 0;
+
+    // 🌟 스마트폰 터치 시 손가락에 가리지 않도록 상향 조정된 패들 위치 (하단에서 140px 위)
+    const PADDLE_DEFAULT_W = 74;
+    const paddle = {
+      w: PADDLE_DEFAULT_W,
+      h: 14,
+      x: GAME_W / 2 - 37,
+      baseY: GAME_H - 140,
+      recoilY: 0
+    };
+
+    let balls = [];
+    let particles = [];
+    let items = [];
+    let activeBuffs = {
+      giantTimer: 0,
+      invincibleTimer: 0
+    };
+
+    const BRICK_COLS = 9;
+    const BRICK_W = 34;
+    const BRICK_H = 15;
+    const BRICK_TOP = 75;
+    const BRICK_LEFT = (GAME_W - (BRICK_COLS * BRICK_W)) / 2;
+    let bricks = [];
+
+    // 포켓몬 블록 정의
+    const POKEMON_DEFS = {
+      1: { name: 'PIKACHU', color: '#ffe135', border: '#ff3b30' },
+      2: { name: 'EEVEE', color: '#c68e59', border: '#8b5a2b' },
+      3: { name: 'CHARMANDER', color: '#ff7846', border: '#d32f2f' },
+      4: { name: 'SQUIRTLE', color: '#87cefa', border: '#1976d2' },
+      5: { name: 'BULBASAUR', color: '#73d2af', border: '#388e3c' },
+      6: { name: 'JIGGLYPUFF', color: '#ffb6c1', border: '#e91e63' },
+      9: { name: 'CRYSTAL', color: '#e0f7fa', border: '#ffffff', isGlass: true }
+    };
+
+    function loadStage(stageNum) {
+      bricks = [];
+      const pattern = [
+        [1,1,1,1,9,1,1,1,1],
+        [2,2,2,2,2,2,2,2,2],
+        [3,3,9,3,3,3,9,3,3],
+        [4,4,4,4,4,4,4,4,4],
+        [5,5,5,5,5,5,5,5,5],
+        [6,6,9,6,6,6,9,6,6]
+      ];
+
+      for (let r = 0; r < pattern.length; r++) {
+        for (let c = 0; c < BRICK_COLS; c++) {
+          const typeId = pattern[r][c];
+          const def = POKEMON_DEFS[typeId];
+          bricks.push({
+            x: BRICK_LEFT + c * BRICK_W,
+            y: BRICK_TOP + r * (BRICK_H + 3),
+            w: BRICK_W - 2,
+            h: BRICK_H,
+            hp: def.isGlass ? 2 : 1,
+            maxHp: def.isGlass ? 2 : 1,
+            def: def,
+            phase: c * 0.4 + r * 0.3
+          });
+        }
+      }
+    }
+
+    function createBall(x, y, dx, dy) {
+      return { x, y, dx, dy, baseR: 4.5 };
+    }
+
+    function startGame() {
+      initAudio();
+      activateAudio();
+
+      score = 0;
+      lives = 3;
+      currentStage = 1;
+      comboStreak = 0;
+      items = [];
+      particles = [];
+      activeBuffs.giantTimer = 0;
+      activeBuffs.invincibleTimer = 0;
+
+      paddle.w = PADDLE_DEFAULT_W;
+      paddle.x = GAME_W / 2 - paddle.w / 2;
+      paddle.recoilY = 0;
+
+      loadStage(currentStage);
+      balls = [createBall(paddle.x + paddle.w / 2, paddle.baseY - 12, 3.2, -4.6)];
+
+      startOverlay.style.display = 'none';
+      gameOverOverlay.style.display = 'none';
+      isPlaying = true;
+      requestAnimationFrame(loop);
+    }
+
+    function restartGame() {
+      startGame();
+    }
+
+    function gameOver() {
+      isPlaying = false;
+      overTitle.textContent = "GAME OVER";
+      finalScore.textContent = `SCORE: ${score}`;
+      gameOverOverlay.style.display = 'flex';
+    }
+
+    // 스마트폰 터치 및 마우스 드래그 조작
+    function handleMove(clientX) {
+      if (!isPlaying) return;
+      const rect = canvas.getBoundingClientRect();
+      const scaleX = GAME_W / rect.width;
+      const touchX = (clientX - rect.left) * scaleX;
+      paddle.x = Math.max(8, Math.min(GAME_W - paddle.w - 8, touchX - paddle.w / 2));
+    }
+
+    window.addEventListener('pointermove', (e) => handleMove(e.clientX));
+    window.addEventListener('touchmove', (e) => {
+      if (e.touches.length > 0) handleMove(e.touches[0].clientX);
+    }, { passive: true });
+
+    // --- 5. 물리 엔진 & 판정 루프 ---
+    function update() {
+      frameCount++;
+
+      // 버프 타이머
+      if (activeBuffs.giantTimer > 0) activeBuffs.giantTimer--;
+      if (activeBuffs.invincibleTimer > 0) activeBuffs.invincibleTimer--;
+
+      // 패들 리코일 반동 복귀
+      paddle.recoilY = Math.max(0, paddle.recoilY - 0.5);
+
+      const isGiant = activeBuffs.giantTimer > 0;
+      const isInvincible = activeBuffs.invincibleTimer > 0;
+
+      // 파티클
+      for (let i = particles.length - 1; i >= 0; i--) {
+        const p = particles[i];
+        p.x += p.vx; p.y += p.vy;
+        p.vy += 0.18; p.alpha -= 0.025;
+        if (p.alpha <= 0) particles.splice(i, 1);
+      }
+
+      // 공 이동 및 충돌
+      for (let i = balls.length - 1; i >= 0; i--) {
+        const b = balls[i];
+        const r = isGiant ? b.baseR * 3.0 : b.baseR;
+
+        b.x += b.dx;
+        b.y += b.dy;
+
+        // 벽 충돌
+        if (b.x - r < 6) { b.x = 6 + r; b.dx = Math.abs(b.dx); sound.wall(); }
+        if (b.x + r > GAME_W - 6) { b.x = GAME_W - 6 - r; b.dx = -Math.abs(b.dx); sound.wall(); }
+        if (b.y - r < 36) { b.y = 36 + r; b.dy = Math.abs(b.dy); sound.wall(); }
+
+        // 패들 충돌 (반동 리코일 연출 포함)
+        const curPaddleY = paddle.baseY + paddle.recoilY;
+        if (b.y + r >= curPaddleY && b.y - r <= curPaddleY + paddle.h &&
+            b.x >= paddle.x && b.x <= paddle.x + paddle.w && b.dy > 0) {
+          const hitOffset = (b.x - (paddle.x + paddle.w / 2)) / (paddle.w / 2);
+          const spd = Math.hypot(b.dx, b.dy);
+          b.dx = hitOffset * (spd * 0.85);
+          b.dy = -Math.sqrt(Math.max(12, spd * spd - b.dx * b.dx));
+          b.y = curPaddleY - r;
+          comboStreak = 0;
+          sound.paddle();
+
+          // 🌟 패들 반동: 거대 공일 때 3배 더 깊게 쿵 밀림!
+          paddle.recoilY = isGiant ? 10.0 : 3.5;
         }
 
-        pGeo.setAttribute('position', new THREE.BufferAttribute(pPos, 3));
-        pGeo.setAttribute('color', new THREE.BufferAttribute(pCol, 3));
+        // 블록 충돌
+        for (let blk of bricks) {
+          if (blk.hp <= 0) continue;
+          if (b.x + r > blk.x && b.x - r < blk.x + blk.w &&
+              b.y + r > blk.y && b.y - r < blk.y + blk.h) {
+            
+            comboStreak = Math.min(10, comboStreak + 1);
 
-        const pMat = new THREE.PointsMaterial({
-            size: 0.18,
-            vertexColors: true,
-            transparent: true,
-            opacity: 0.9,
-            blending: THREE.AdditiveBlending,
-            depthWrite: false
-        });
-
-        const fireParticles = new THREE.Points(pGeo, pMat);
-        scene.add(fireParticles);
-
-        // --- 5. 모바일 친화적 터치 조준 로직 ---
-        const raycaster = new THREE.Raycaster();
-        const mouse = new THREE.Vector2();
-        let touchStartX = 0, touchStartY = 0;
-
-        window.addEventListener('touchstart', (e) => {
-            if (e.touches.length === 1) {
-                touchStartX = e.touches[0].clientX;
-                touchStartY = e.touches[0].clientY;
-            }
-        }, { passive: true });
-
-        window.addEventListener('touchend', (e) => {
-            if (e.changedTouches.length === 1) {
-                const deltaX = Math.abs(e.changedTouches[0].clientX - touchStartX);
-                const deltaY = Math.abs(e.changedTouches[0].clientY - touchStartY);
-                // 모바일 터치 흔들림 허용치를 30px로 대폭 완화
-                if (deltaX < 30 && deltaY < 30) {
-                    checkRaycastHit(e.changedTouches[0].clientX, e.changedTouches[0].clientY);
-                }
-            }
-        });
-
-        window.addEventListener('mouseup', (e) => {
-            if (e.target.tagName === 'BUTTON') return;
-            const deltaX = Math.abs(e.clientX - touchStartX);
-            const deltaY = Math.abs(e.clientY - touchStartY);
-            if (deltaX < 15 && deltaY < 15) {
-                checkRaycastHit(e.clientX, e.clientY);
-            }
-        });
-
-        window.addEventListener('mousedown', (e) => {
-            touchStartX = e.clientX;
-            touchStartY = e.clientY;
-        });
-
-        function checkRaycastHit(screenX, screenY) {
-            mouse.x = (screenX / window.innerWidth) * 2 - 1;
-            mouse.y = -(screenY / window.innerHeight) * 2 + 1;
-            raycaster.setFromCamera(mouse, camera);
-
-            const intersects = raycaster.intersectObject(woodBlock);
-            if (intersects.length > 0) {
-                const hit = intersects[0];
-                selectedLocalPoint = woodBlock.worldToLocal(hit.point.clone());
-
-                targetCursor.position.copy(hit.point).add(hit.face.normal.clone().multiplyScalar(0.005));
-                targetCursor.lookAt(hit.point.clone().add(hit.face.normal));
-                targetCursor.visible = true;
-
-                statusPill.innerText = "조준 완료! FIRE 버튼을 누르세요 🎯";
-                statusPill.style.color = "#00ffaa";
-            }
-        }
-
-        // --- 6. 화염 파면(Wavefront) 물리 시뮬레이션 상태 ---
-        let isSimulating = false;
-        let simTime = 0;
-        let ignitionPoint = new THREE.Vector3(0, 0.25, 0); // 기본값: 윗면 중앙
-
-        const SPREAD_SPEED = 0.08;   // 초당 8cm씩 동심원으로 확산 (전체 20초에 걸쳐 번짐)
-        const ACTIVE_FLAME_TIME = 6.0; // 한 지점에서 맹렬한 불꽃이 타오르는 시간 (초)
-        const EMBER_TIME = 8.0;      // 잉걸불로 식어가는 시간 (초)
-
-        function triggerIgnition() {
-            // 터치 조준을 안 했더라도 나무 상단 중앙을 기본 발화점으로 자동 설정 (절대 실패 안 함)
-            if (selectedLocalPoint) {
-                ignitionPoint.copy(selectedLocalPoint);
+            if (isInvincible) {
+              blk.hp = 0;
+              score += 100;
+              sound.glassBreak();
             } else {
-                ignitionPoint.set(0, 0.25, 0);
+              blk.hp--;
+              score += 50;
+              if (blk.hp <= 0) {
+                if (blk.def.isGlass) sound.glassBreak();
+                else sound.combo(comboStreak);
+              } else {
+                sound.paddle();
+              }
+              // 관통 모드가 아닐 때만 반사
+              b.dy = -b.dy;
             }
 
-            isSimulating = true;
-            simTime = 0;
-            targetCursor.visible = false;
-            statusPill.innerText = "상태: 불이 붙어 사방으로 번져나가는 중! 🔥";
-            statusPill.style.color = "#ff3300";
+            // 파티클 생성
+            for (let k = 0; k < 12; k++) {
+              particles.push({
+                x: blk.x + blk.w / 2, y: blk.y + blk.h / 2,
+                vx: (Math.random() - 0.5) * 6, vy: (Math.random() - 0.7) * 6,
+                color: blk.def.color, alpha: 1.0, size: Math.random() * 3 + 2
+              });
+            }
+
+            // 아이템 드롭 (30% 확률)
+            if (blk.hp <= 0 && Math.random() < 0.3) {
+              const types = ['MULTI', 'GIANT', 'INVINCIBLE'];
+              const t = types[Math.floor(Math.random() * types.length)];
+              items.push({ x: blk.x + blk.w / 2, y: blk.y, type: t, vy: 2.2 });
+            }
+            break;
+          }
         }
 
-        function resetSimulation() {
-            isSimulating = false;
-            simTime = 0;
-            selectedLocalPoint = null;
-            targetCursor.visible = false;
-            firePointLight.intensity = 0;
+        // 바닥 낙하
+        if (b.y - r > GAME_H) balls.splice(i, 1);
+      }
 
-            for (let i = 0; i < vertexCount * 3; i++) {
-                burnAttrData[i] = 0;
+      // 공 소진 시
+      if (balls.length === 0) {
+        lives--;
+        comboStreak = 0;
+        activeBuffs.giantTimer = 0;
+        activeBuffs.invincibleTimer = 0;
+        if (lives <= 0) { gameOver(); return; }
+        balls = [createBall(paddle.x + paddle.w / 2, paddle.baseY - 12, 3.2, -4.6)];
+      }
+
+      // 아이템 이동 및 습득
+      for (let i = items.length - 1; i >= 0; i--) {
+        const it = items[i];
+        it.y += it.vy;
+        const curPaddleY = paddle.baseY + paddle.recoilY;
+        if (it.x >= paddle.x && it.x <= paddle.x + paddle.w &&
+            it.y >= curPaddleY && it.y <= curPaddleY + paddle.h) {
+          sound.item();
+          if (it.type === 'MULTI') {
+            if (balls.length > 0) {
+              const src = balls[0];
+              balls.push(createBall(src.x, src.y, -3.0, src.dy));
+              balls.push(createBall(src.x, src.y, 3.0, src.dy));
             }
-            burnAttribute.needsUpdate = true;
-
-            for (let i = 0; i < PARTICLE_COUNT; i++) {
-                pPos[i * 3 + 1] = -100;
-                pLife[i] = 1.0;
-            }
-            pGeo.attributes.position.needsUpdate = true;
-
-            statusPill.innerText = "상태: 나무를 터치하거나 FIRE를 누르세요";
-            statusPill.style.color = "#ffaa44";
+          } else if (it.type === 'GIANT') {
+            activeBuffs.giantTimer = 600; // 10초
+          } else if (it.type === 'INVINCIBLE') {
+            activeBuffs.invincibleTimer = 600; // 10초
+          }
+          items.splice(i, 1);
+          continue;
         }
+        if (it.y > GAME_H) items.splice(i, 1);
+      }
+    }
 
-        // --- 7. 메인 연소 업데이트 함수 ---
-        function updateCombustion(dt) {
-            if (!isSimulating) return;
+    // --- 6. 렌더링 루프 (유튜브 배경 위 캔버스 오버레이) ---
+    function draw() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      const scale = canvas.width / GAME_W;
+      ctx.save();
+      ctx.scale(scale, scale);
 
-            simTime += dt;
-            const currentWaveRadius = simTime * SPREAD_SPEED;
+      // 상단 HUD 바
+      ctx.fillStyle = 'rgba(15, 8, 25, 0.75)';
+      ctx.fillRect(0, 0, GAME_W, 28);
+      ctx.fillStyle = '#ffb6c1';
+      ctx.font = 'bold 12px Courier New';
+      ctx.fillText(`SCORE: ${score}`, 12, 18);
+      ctx.fillStyle = '#ffd700';
+      ctx.fillText(`COMBO: ${comboStreak}`, 150, 18);
+      ctx.fillStyle = '#ff4081';
+      ctx.fillText(`LIVES: ${'♥ '.repeat(lives)}`, GAME_W - 100, 18);
 
-            let activeFlames = 0;
-            let burningVertices = [];
-            let allBurntOut = true;
+      // 버프 상태 텍스트
+      if (activeBuffs.invincibleTimer > 0) {
+        ctx.fillStyle = '#ff5722';
+        ctx.fillText(`[INVINCIBLE] ${(activeBuffs.invincibleTimer / 60).toFixed(1)}s`, 12, 46);
+      } else if (activeBuffs.giantTimer > 0) {
+        ctx.fillStyle = '#e040fb';
+        ctx.fillText(`[GIANT x3] ${(activeBuffs.giantTimer / 60).toFixed(1)}s`, 12, 46);
+      }
 
-            for (let i = 0; i < vertexCount; i++) {
-                const vx = posAttr.getX(i);
-                const vy = posAttr.getY(i);
-                const vz = posAttr.getZ(i);
+      // 블링블링 포켓몬 블록 렌더링 (호흡하듯 수축/이완 펄스)
+      for (let blk of bricks) {
+        if (blk.hp <= 0) continue;
+        const pulse = Math.sin(frameCount * 0.08 + blk.phase) * 1.2;
+        const bx = blk.x - pulse / 2;
+        const by = blk.y - pulse / 2;
+        const bw = blk.w + pulse;
+        const bh = blk.h + pulse;
 
-                const dx = vx - ignitionPoint.x;
-                const dy = vy - ignitionPoint.y;
-                const dz = vz - ignitionPoint.z;
-                const dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
+        ctx.fillStyle = blk.def.color;
+        ctx.beginPath();
+        ctx.roundRect(bx, by, bw, bh, 6);
+        ctx.fill();
 
-                // 화염 파면 도달 시간 계산
-                const reachTime = dist / SPREAD_SPEED;
+        ctx.strokeStyle = blk.def.border;
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
 
-                if (simTime >= reachTime) {
-                    // 불이 이미 도달한 정점
-                    const elapsed = simTime - reachTime; // 이 지점에 불이 붙은 후 흐른 시간
-                    const totalLife = ACTIVE_FLAME_TIME + EMBER_TIME;
+        // 포켓몬 페이스 포인트 (피카츄/푸린 등 눈망울 느낌)
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.arc(bx + bw * 0.35, by + bh * 0.45, 2, 0, Math.PI * 2);
+        ctx.arc(bx + bw * 0.65, by + bh * 0.45, 2, 0, Math.PI * 2);
+        ctx.fill();
+      }
 
-                    const progress = Math.min(1.0, elapsed / totalLife);
+      // 파티클
+      for (let p of particles) {
+        ctx.fillStyle = p.color;
+        ctx.globalAlpha = p.alpha;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.globalAlpha = 1.0;
+      }
 
-                    // 화염 세기: 불이 막 붙었을 때(0 ~ ACTIVE_FLAME_TIME) 최대
-                    let flame = 0;
-                    if (elapsed < ACTIVE_FLAME_TIME) {
-                        flame = Math.sin((elapsed / ACTIVE_FLAME_TIME) * Math.PI);
-                        activeFlames++;
-                        burningVertices.push(i);
-                    }
+      // 캡슐 아이템
+      for (let it of items) {
+        ctx.fillStyle = it.type === 'MULTI' ? '#00e5ff' : it.type === 'GIANT' ? '#e040fb' : '#ff3d00';
+        ctx.beginPath();
+        ctx.roundRect(it.x - 11, it.y - 6, 22, 12, 6);
+        ctx.fill();
+        ctx.fillStyle = '#fff';
+        ctx.font = 'bold 9px Courier New';
+        ctx.textAlign = 'center';
+        ctx.fillText(it.type[0], it.x, it.y + 3);
+      }
+      ctx.textAlign = 'left';
 
-                    if (progress < 1.0) {
-                        allBurntOut = false;
-                    }
+      // 🌟 핑크 캔디 패들 (리코일 반동 반영)
+      const curPaddleY = paddle.baseY + paddle.recoilY;
+      ctx.fillStyle = '#ff4081';
+      ctx.beginPath();
+      ctx.roundRect(paddle.x, curPaddleY, paddle.w, paddle.h, 7);
+      ctx.fill();
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.roundRect(paddle.x + 8, curPaddleY + 2, paddle.w - 16, paddle.h - 4, 4);
+      ctx.fill();
 
-                    burnAttrData[i * 3]     = progress;
-                    burnAttrData[i * 3 + 1] = flame;
-                } else {
-                    // 아직 불이 안 닿은 생나무
-                    allBurntOut = false;
-                    burnAttrData[i * 3]     = 0.0;
-                    burnAttrData[i * 3 + 1] = 0.0;
-                }
-            }
-
-            burnAttribute.needsUpdate = true;
-
-            // 광원 및 파티클 방출 연동
-            if (activeFlames > 0) {
-                let cx = 0, cy = 0, cz = 0;
-                for (let k = 0; k < burningVertices.length; k++) {
-                    const idx = burningVertices[k];
-                    cx += posAttr.getX(idx);
-                    cy += posAttr.getY(idx);
-                    cz += posAttr.getZ(idx);
-                }
-                const count = burningVertices.length;
-                const localCenter = new THREE.Vector3(cx / count, cy / count + 0.15, cz / count);
-                const worldCenter = woodBlock.localToWorld(localCenter);
-
-                firePointLight.intensity = THREE.MathUtils.lerp(firePointLight.intensity, Math.min(count * 0.05, 5.0), 0.15);
-                firePointLight.position.copy(worldCenter);
-
-                spawnFireParticles(burningVertices, count);
-            } else {
-                firePointLight.intensity = THREE.MathUtils.lerp(firePointLight.intensity, 0, 0.05);
-
-                if (allBurntOut && simTime > 5.0) {
-                    isSimulating = false;
-                    statusPill.innerText = "상태: 나무가 완전히 타서 불이 꺼졌습니다 💨 (전소 완료)";
-                    statusPill.style.color = "#888899";
-                }
-            }
+      // 진주 공 렌더링
+      const isGiant = activeBuffs.giantTimer > 0;
+      const isInvincible = activeBuffs.invincibleTimer > 0;
+      for (let b of balls) {
+        const r = isGiant ? b.baseR * 3.0 : b.baseR;
+        ctx.beginPath();
+        ctx.arc(b.x, b.y, r, 0, Math.PI * 2);
+        if (isInvincible) {
+          ctx.fillStyle = '#ff3d00';
+          ctx.shadowColor = '#ff3d00';
+          ctx.shadowBlur = 15;
+        } else if (isGiant) {
+          ctx.fillStyle = '#f8bbd0';
+          ctx.shadowColor = '#e040fb';
+          ctx.shadowBlur = 12;
+        } else {
+          ctx.fillStyle = '#ffffff';
+          ctx.shadowColor = '#80d8ff';
+          ctx.shadowBlur = 6;
         }
+        ctx.fill();
+        ctx.shadowBlur = 0;
+      }
 
-        function spawnFireParticles(burningIndices, fireStrength) {
-            const count = Math.min(Math.floor(fireStrength * 0.4) + 2, 16);
-            for (let k = 0; k < count; k++) {
-                const randVIdx = burningIndices[Math.floor(Math.random() * burningIndices.length)];
-                const localPos = new THREE.Vector3(posAttr.getX(randVIdx), posAttr.getY(randVIdx), posAttr.getZ(randVIdx));
-                const worldPos = woodBlock.localToWorld(localPos);
+      ctx.restore();
+    }
 
-                const pIdx = Math.floor(Math.random() * PARTICLE_COUNT);
-                if (pLife[pIdx] >= 1.0) {
-                    pLife[pIdx] = 0.0;
-                    pMaxLife[pIdx] = 0.55 + Math.random() * 0.45;
-
-                    pPos[pIdx * 3]     = worldPos.x + (Math.random() - 0.5) * 0.08;
-                    pPos[pIdx * 3 + 1] = worldPos.y + 0.02;
-                    pPos[pIdx * 3 + 2] = worldPos.z + (Math.random() - 0.5) * 0.08;
-
-                    pVel[pIdx * 3]     = (Math.random() - 0.5) * 0.22;
-                    pVel[pIdx * 3 + 1] = 0.9 + Math.random() * 0.8;
-                    pVel[pIdx * 3 + 2] = (Math.random() - 0.5) * 0.22;
-                }
-            }
-        }
-
-        function updateParticles(dt) {
-            for (let i = 0; i < PARTICLE_COUNT; i++) {
-                if (pLife[i] < 1.0) {
-                    pLife[i] += dt / pMaxLife[i];
-                    pPos[i * 3]     += pVel[i * 3] * dt;
-                    pPos[i * 3 + 1] += pVel[i * 3 + 1] * dt;
-                    pPos[i * 3 + 2] += pVel[i * 3 + 2] * dt;
-
-                    const l = pLife[i];
-                    if (l < 0.25) {
-                        pCol[i * 3] = 1.0; pCol[i * 3 + 1] = 0.95; pCol[i * 3 + 2] = 0.3;
-                    } else if (l < 0.65) {
-                        pCol[i * 3] = 0.98; pCol[i * 3 + 1] = 0.38; pCol[i * 3 + 2] = 0.02;
-                    } else {
-                        pCol[i * 3] = 0.15; pCol[i * 3 + 1] = 0.15; pCol[i * 3 + 2] = 0.15;
-                    }
-                } else {
-                    pPos[i * 3 + 1] = -100;
-                }
-            }
-            pGeo.attributes.position.needsUpdate = true;
-            pGeo.attributes.color.needsUpdate = true;
-        }
-
-        let cursorTime = 0;
-        const clock = new THREE.Clock();
-
-        function animate() {
-            requestAnimationFrame(animate);
-            const dt = Math.min(clock.getDelta(), 0.05);
-
-            if (targetCursor.visible) {
-                cursorTime += dt * 6.0;
-                const scale = 1.0 + Math.sin(cursorTime) * 0.12;
-                targetCursor.scale.set(scale, scale, 1.0);
-            }
-
-            updateCombustion(dt);
-            updateParticles(dt);
-            controls.update();
-            renderer.render(scene, camera);
-        }
-        animate();
-
-        window.addEventListener('resize', () => {
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
-        });
-    </script>
+    function loop() {
+      if (!isPlaying) return;
+      update();
+      draw();
+      requestAnimationFrame(loop);
+    }
+  </script>
 </body>
 </html>

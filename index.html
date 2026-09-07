@@ -2,36 +2,44 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <title>4인 7포커 (P2P & AI 지원)</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>4인 7포커</title>
   <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    body {
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
       background: #0d2818;
       color: #fff;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      display: flex;
-      flex-direction: column;
-      height: 100vh;
-      overflow: hidden;
       user-select: none;
     }
+    #app-container {
+      display: flex;
+      flex-direction: column;
+      height: 100dvh; /* 모바일 브라우저 툴바 높이 완벽 대응 */
+      width: 100vw;
+    }
     header {
+      height: 44px;
       background: #040f0f;
-      padding: 10px 14px;
+      padding: 0 12px;
       font-size: 13px;
       display: flex;
       justify-content: space-between;
       align-items: center;
       border-bottom: 1px solid #1b4332;
+      flex-shrink: 0;
     }
     #setup-panel {
-      padding: 12px;
+      padding: 10px;
       background: #1b4332;
       display: flex;
       flex-direction: column;
-      gap: 8px;
+      gap: 6px;
+      flex-shrink: 0;
     }
     .input-group { display: flex; gap: 6px; }
     input, button {
@@ -39,21 +47,17 @@
       border-radius: 6px;
       border: none;
       font-size: 14px;
-    }
-    button {
-      background: #52b788;
-      color: #040f0f;
       font-weight: bold;
-      cursor: pointer;
     }
-    button:disabled { background: #495057; color: #868e96; }
+    button { cursor: pointer; }
     #table {
       flex: 1;
       display: grid;
       grid-template-columns: 1fr 1fr;
       grid-template-rows: 1fr 1fr;
-      gap: 8px;
-      padding: 8px;
+      gap: 6px;
+      padding: 6px;
+      overflow: hidden;
     }
     .player-slot {
       background: rgba(0,0,0,0.45);
@@ -63,22 +67,19 @@
       display: flex;
       flex-direction: column;
       justify-content: space-between;
-      font-size: 12px;
-      position: relative;
+      font-size: 11px;
     }
     .player-slot.active-turn {
-      border-color: #ffd166;
-      box-shadow: 0 0 10px rgba(255, 209, 102, 0.4);
+      border: 2px solid #ffd166;
+      box-shadow: 0 0 12px rgba(255, 209, 102, 0.6);
     }
     .slot-header {
       display: flex;
       justify-content: space-between;
       font-weight: bold;
-      margin-bottom: 4px;
     }
     .status-badge {
-      font-size: 11px;
-      padding: 1px 5px;
+      padding: 1px 4px;
       border-radius: 4px;
       background: #333;
     }
@@ -86,98 +87,109 @@
       display: flex;
       flex-wrap: wrap;
       gap: 3px;
-      min-height: 55px;
       align-items: center;
     }
     .card {
-      width: 28px;
-      height: 42px;
+      width: 26px;
+      height: 38px;
       background: #ffffff;
       color: #111;
-      border-radius: 4px;
+      border-radius: 3px;
       display: flex;
       align-items: center;
       justify-content: center;
       font-weight: bold;
       font-size: 11px;
       border: 1px solid #ced4da;
-      box-shadow: 1px 1px 3px rgba(0,0,0,0.3);
     }
     .card.red { color: #d90429; }
     .card.hidden-card {
-      background: repeating-linear-gradient(45deg, #1d3557, #1d3557 5px, #457b9d 5px, #457b9d 10px);
+      background: repeating-linear-gradient(45deg, #1d3557, #1d3557 4px, #457b9d 4px, #457b9d 8px);
       color: transparent;
     }
     .hand-eval {
       font-size: 11px;
-      color: #a7c957;
+      color: #ffd166;
       text-align: right;
-      min-height: 15px;
+      min-height: 14px;
       font-weight: bold;
     }
     #controls {
-      padding: 10px;
+      height: 64px;
       background: #040f0f;
+      padding: 8px;
       display: flex;
-      gap: 6px;
+      gap: 8px;
+      flex-shrink: 0;
+      border-top: 1px solid #1b4332;
     }
     .action-btn {
       flex: 1;
-      padding: 14px 4px;
-      font-size: 15px;
       border-radius: 8px;
+      font-size: 15px;
+      font-weight: bold;
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
     .btn-fold { background: #e63946; color: white; }
-    .btn-call { background: #52b788; }
+    .btn-call { background: #52b788; color: #040f0f; }
     .btn-raise { background: #ffd166; color: #111; }
+    .action-btn:disabled {
+      background: #2b2d42 !important;
+      color: #6c757d !important;
+      opacity: 0.5;
+    }
   </style>
 </head>
 <body>
 
-<header>
-  <div><span id="game-stage">대기실</span> | <strong id="room-status">연결 준비</strong></div>
-  <div style="font-weight: bold; color: #ffd166;" id="pot-display">POT: 0</div>
-</header>
+<div id="app-container">
+  <header>
+    <div><span id="game-stage">대기실</span> | <strong id="room-status">연결 준비</strong></div>
+    <div style="font-weight: bold; color: #ffd166;" id="pot-display">POT: 0</div>
+  </header>
 
-<div id="setup-panel">
-  <div class="input-group">
-    <button id="btn-create" onclick="createRoom()" style="flex:1;">방 생성</button>
-    <input id="input-room" type="text" placeholder="방 코드 입력" style="flex:1.5;">
-    <button id="btn-join" onclick="joinRoom()" style="flex:1;">참가</button>
+  <div id="setup-panel">
+    <div class="input-group">
+      <button id="btn-create" onclick="createRoom()" style="background:#52b788; color:#040f0f; flex:1;">방 생성</button>
+      <input id="input-room" type="text" placeholder="방 코드" style="flex:1.4;">
+      <button id="btn-join" onclick="joinRoom()" style="background:#52b788; color:#040f0f; flex:1;">참가</button>
+    </div>
+    <button id="btn-start-game" onclick="manualStartGame()" style="display:none; background:#ffd166; color:#111; padding: 10px;">
+      게임 시작 (부족 인원은 AI 자동 대체)
+    </button>
+    <div id="peer-info" style="font-size: 11px; color: #b7e4c7; word-break: break-all;"></div>
   </div>
-  <button id="btn-start-game" onclick="manualStartGame()" style="display:none; background:#ffd166; color:#111;">
-    게임 시작 (부족 인원은 AI로 자동 대체)
-  </button>
-  <div id="peer-info" style="font-size: 11px; color: #b7e4c7; word-break: break-all;"></div>
-</div>
 
-<div id="table">
-  <div class="player-slot" id="p0">
-    <div class="slot-header"><span class="name">P1 (호스트)</span><span class="status-badge">10000</span></div>
-    <div class="cards-wrapper"></div>
-    <div class="hand-eval"></div>
+  <div id="table">
+    <div class="player-slot" id="p0">
+      <div class="slot-header"><span class="name">P1 (호스트)</span><span class="status-badge">10000</span></div>
+      <div class="cards-wrapper"></div>
+      <div class="hand-eval"></div>
+    </div>
+    <div class="player-slot" id="p1">
+      <div class="slot-header"><span class="name">P2 대기</span><span class="status-badge">10000</span></div>
+      <div class="cards-wrapper"></div>
+      <div class="hand-eval"></div>
+    </div>
+    <div class="player-slot" id="p2">
+      <div class="slot-header"><span class="name">P3 대기</span><span class="status-badge">10000</span></div>
+      <div class="cards-wrapper"></div>
+      <div class="hand-eval"></div>
+    </div>
+    <div class="player-slot" id="p3">
+      <div class="slot-header"><span class="name">P4 대기</span><span class="status-badge">10000</span></div>
+      <div class="cards-wrapper"></div>
+      <div class="hand-eval"></div>
+    </div>
   </div>
-  <div class="player-slot" id="p1">
-    <div class="slot-header"><span class="name">P2 대기</span><span class="status-badge">10000</span></div>
-    <div class="cards-wrapper"></div>
-    <div class="hand-eval"></div>
-  </div>
-  <div class="player-slot" id="p2">
-    <div class="slot-header"><span class="name">P3 대기</span><span class="status-badge">10000</span></div>
-    <div class="cards-wrapper"></div>
-    <div class="hand-eval"></div>
-  </div>
-  <div class="player-slot" id="p3">
-    <div class="slot-header"><span class="name">P4 대기</span><span class="status-badge">10000</span></div>
-    <div class="cards-wrapper"></div>
-    <div class="hand-eval"></div>
-  </div>
-</div>
 
-<div id="controls">
-  <button class="action-btn btn-fold" id="btn-fold" onclick="sendAction('fold')" disabled>다이 (Fold)</button>
-  <button class="action-btn btn-call" id="btn-call" onclick="sendAction('call')" disabled>콜/체크</button>
-  <button class="action-btn btn-raise" id="btn-raise" onclick="sendAction('raise')" disabled>레이즈 (+100)</button>
+  <div id="controls">
+    <button class="action-btn btn-fold" id="btn-fold" onclick="sendAction('fold')" disabled>다이</button>
+    <button class="action-btn btn-call" id="btn-call" onclick="sendAction('call')" disabled>콜/체크</button>
+    <button class="action-btn btn-raise" id="btn-raise" onclick="sendAction('raise')" disabled>레이즈</button>
+  </div>
 </div>
 
 <script>
@@ -189,7 +201,7 @@
   let deck = [];
 
   const gameState = {
-    round: 0, // 0: 대기, 1: 3구, 2: 4구, 3: 5구, 4: 6구, 5: 7구(라스트), 6: 쇼다운
+    round: 0,
     pot: 0,
     currentBet: 0,
     currentTurn: 0,
@@ -220,7 +232,7 @@
     document.getElementById('btn-join').style.display = 'none';
     document.getElementById('input-room').style.display = 'none';
     document.getElementById('btn-start-game').style.display = 'block';
-    document.getElementById('room-status').innerText = '참가자 접속 대기중';
+    document.getElementById('room-status').innerText = '참가 대기중';
 
     peer.on('connection', (conn) => {
       if (connections.length >= 3) {
@@ -251,7 +263,7 @@
     hostConn = peer.connect(hostId);
     hostConn.on('open', () => {
       document.getElementById('setup-panel').style.display = 'none';
-      document.getElementById('room-status').innerText = '호스트에 연결됨';
+      document.getElementById('room-status').innerText = '호스트 연결됨';
     });
 
     hostConn.on('data', (msg) => {
@@ -265,7 +277,6 @@
   }
 
   function manualStartGame() {
-    // 4명 미만 자리는 컴퓨터 AI로 자동 설정
     for (let i = 0; i < 4; i++) {
       if (!gameState.players[i].active) {
         gameState.players[i].active = true;
@@ -292,11 +303,10 @@
   function startNewGameRound() {
     createDeck();
     gameState.pot = 0;
-    gameState.round = 1; // 3구 시작
-    gameState.currentBet = 50; // 기본 베팅
+    gameState.round = 1;
+    gameState.currentBet = 50;
     gameState.turnCountThisRound = 0;
 
-    // 앤티(참가비) 징수 및 3장 분배 (1,2번째 히든, 3번째 오픈)
     gameState.players.forEach(p => {
       if (p.active) {
         p.chips -= 50;
@@ -322,25 +332,20 @@
     gameState.currentBet = 0;
     gameState.players.forEach(p => p.betThisRound = 0);
 
-    if (gameState.round <= 4) { // 4구, 5구, 6구: 오픈 카드 1장씩 추가
+    if (gameState.round <= 4) {
       gameState.players.forEach(p => {
-        if (p.active && !p.folded) {
-          p.cards.push({ ...deck.pop(), hidden: false });
-        }
+        if (p.active && !p.folded) p.cards.push({ ...deck.pop(), hidden: false });
       });
-    } else if (gameState.round === 5) { // 7구 (라스트): 히든 카드 1장 추가
+    } else if (gameState.round === 5) {
       gameState.players.forEach(p => {
-        if (p.active && !p.folded) {
-          p.cards.push({ ...deck.pop(), hidden: true });
-        }
+        if (p.active && !p.folded) p.cards.push({ ...deck.pop(), hidden: true });
       });
-    } else { // 쇼다운
+    } else {
       resolveShowdown();
       return;
     }
 
-    // 다음 턴 지정
-    findNextActivePlayer(true);
+    findNextActivePlayer();
     broadcastState();
     checkAITurn();
   }
@@ -367,31 +372,28 @@
 
     gameState.turnCountThisRound++;
 
-    // 생존 플레이어 수 확인
     const survivors = gameState.players.filter(pl => pl.active && !pl.folded);
     if (survivors.length === 1) {
-      // 전원 폴드로 즉시 승리
       survivors[0].chips += gameState.pot;
       gameState.round = 6;
       broadcastState();
-      setTimeout(startNewGameRound, 4000);
+      setTimeout(startNewGameRound, 3000);
       return;
     }
 
-    // 라운드 종료 조건: 모든 생존자가 현재 베팅 금액을 맞췄을 때
     const roundFinished = survivors.every(pl => pl.betThisRound === gameState.currentBet) 
                           && gameState.turnCountThisRound >= survivors.length;
 
     if (roundFinished) {
-      setTimeout(dealNextCard, 800);
+      setTimeout(dealNextCard, 600);
     } else {
-      findNextActivePlayer(false);
+      findNextActivePlayer();
       broadcastState();
       checkAITurn();
     }
   }
 
-  function findNextActivePlayer(resetToFirst) {
+  function findNextActivePlayer() {
     let next = (gameState.currentTurn + 1) % 4;
     while (!gameState.players[next].active || gameState.players[next].folded) {
       next = (next + 1) % 4;
@@ -404,20 +406,16 @@
     const curr = gameState.players[gameState.currentTurn];
     if (curr && curr.active && curr.isAI && !curr.folded) {
       setTimeout(() => {
-        // AI 베팅 로직: 15% 확률 레이즈, 10% 확률 다이(베팅 차이가 클 때), 나머지 콜
         const betDiff = gameState.currentBet - curr.betThisRound;
         let action = 'call';
         const rand = Math.random();
 
-        if (betDiff > 200 && rand < 0.2) {
-          action = 'fold';
-        } else if (rand > 0.8) {
-          action = 'raise';
-        } else {
-          action = 'call';
-        }
+        if (betDiff > 200 && rand < 0.2) action = 'fold';
+        else if (rand > 0.8) action = 'raise';
+        else action = 'call';
+
         handlePlayerAction(gameState.currentTurn, action);
-      }, 1000);
+      }, 800);
     }
   }
 
@@ -436,7 +434,6 @@
     });
   }
 
-  // 7포커 간이 족보 판별기 (페어, 트리플, 플러시 계산)
   function evaluateHand(cards) {
     if (!cards || cards.length < 3) return '';
     const counts = {};
@@ -452,30 +449,28 @@
     const hasThree = cVals.includes(3);
     const pairCount = cVals.filter(v => v === 2).length;
 
-    if (hasFlush) return '플러시 (Flush)';
-    if (hasFour) return '포카드 (Four Cards)';
-    if (hasThree && pairCount >= 1) return '풀하우스 (Full House)';
-    if (hasThree) return '트리플 (Three of a Kind)';
-    if (pairCount >= 2) return '투페어 (Two Pair)';
-    if (pairCount === 1) return '원페어 (One Pair)';
-    return '하이카드 (Top)';
+    if (hasFlush) return '플러시';
+    if (hasFour) return '포카드';
+    if (hasThree && pairCount >= 1) return '풀하우스';
+    if (hasThree) return '트리플';
+    if (pairCount >= 2) return '투페어';
+    if (pairCount === 1) return '원페어';
+    return '하이카드';
   }
 
   function resolveShowdown() {
     let bestSeat = -1;
     let highestRankScore = -1;
 
-    // 간단한 족보 서열 평가
     gameState.players.forEach((p, idx) => {
       if (p.active && !p.folded) {
         const desc = evaluateHand(p.cards);
-        let score = 0;
+        let score = 1;
         if (desc.includes('플러시')) score = 6;
         else if (desc.includes('풀하우스')) score = 5;
         else if (desc.includes('트리플')) score = 4;
         else if (desc.includes('투페어')) score = 3;
         else if (desc.includes('원페어')) score = 2;
-        else score = 1;
 
         if (score > highestRankScore) {
           highestRankScore = score;
@@ -486,17 +481,15 @@
 
     if (bestSeat !== -1) {
       gameState.players[bestSeat].chips += gameState.pot;
-      alert(`P${bestSeat + 1} 승리! 팟(${gameState.pot})을 획득했습니다.`);
+      alert(`P${bestSeat + 1} 승리! 판돈(${gameState.pot}) 획득`);
     }
 
     broadcastState();
-    setTimeout(startNewGameRound, 5000);
+    setTimeout(startNewGameRound, 4000);
   }
 
-  // 모바일 UI 갱신 (상대방 히든 패 감추기 처리)
   function updateUI() {
     document.getElementById('pot-display').innerText = `POT: ${gameState.pot}`;
-    
     const stageNames = ['대기실', '3구 베팅', '4구 베팅', '5구 베팅', '6구 베팅', '라스트(7구)', '쇼다운'];
     document.getElementById('game-stage').innerText = stageNames[gameState.round] || '';
 
@@ -509,7 +502,7 @@
       if (p.isAI) nameTxt += ' [AI]';
       if (p.folded) nameTxt += ' (다이)';
       
-      slot.querySelector('.name').innerText = p.active ? nameTxt : `P${idx + 1} 빈자리`;
+      slot.querySelector('.name').innerText = p.active ? nameTxt : `P${idx + 1} 대기`;
       slot.querySelector('.status-badge').innerText = `${p.chips}`;
 
       const cardBox = slot.querySelector('.cards-wrapper');
@@ -518,9 +511,7 @@
       if (p.active && p.cards.length > 0) {
         p.cards.forEach(c => {
           const div = document.createElement('div');
-          // 내 카드이거나, 쇼다운 상태이거나, 오픈 카드인 경우만 앞면 표시
           const isShow = (idx === mySeat) || (gameState.round === 6) || !c.hidden;
-
           if (isShow) {
             div.className = `card ${c.red ? 'red' : ''}`;
             div.innerText = `${c.suit}${c.rank}`;
@@ -530,7 +521,6 @@
           cardBox.appendChild(div);
         });
 
-        // 족보 요약
         slot.querySelector('.hand-eval').innerText = (idx === mySeat || gameState.round === 6) 
           ? evaluateHand(p.cards) 
           : '';

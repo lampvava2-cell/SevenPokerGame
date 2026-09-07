@@ -2,178 +2,309 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <title>P2P 모닥불 시뮬레이션</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>3D 물리 모닥불 시뮬레이션</title>
   <style>
-    * { box-sizing: border-box; user-select: none; }
-    body { margin: 0; overflow: hidden; background: #050508; font-family: sans-serif; touch-action: none; }
-    #canvas-container { width: 100vw; height: 100vh; }
+    * { box-sizing: border-box; user-select: none; -webkit-tap-highlight-color: transparent; }
+    html, body { width: 100%; height: 100%; margin: 0; padding: 0; overflow: hidden; background: #050508; font-family: sans-serif; touch-action: none; }
+    #canvas-container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; }
     
-    /* 상단 멀티 세션 UI */
     #network-ui {
       position: absolute; top: 12px; left: 12px; right: 12px;
       display: flex; gap: 8px; flex-wrap: wrap; z-index: 10;
-      background: rgba(0, 0, 0, 0.6); padding: 10px; border-radius: 8px; color: #fff; font-size: 13px;
+      background: rgba(10, 10, 15, 0.85); backdrop-filter: blur(4px);
+      padding: 10px; border-radius: 10px; color: #fff; font-size: 13px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
     }
-    #network-ui input { padding: 6px 10px; border-radius: 4px; border: 1px solid #444; background: #222; color: #fff; flex: 1; min-width: 120px; }
-    #network-ui button { padding: 6px 12px; border: none; border-radius: 4px; background: #e65100; color: #fff; font-weight: bold; cursor: pointer; }
-    #status { width: 100%; color: #aaa; font-size: 12px; }
+    #network-ui input { padding: 6px 10px; border-radius: 6px; border: 1px solid #444; background: #222; color: #fff; flex: 1; min-width: 100px; font-size: 12px; }
+    #network-ui button { padding: 7px 12px; border: none; border-radius: 6px; background: #ff5722; color: #fff; font-weight: bold; cursor: pointer; }
+    #status { width: 100%; color: #aaa; font-size: 12px; margin-top: 2px; }
 
-    /* 하단 조작 패널 */
+    #fire-meter {
+      position: absolute; top: 90px; left: 16px; z-index: 10;
+      color: #ff9800; font-weight: 800; font-size: 15px; text-shadow: 0 0 8px #000;
+    }
+
     #controls {
-      position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
-      display: flex; gap: 10px; z-index: 10; width: 90%; max-width: 400px;
+      position: absolute; bottom: 24px; left: 50%; transform: translateX(-50%);
+      display: flex; gap: 10px; z-index: 10; width: 92%; max-width: 440px;
     }
     .wood-btn {
-      flex: 1; padding: 14px 8px; border: none; border-radius: 12px;
-      font-size: 14px; font-weight: bold; color: #fff; cursor: pointer;
-      box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+      flex: 1; padding: 14px 6px; border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 12px; font-size: 13px; font-weight: bold; color: #fff;
+      cursor: pointer; box-shadow: 0 6px 16px rgba(0,0,0,0.6);
     }
-    .btn-dry { background: linear-gradient(135deg, #d84315, #bf360c); }
-    .btn-heavy { background: linear-gradient(135deg, #4e342e, #3e2723); }
-    .btn-wet { background: linear-gradient(135deg, #37474f, #263238); }
-    
-    /* 화력 게이지 */
-    #fire-meter {
-      position: absolute; top: 80px; left: 12px; z-index: 10;
-      color: #ff9800; font-weight: bold; font-size: 14px; text-shadow: 0 0 5px #000;
-    }
+    .btn-dry { background: linear-gradient(135deg, #e64a19, #bf360c); }
+    .btn-heavy { background: linear-gradient(135deg, #5d4037, #3e2723); }
+    .btn-wet { background: linear-gradient(135deg, #455a64, #263238); }
   </style>
 
-  <!-- 외부 서버 없이 브라우저 단독 실행을 위한 CDN 로드 -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/cannon-es@0.20.0/dist/cannon-es.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/cannon@0.6.2/build/cannon.min.js"></script>
   <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
 </head>
 <body>
   <div id="network-ui">
-    <button id="btn-host">방 만들기 (호스트)</button>
-    <input type="text" id="room-input" placeholder="호스트 ID 입력">
+    <button id="btn-host">방 만들기</button>
+    <input type="text" id="room-input" placeholder="호스트 ID">
     <button id="btn-join">접속</button>
     <div id="status">상태: 싱글 플레이 중 (1/3명)</div>
   </div>
 
-  <div id="fire-meter">화력: 100%</div>
+  <div id="fire-meter">화력: 50%</div>
 
   <div id="controls">
-    <button class="wood-btn btn-dry" onclick="spawnLog('dry')">마른 장작<br><small>화력 급상승</small></button>
-    <button class="wood-btn btn-heavy" onclick="spawnLog('heavy')">참나무<br><small>오래 지속</small></button>
-    <button class="wood-btn btn-wet" onclick="spawnLog('wet')">젖은 장작<br><small>연기 발생</small></button>
+    <button class="wood-btn btn-dry" id="btn-dry">마른 장작<br><small>화력 급상승</small></button>
+    <button class="wood-btn btn-heavy" id="btn-heavy">참나무<br><small>오래 지속</small></button>
+    <button class="wood-btn btn-wet" id="btn-wet">젖은 장작<br><small>연기 발생</small></button>
   </div>
 
   <div id="canvas-container"></div>
 
-  <script type="module">
-    import * as CANNON from 'https://cdn.jsdelivr.net/npm/cannon-es@0.20.0/dist/cannon-es.js';
-
-    // ─── 1. Three.js 렌더러 및 씬 구성 ───
+  <script>
+    // ─── 1. THREE.JS 기본 씬 구성 ───
     const container = document.getElementById('canvas-container');
-    const scene = new THREE.Scene();
-    scene.fog = new THREE.FogExp2(0x050508, 0.08);
+    const width = window.innerWidth;
+    const height = window.innerHeight;
 
-    const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 50);
-    camera.position.set(0, 3.2, 4.5);
-    camera.lookAt(0, 0.4, 0);
+    const scene = new THREE.Scene();
+    scene.fog = new THREE.FogExp2(0x050508, 0.05);
+
+    const camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 100);
+    camera.position.set(0, 2.8, 4.0);
+    camera.lookAt(0, 0.6, 0);
 
     const renderer = new THREE.WebGLRenderer({ antialias: true });
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2)); // 갤럭시 성능 최적화
-    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setSize(width, height);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.shadowMap.enabled = true;
     container.appendChild(renderer.domElement);
 
-    // 조명 (화로 PointLight + 앰비언트)
-    const ambientLight = new THREE.AmbientLight(0x221111, 0.8);
+    const ambientLight = new THREE.AmbientLight(0x181010, 1.0);
     scene.add(ambientLight);
 
-    const fireLight = new THREE.PointLight(0xff6600, 2.5, 12, 1.5);
-    fireLight.position.set(0, 0.5, 0);
-    fireLight.castShadow = true;
+    const fireLight = new THREE.PointLight(0xff5500, 3.0, 12, 1.2);
+    fireLight.position.set(0, 0.8, 0);
     scene.add(fireLight);
 
-    // 바닥 돌판
-    const groundGeo = new THREE.PlaneGeometry(20, 20);
-    const groundMat = new THREE.MeshStandardMaterial({ color: 0x111115, roughness: 0.9 });
-    const ground = new THREE.Mesh(groundGeo, groundMat);
-    ground.rotation.x = -Math.PI / 2;
-    ground.receiveShadow = true;
-    scene.add(ground);
+    // 바닥
+    const groundMesh = new THREE.Mesh(
+      new THREE.PlaneGeometry(30, 30),
+      new THREE.MeshStandardMaterial({ color: 0x0e0e12, roughness: 0.95 })
+    );
+    groundMesh.rotation.x = -Math.PI / 2;
+    groundMesh.receiveShadow = true;
+    scene.add(groundMesh);
 
-    // 화로 돌 테두리
-    const ringRadius = 1.0;
-    for (let i = 0; i < 10; i++) {
-      const angle = (i / 10) * Math.PI * 2;
+    // 돌 테두리
+    for (let i = 0; i < 12; i++) {
+      const angle = (i / 12) * Math.PI * 2;
       const stone = new THREE.Mesh(
-        new THREE.DodecahedronGeometry(0.25),
-        new THREE.MeshStandardMaterial({ color: 0x333338, roughness: 0.8 })
+        new THREE.DodecahedronGeometry(0.24),
+        new THREE.MeshStandardMaterial({ color: 0x303036, roughness: 0.85 })
       );
-      stone.position.set(Math.cos(angle) * ringRadius, 0.1, Math.sin(angle) * ringRadius);
+      stone.position.set(Math.cos(angle) * 0.95, 0.12, Math.sin(angle) * 0.95);
       scene.add(stone);
     }
 
-    // ─── 2. CANNON-es 3D 물리 엔진 ───
+    // ─── 2. 3D 화염 볼륨 메쉬 (커스텀 셰이더) ───
+    const flameVertexShader = `
+      uniform float time;
+      uniform float intensity;
+      varying vec2 vUv;
+      varying float vNoise;
+
+      // 3D 단순 노이즈 함수
+      vec3 mod289(vec3 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
+      vec4 mod289(vec4 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
+      vec4 permute(vec4 x) { return mod289(((x*34.0)+1.0)*x); }
+      vec4 taylorInvSqrt(vec4 r) { return 1.79284291400159 - 0.85373472095314 * r; }
+      float snoise(vec3 v) {
+        const vec2 C = vec2(1.0/6.0, 1.0/3.0);
+        const vec4 D = vec4(0.0, 0.5, 1.0, 2.0);
+        vec3 i  = floor(v + dot(v, C.yyy));
+        vec3 x0 = v - i + dot(i, C.xxx);
+        vec3 g = step(x0.yzx, x0.xyz);
+        vec3 l = 1.0 - g;
+        vec3 i1 = min(g.xyz, l.zxy);
+        vec3 i2 = max(g.xyz, l.zxy);
+        vec3 x1 = x0 - i1 + C.xxx;
+        vec3 x2 = x0 - i2 + C.yyy;
+        vec3 x3 = x0 - D.yyy;
+        i = mod289(i);
+        vec4 p = permute(permute(permute(
+                  i.z + vec4(0.0, i1.z, i2.z, 1.0))
+                + i.y + vec4(0.0, i1.y, i2.y, 1.0))
+                + i.x + vec4(0.0, i1.x, i2.x, 1.0));
+        float n_ = 0.142857142857;
+        vec3 ns = n_ * D.wyz - D.xzx;
+        vec4 j = p - 49.0 * floor(p * ns.z);
+        vec4 x_ = floor(j * ns.z);
+        vec4 y_ = floor(j - 7.0 * x_);
+        vec4 x = x_ *ns.x + ns.yyyy;
+        vec4 y = y_ *ns.x + ns.yyyy;
+        vec4 h = 1.0 - abs(x) - abs(y);
+        vec4 b0 = vec4(x.xy, y.xy);
+        vec4 b1 = vec4(x.zw, y.zw);
+        vec4 s0 = floor(b0)*2.0 + 1.0;
+        vec4 s1 = floor(b1)*2.0 + 1.0;
+        vec4 sh = -step(h, vec4(0.0));
+        vec4 a0 = b0.xzyw + s0.xzyw*sh.xxyy;
+        vec4 a1 = b1.xzyw + s1.xzyw*sh.zzww;
+        vec3 p0 = vec3(a0.xy, h.x);
+        vec3 p1 = vec3(a0.zw, h.y);
+        vec3 p2 = vec3(a1.xy, h.z);
+        vec3 p3 = vec3(a1.zw, h.w);
+        vec4 norm = taylorInvSqrt(vec4(dot(p0,p0), dot(p1,p1), dot(p2, p2), dot(p3,p3)));
+        p0 *= norm.x; p1 *= norm.y; p2 *= norm.z; p3 *= norm.w;
+        vec4 m = max(0.6 - vec4(dot(x0,x0), dot(x1,x1), dot(x2,x2), dot(x3,x3)), 0.0);
+        m = m * m;
+        return 42.0 * dot(m*m, vec4(dot(p0,x0), dot(p1,x1), dot(p2,x2), dot(p3,x3)));
+      }
+
+      void main() {
+        vUv = uv;
+        vec3 pos = position;
+        
+        // 상승형 너울거림 왜곡
+        float displacement = snoise(vec3(pos.x * 2.5, pos.y * 2.0 - time * 3.5, pos.z * 2.5));
+        vNoise = displacement;
+        
+        // 상단으로 갈수록 좁아지며 격렬하게 흔들림
+        float taper = max(0.0, (1.0 - uv.y));
+        pos.x += displacement * 0.25 * (1.0 - taper) * intensity;
+        pos.z += displacement * 0.25 * (1.0 - taper) * intensity;
+        pos.y *= 1.0 + (intensity * 0.4);
+
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(pos, 1.0);
+      }
+    `;
+
+    const flameFragmentShader = `
+      uniform float time;
+      uniform float intensity;
+      varying vec2 vUv;
+      varying float vNoise;
+
+      void main() {
+        // 불꽃 그라디언트: 바닥(흰/노랑) -> 중간(주황/빨강) -> 상단(연기/투명)
+        float y = vUv.y;
+        vec3 colorCore = vec3(1.0, 0.9, 0.5); // 중심 고열
+        vec3 colorMid  = vec3(1.0, 0.35, 0.0); // 주황 화염
+        vec3 colorTip  = vec3(0.8, 0.05, 0.0); // 끝단 적색
+
+        vec3 flameColor = mix(colorCore, colorMid, y * 1.5);
+        flameColor = mix(flameColor, colorTip, smoothstep(0.4, 0.9, y));
+
+        float alpha = (1.0 - y) * 1.2 + (vNoise * 0.3);
+        alpha = clamp(alpha * (intensity * 0.8), 0.0, 0.85);
+
+        gl_FragColor = vec4(flameColor, alpha);
+      }
+    `;
+
+    const flameMat = new THREE.ShaderMaterial({
+      vertexShader: flameVertexShader,
+      fragmentShader: flameFragmentShader,
+      uniforms: {
+        time: { value: 0 },
+        intensity: { value: 1.0 }
+      },
+      transparent: true,
+      blending: THREE.AdditiveBlending,
+      side: THREE.DoubleSide,
+      depthWrite: false
+    });
+
+    // 콘 형태의 불 메쉬
+    const flameGeo = new THREE.ConeGeometry(0.5, 1.6, 24, 32, true);
+    flameGeo.translate(0, 0.8, 0);
+    const flameMesh = new THREE.Mesh(flameGeo, flameMat);
+    scene.add(flameMesh);
+
+    // ─── 3. 불티 (Sparks) 파티클 시스템 ───
+    const sparkCount = 70;
+    const sparkGeo = new THREE.BufferGeometry();
+    const sparkPos = new Float32Array(sparkCount * 3);
+    const sparkVel = [];
+
+    for (let i = 0; i < sparkCount; i++) {
+      sparkPos[i * 3 + 0] = (Math.random() - 0.5) * 0.4;
+      sparkPos[i * 3 + 1] = Math.random() * 0.5;
+      sparkPos[i * 3 + 2] = (Math.random() - 0.5) * 0.4;
+
+      sparkVel.push({
+        vx: (Math.random() - 0.5) * 0.6,
+        vy: 1.5 + Math.random() * 2.0,
+        vz: (Math.random() - 0.5) * 0.6,
+        life: Math.random()
+      });
+    }
+
+    sparkGeo.setAttribute('position', new THREE.BufferAttribute(sparkPos, 3));
+    const sparkMat = new THREE.PointsMaterial({
+      color: 0xffaa33,
+      size: 0.06,
+      transparent: true,
+      blending: THREE.AdditiveBlending
+    });
+    const sparkParticles = new THREE.Points(sparkGeo, sparkMat);
+    scene.add(sparkParticles);
+
+    // ─── 4. CANNON 물리 엔진 ───
     const world = new CANNON.World();
     world.gravity.set(0, -9.82, 0);
 
-    const groundBody = new CANNON.Body({ mass: 0, shape: new CANNON.Plane() });
+    const groundBody = new CANNON.Body({ mass: 0 });
+    groundBody.addShape(new CANNON.Plane());
     groundBody.quaternion.setFromAxisAngle(new CANNON.Vec3(1, 0, 0), -Math.PI / 2);
     world.addBody(groundBody);
 
-    // ─── 3. 모닥불 & 장작 시뮬레이션 로직 ───
+    // ─── 5. 장작 및 화력 로직 ───
     let logs = [];
-    let fireIntensity = 20.0; // 기본 불씨
+    let fireIntensity = 50.0;
 
-    class Wood {
-      constructor(type, x, y, z, rotX, rotY, rotZ) {
+    class WoodLog {
+      constructor(type, x, y, z, rx, ry, rz) {
         this.type = type;
         this.fuel = type === 'heavy' ? 80 : (type === 'dry' ? 30 : 50);
         this.maxFuel = this.fuel;
-        this.isWet = type === 'wet';
 
-        // 크기 및 무게 정의
-        const radius = type === 'heavy' ? 0.14 : 0.09;
-        const height = type === 'heavy' ? 0.9 : 0.7;
+        const radius = type === 'heavy' ? 0.12 : 0.08;
+        const length = type === 'heavy' ? 0.75 : 0.6;
 
-        // 물리 바디 (실린더 형태를 박스로 근사하여 모바일 연산 최적화)
         this.body = new CANNON.Body({
-          mass: type === 'heavy' ? 3.0 : 1.2,
-          shape: new CANNON.Box(new CANNON.Vec3(radius, height / 2, radius))
+          mass: type === 'heavy' ? 2.5 : 1.0,
+          shape: new CANNON.Box(new CANNON.Vec3(radius, length / 2, radius))
         });
         this.body.position.set(x, y, z);
-        this.body.quaternion.setFromEuler(rotX, rotY, rotZ);
+        this.body.quaternion.setFromEuler(rx, ry, rz);
         world.addBody(this.body);
 
-        // Three.js 메쉬
-        const logGeo = new THREE.CylinderGeometry(radius, radius, height, 8);
         const logMat = new THREE.MeshStandardMaterial({
-          color: type === 'dry' ? 0x8d6e63 : (type === 'heavy' ? 0x4e342e : 0x37474f),
-          roughness: 0.8
+          color: type === 'dry' ? 0x935128 : (type === 'heavy' ? 0x4a2a18 : 0x3d4952),
+          roughness: 0.85
         });
-        this.mesh = new THREE.Mesh(logGeo, logMat);
+        this.mesh = new THREE.Mesh(new THREE.CylinderGeometry(radius, radius, length, 8), logMat);
         this.mesh.castShadow = true;
         scene.add(this.mesh);
       }
 
       update(delta) {
-        // 물리 좌표 동기화
         this.mesh.position.copy(this.body.position);
         this.mesh.quaternion.copy(this.body.quaternion);
 
-        // 화로 중심과의 거리 기반 연소
         const dist = Math.hypot(this.body.position.x, this.body.position.z);
         if (dist < 1.0 && fireIntensity > 2.0 && this.fuel > 0) {
-          const burnRate = (this.isWet ? 0.4 : 1.2) * delta;
-          this.fuel -= burnRate;
+          const burnSpeed = (this.type === 'wet' ? 0.4 : 1.2) * delta;
+          this.fuel -= burnSpeed;
 
-          // 재로 변하면서 메쉬 색상 변화
-          const ratio = Math.max(0, this.fuel / this.maxFuel);
-          this.mesh.material.color.setRGB(ratio * 0.5 + 0.1, ratio * 0.2 + 0.05, ratio * 0.1);
+          const r = Math.max(0.1, this.fuel / this.maxFuel);
+          this.mesh.material.color.setRGB(r * 0.55, r * 0.25, r * 0.1);
 
-          // 화력 기여도
-          if (!this.isWet) {
-            fireIntensity = Math.min(100, fireIntensity + (this.type === 'dry' ? 4.0 : 1.5) * delta);
-          } else {
-            fireIntensity = Math.max(1.0, fireIntensity - 1.5 * delta); // 젖은 장작은 불을 낮춤
-          }
+          if (this.type === 'dry') fireIntensity = Math.min(100, fireIntensity + 6.0 * delta);
+          else if (this.type === 'heavy') fireIntensity = Math.min(100, fireIntensity + 2.5 * delta);
+          else fireIntensity = Math.max(0.5, fireIntensity - 2.5 * delta);
         }
       }
 
@@ -183,107 +314,88 @@
       }
     }
 
-    // 장작 투척 함수
-    window.spawnLog = function(type, networkData = null) {
+    function spawnLog(type, syncData) {
       let x, y, z, rx, ry, rz;
-      if (networkData) {
-        ({ x, y, z, rx, ry, rz } = networkData);
+      if (syncData) {
+        ({ x, y, z, rx, ry, rz } = syncData);
       } else {
-        // 플레이어가 직접 던질 때의 랜덤 궤적
-        x = (Math.random() - 0.5) * 0.4;
-        y = 2.2;
-        z = (Math.random() - 0.5) * 0.4;
+        x = (Math.random() - 0.5) * 0.3;
+        y = 2.0;
+        z = (Math.random() - 0.5) * 0.3;
         rx = Math.random() * Math.PI;
         ry = Math.random() * Math.PI;
         rz = Math.random() * Math.PI;
-
-        // 멀티 연결되어 있으면 동료들에게 전송
-        broadcastAction({ type, x, y, z, rx, ry, rz });
+        broadcast({ action: 'spawn', type, x, y, z, rx, ry, rz });
       }
 
-      const wood = new Wood(type, x, y, z, rx, ry, rz);
-      logs.push(wood);
+      const log = new WoodLog(type, x, y, z, rx, ry, rz);
+      logs.push(log);
 
-      // 장작이 너무 많아지면(30개 초과) 오래된 장작 정리 (모바일 성능 보호)
-      if (logs.length > 30) {
-        const old = logs.shift();
-        old.destroy();
+      if (logs.length > 25) {
+        logs.shift().destroy();
       }
-    };
+    }
 
-    // ─── 4. WebRTC P2P 통신 (서버 없이 3인 연결) ───
+    document.getElementById('btn-dry').addEventListener('click', () => spawnLog('dry'));
+    document.getElementById('btn-heavy').addEventListener('click', () => spawnLog('heavy'));
+    document.getElementById('btn-wet').addEventListener('click', () => spawnLog('wet'));
+
+    // ─── 6. PeerJS P2P 통신 ───
     let peer = null;
-    let connections = []; // 최대 2개의 P2P 연결 (총 3명)
-    let isHost = false;
-
+    let connections = [];
     const statusEl = document.getElementById('status');
     const roomInput = document.getElementById('room-input');
 
-    // [호스트] 방 생성
     document.getElementById('btn-host').addEventListener('click', () => {
       peer = new Peer();
       peer.on('open', (id) => {
-        isHost = true;
         roomInput.value = id;
-        statusEl.innerText = `방 생성 완료! 친구에게 ID 전달: ${id}`;
+        statusEl.innerText = `방 생성 완료! ID 공유: ${id}`;
       });
-
       peer.on('connection', (conn) => {
-        if (connections.length >= 2) {
-          conn.close(); // 최대 3명 정원 초과
-          return;
-        }
-        setupConnection(conn);
+        if (connections.length >= 2) return conn.close();
+        setupConn(conn);
       });
     });
 
-    // [게스트] 방 참여
     document.getElementById('btn-join').addEventListener('click', () => {
-      const hostId = roomInput.value.trim();
-      if (!hostId) return;
-
+      const targetId = roomInput.value.trim();
+      if (!targetId) return;
       peer = new Peer();
       peer.on('open', () => {
-        const conn = peer.connect(hostId);
-        setupConnection(conn);
+        const conn = peer.connect(targetId);
+        setupConn(conn);
       });
     });
 
-    function setupConnection(conn) {
+    function setupConn(conn) {
       conn.on('open', () => {
         connections.push(conn);
-        statusEl.innerText = `접속 인원: ${connections.length + 1} / 3명`;
-
-        conn.on('data', (data) => {
-          if (data.action === 'spawn') {
-            spawnLog(data.type, data);
-          }
+        statusEl.innerText = `접속자: ${connections.length + 1} / 3명`;
+        conn.on('data', (d) => {
+          if (d.action === 'spawn') spawnLog(d.type, d);
         });
       });
-
       conn.on('close', () => {
         connections = connections.filter(c => c !== conn);
-        statusEl.innerText = `접속 인원: ${connections.length + 1} / 3명`;
+        statusEl.innerText = `접속자: ${connections.length + 1} / 3명`;
       });
     }
 
-    function broadcastAction(data) {
-      connections.forEach(conn => {
-        if (conn.open) conn.send({ action: 'spawn', ...data });
-      });
+    function broadcast(data) {
+      connections.forEach(c => { if (c.open) c.send(data); });
     }
 
-    // ─── 5. 메인 루프 (화력 감쇠 및 렌더링) ───
+    // ─── 7. 메인 루프 ───
     const clock = new THREE.Clock();
 
     function animate() {
       requestAnimationFrame(animate);
       const delta = Math.min(clock.getDelta(), 0.1);
+      const elapsedTime = clock.getElapsedTime();
 
-      // 물리 시뮬레이션 스텝
       world.step(1 / 60, delta, 3);
 
-      // 장작 업데이트
       for (let i = logs.length - 1; i >= 0; i--) {
         logs[i].update(delta);
         if (logs[i].fuel <= 0) {
@@ -293,21 +405,51 @@
       }
 
       // 자연 화력 감소
-      fireIntensity = Math.max(0, fireIntensity - 1.2 * delta);
+      fireIntensity = Math.max(0, fireIntensity - 0.7 * delta);
       document.getElementById('fire-meter').innerText = `화력: ${Math.round(fireIntensity)}%`;
 
-      // 화력에 따른 불빛 깜빡임 및 스케일 조정
-      const flicker = Math.sin(Date.now() * 0.015) * 0.4 + (fireIntensity / 25);
+      const currentScale = fireIntensity / 50.0;
+
+      // 1) 셰이더 불꽃 업데이트
+      flameMat.uniforms.time.value = elapsedTime;
+      flameMat.uniforms.intensity.value = Math.max(0.1, currentScale);
+      flameMesh.scale.set(
+        Math.max(0.2, currentScale * 0.8),
+        Math.max(0.1, currentScale * 1.2),
+        Math.max(0.2, currentScale * 0.8)
+      );
+
+      // 2) 불빛 깜빡임
+      const flicker = Math.sin(elapsedTime * 15.0) * 0.4 + (fireIntensity / 20.0);
       fireLight.intensity = Math.max(0.2, flicker);
-      fireLight.color.setHSL(0.06, 1.0, Math.min(0.6, fireIntensity / 100));
+
+      // 3) 불티 파티클 상승 업데이트
+      const positions = sparkParticles.geometry.attributes.position.array;
+      for (let i = 0; i < sparkCount; i++) {
+        const vel = sparkVel[i];
+        positions[i * 3 + 1] += vel.vy * delta * (0.6 + currentScale * 0.6);
+        positions[i * 3 + 0] += Math.sin(elapsedTime * 4.0 + i) * 0.01;
+        positions[i * 3 + 2] += Math.cos(elapsedTime * 4.0 + i) * 0.01;
+
+        // 일정 높이 이상 올라가거나 화력이 꺼지면 리셋
+        if (positions[i * 3 + 1] > (1.2 + currentScale * 1.5)) {
+          positions[i * 3 + 0] = (Math.random() - 0.5) * 0.4;
+          positions[i * 3 + 1] = 0.1;
+          positions[i * 3 + 2] = (Math.random() - 0.5) * 0.4;
+        }
+      }
+      sparkParticles.geometry.attributes.position.needsUpdate = true;
+      sparkMat.opacity = Math.min(1.0, currentScale);
 
       renderer.render(scene, camera);
     }
 
     window.addEventListener('resize', () => {
-      camera.aspect = window.innerWidth / window.innerHeight;
+      const w = window.innerWidth;
+      const h = window.innerHeight;
+      camera.aspect = w / h;
       camera.updateProjectionMatrix();
-      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.setSize(w, h);
     });
 
     animate();

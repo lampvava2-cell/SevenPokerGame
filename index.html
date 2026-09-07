@@ -12,6 +12,8 @@
             background-color: #0d0d0f;
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
             touch-action: none;
+            user-select: none;
+            -webkit-user-select: none;
         }
         #canvas-container {
             width: 100vw;
@@ -44,9 +46,9 @@
             background: #282832;
             border: 1px solid rgba(255, 255, 255, 0.2);
             color: #fff;
-            padding: 10px 18px;
+            padding: 10px 16px;
             border-radius: 10px;
-            font-size: 14px;
+            font-size: 13px;
             font-weight: 600;
             cursor: pointer;
             box-shadow: 0 4px 15px rgba(0,0,0,0.4);
@@ -59,6 +61,43 @@
             font-weight: bold;
             color: #ffaa44;
         }
+
+        /* 하단 발화 버튼 컨트롤 바 */
+        #bottom-bar {
+            position: absolute;
+            bottom: 30px;
+            left: 0;
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            pointer-events: none;
+        }
+        .btn-fire {
+            pointer-events: auto;
+            background: linear-gradient(135deg, #444, #333);
+            border: 2px solid #555;
+            color: #888;
+            padding: 14px 38px;
+            border-radius: 30px;
+            font-size: 16px;
+            font-weight: 800;
+            letter-spacing: 1px;
+            box-shadow: 0 6px 20px rgba(0,0,0,0.6);
+            transition: all 0.2s ease;
+            cursor: not-allowed;
+        }
+        .btn-fire.ready {
+            background: linear-gradient(135deg, #ff4500, #cc2200);
+            border-color: #ff7744;
+            color: #ffffff;
+            cursor: pointer;
+            box-shadow: 0 6px 25px rgba(255, 69, 0, 0.6);
+            transform: scale(1.05);
+        }
+        .btn-fire.ready:active {
+            transform: scale(0.96);
+            background: linear-gradient(135deg, #cc2200, #991100);
+        }
     </style>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
@@ -67,13 +106,17 @@
 
     <div id="ui-overlay">
         <div class="info-card">
-            <div>🔥 <b>화면 조작 안내</b></div>
-            <div>• 1손가락 드래그: 카메라 회전</div>
-            <div>• 2손가락 핀치: 확대 / 축소</div>
-            <div>• 나무 표면 터치: <b>작은 불 붙이기</b></div>
-            <div id="status-pill">상태: 점화 대기 중</div>
+            <div>🔥 <b>조작 가이드</b></div>
+            <div>• 화면 드래그: 카메라 회전 및 줌</div>
+            <div>• 나무 표면 탭: <b>목표 지점 조준(타깃)</b></div>
+            <div>• 하단 FIRE 버튼: <b>조준 지점에 불 붙이기</b></div>
+            <div id="status-pill">상태: 점화 위치를 선택하세요</div>
         </div>
         <button class="btn-reset" onclick="resetBlock()">새 나무로 리셋</button>
+    </div>
+
+    <div id="bottom-bar">
+        <button id="fire-btn" class="btn-fire" onclick="triggerIgnition()">🔥 FIRE (불 붙이기)</button>
     </div>
 
     <div id="canvas-container"></div>
@@ -81,6 +124,7 @@
     <script>
         const container = document.getElementById('canvas-container');
         const statusPill = document.getElementById('status-pill');
+        const fireBtn = document.getElementById('fire-btn');
 
         const scene = new THREE.Scene();
         scene.background = new THREE.Color(0x0e0e12);
@@ -101,7 +145,7 @@
         controls.minDistance = 1.2;
         controls.maxDistance = 6.0;
 
-        // 조명
+        // 조명 설정
         const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
         scene.add(ambientLight);
 
@@ -120,7 +164,23 @@
         floor.position.y = -0.6;
         scene.add(floor);
 
-        // --- 연소 시뮬레이션 그리드 설정 ---
+        // --- 표면 조준 링 커서 (Target Cursor) 생성 ---
+        const cursorGeo = new THREE.RingGeometry(0.04, 0.065, 32);
+        const cursorMat = new THREE.MeshBasicMaterial({
+            color: 0xff2200,
+            side: THREE.DoubleSide,
+            transparent: true,
+            opacity: 0.9,
+            depthTest: false
+        });
+        const targetCursor = new THREE.Mesh(cursorGeo, cursorMat);
+        targetCursor.visible = false;
+        targetCursor.renderOrder = 999; // 항상 표면 위에 보이게
+        scene.add(targetCursor);
+
+        let selectedUV = null;
+
+        // --- 연소 시뮬레이션 그리드 ---
         const SIM_SIZE = 256;
         const simCanvas = document.createElement('canvas');
         simCanvas.width = SIM_SIZE;
@@ -136,15 +196,18 @@
         function initSimulationData() {
             for (let i = 0; i < SIM_SIZE * SIM_SIZE; i++) {
                 tempGrid[i] = 0.0;
-                fuelGrid[i] = 1.0; // 100% 연료
-                charGrid[i] = 0.0; // 0% 탄화
+                fuelGrid[i] = 1.0;
+                charGrid[i] = 0.0;
             }
             isBurning = false;
             firePointLight.intensity = 0;
-            statusPill.innerText = "상태: 점화 대기 중";
+            selectedUV = null;
+            targetCursor.visible = false;
+            fireBtn.classList.remove('ready');
+
+            statusPill.innerText = "상태: 점화 위치를 선택하세요";
             statusPill.style.color = "#ffaa44";
 
-            // 초기 캔버스를 R:0, G:255(연료 가득), B:0, A:0으로 채움
             const imgData = simCtx.createImageData(SIM_SIZE, SIM_SIZE);
             const data = imgData.data;
             for (let i = 0; i < SIM_SIZE * SIM_SIZE; i++) {
@@ -179,7 +242,7 @@
         }
         const woodTexture = new THREE.CanvasTexture(woodCanvas);
 
-        // --- 셰이더 (수축 방식 안정화: 중심축 축소 적용) ---
+        // 셰이더 (표면 탄화, 잉걸불 및 중심축 수축)
         const woodMaterial = new THREE.ShaderMaterial({
             uniforms: {
                 _WoodTex: { value: woodTexture },
@@ -199,7 +262,7 @@
                     vec4 sim = texture2D(_SimTex, uv);
                     float burned = clamp(1.0 - sim.g, 0.0, 1.0);
 
-                    // 중심축(원점) 방향으로 수축시켜 모서리 찢어짐을 원천 방지
+                    // 중심축(원점) 방향으로 수축
                     vec3 shrinkDir = normalize(position);
                     vec3 displacedPos = position - shrinkDir * (burned * _Shrink);
 
@@ -219,11 +282,8 @@
                     float fuel = sim.g;
                     float charAmount = sim.a;
 
-                    // 탄화(숯) 변색
                     vec3 charCol = vec3(0.04, 0.04, 0.04);
                     vec3 baseCol = mix(woodCol.rgb, charCol, charAmount);
-
-                    // 잉걸불(Glow) 에미시브
                     vec3 emberCol = vec3(2.8, 0.45, 0.02) * pow(temp, 2.2) * (fuel * 1.5 + 0.15);
 
                     vec3 lightDir = normalize(vec3(1.0, 2.0, 1.5));
@@ -238,7 +298,7 @@
         const woodBlock = new THREE.Mesh(woodGeo, woodMaterial);
         scene.add(woodBlock);
 
-        // --- 파티클 시스템 ---
+        // 파티클 시스템
         const PARTICLE_COUNT = 500;
         const particleGeo = new THREE.BufferGeometry();
         const pPositions = new Float32Array(PARTICLE_COUNT * 3);
@@ -267,7 +327,7 @@
         const fireParticles = new THREE.Points(particleGeo, particleMat);
         scene.add(fireParticles);
 
-        // --- 터치 입력 및 점화 ---
+        // --- 터치 입력 -> 지점 조준(커서 배치) 처리 ---
         const raycaster = new THREE.Raycaster();
         const mouse = new THREE.Vector2();
         let touchStartX = 0, touchStartY = 0;
@@ -284,38 +344,80 @@
                 const deltaX = Math.abs(e.changedTouches[0].clientX - touchStartX);
                 const deltaY = Math.abs(e.changedTouches[0].clientY - touchStartY);
 
+                // 단순 탭 동작일 때만 표면 타깃 지정
                 if (deltaX < 12 && deltaY < 12) {
                     mouse.x = (e.changedTouches[0].clientX / window.innerWidth) * 2 - 1;
                     mouse.y = -(e.changedTouches[0].clientY / window.innerHeight) * 2 + 1;
-                    igniteAtTouch();
+                    selectTargetPoint();
                 }
             }
         });
 
-        function igniteAtTouch() {
+        // PC 마우스 클릭 대응
+        window.addEventListener('mousedown', (e) => {
+            if (e.target.tagName === 'BUTTON') return;
+            touchStartX = e.clientX;
+            touchStartY = e.clientY;
+        });
+
+        window.addEventListener('mouseup', (e) => {
+            if (e.target.tagName === 'BUTTON') return;
+            const deltaX = Math.abs(e.clientX - touchStartX);
+            const deltaY = Math.abs(e.clientY - touchStartY);
+            if (deltaX < 6 && deltaY < 6) {
+                mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+                mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+                selectTargetPoint();
+            }
+        });
+
+        function selectTargetPoint() {
             raycaster.setFromCamera(mouse, camera);
             const intersects = raycaster.intersectObject(woodBlock);
             if (intersects.length > 0) {
-                const uv = intersects[0].uv;
-                const cx = Math.floor(uv.x * SIM_SIZE);
-                const cy = Math.floor(uv.y * SIM_SIZE);
-                const radius = 10;
+                const hit = intersects[0];
+                selectedUV = hit.uv;
 
-                for (let y = -radius; y <= radius; y++) {
-                    for (let x = -radius; x <= radius; x++) {
-                        const px = cx + x;
-                        const py = cy + y;
-                        if (px >= 0 && px < SIM_SIZE && py >= 0 && py < SIM_SIZE) {
-                            if (x * x + y * y <= radius * radius) {
-                                tempGrid[py * SIM_SIZE + px] = 1.0;
-                            }
+                // 조준 링 커서를 표면에 밀착 배치
+                targetCursor.position.copy(hit.point).add(hit.face.normal.clone().multiplyScalar(0.005));
+                targetCursor.lookAt(hit.point.clone().add(hit.face.normal));
+                targetCursor.visible = true;
+
+                // FIRE 버튼 활성화
+                fireBtn.classList.add('ready');
+                statusPill.innerText = "조준 완료! 'FIRE' 버튼을 누르세요 🎯";
+                statusPill.style.color = "#00ffaa";
+            }
+        }
+
+        // FIRE 버튼 클릭 시 점화 실행
+        function triggerIgnition() {
+            if (!selectedUV) return;
+
+            const cx = Math.floor(selectedUV.x * SIM_SIZE);
+            const cy = Math.floor(selectedUV.y * SIM_SIZE);
+            const radius = 10;
+
+            for (let y = -radius; y <= radius; y++) {
+                for (let x = -radius; x <= radius; x++) {
+                    const px = cx + x;
+                    const py = cy + y;
+                    if (px >= 0 && px < SIM_SIZE && py >= 0 && py < SIM_SIZE) {
+                        if (x * x + y * y <= radius * radius) {
+                            tempGrid[py * SIM_SIZE + px] = 1.0;
                         }
                     }
                 }
-                isBurning = true;
-                statusPill.innerText = "상태: 연소 진행 중 🔥";
-                statusPill.style.color = "#ff4422";
             }
+
+            isBurning = true;
+            statusPill.innerText = "상태: 연소 진행 중 🔥";
+            statusPill.style.color = "#ff4422";
+
+            // 발화 후 커서 숨김
+            targetCursor.visible = false;
+            selectedUV = null;
+            fireBtn.classList.remove('ready');
         }
 
         // --- 연소 물리 연산 ---
@@ -340,11 +442,9 @@
                     let fuel = fuelGrid[idx];
                     let ch = charGrid[idx];
 
-                    // 확산 연산
                     const lap = (tempGrid[idx - 1] + tempGrid[idx + 1] + tempGrid[idx - SIM_SIZE] + tempGrid[idx + SIM_SIZE]) - (4.0 * temp);
                     temp += lap * DIFFUSION;
 
-                    // 연소
                     if (temp > IGNITION_TEMP && fuel > 0.001) {
                         const reaction = Math.min(fuel, BURN_RATE);
                         fuel -= reaction;
@@ -357,7 +457,6 @@
                         flameCount++;
                     }
 
-                    // 냉각
                     temp = Math.max(0.0, temp - COOLING);
 
                     nextTempGrid[idx] = temp;
@@ -365,7 +464,6 @@
                     charGrid[idx] = ch;
                     totalTemp += temp;
 
-                    // 텍스처 픽셀 데이터
                     const pIdx = idx * 4;
                     data[pIdx]     = Math.floor(Math.min(temp, 1.0) * 255);
                     data[pIdx + 1] = Math.floor(fuel * 255);
@@ -381,7 +479,6 @@
             simCtx.putImageData(imgData, 0, 0);
             simTexture.needsUpdate = true;
 
-            // 광원 및 파티클 연동
             if (flameCount > 0) {
                 firePointLight.intensity = THREE.MathUtils.lerp(firePointLight.intensity, Math.min(flameCount * 0.02, 3.5), 0.1);
                 firePointLight.position.set(flameCenterX / flameCount, flameCenterY / flameCount + 0.3, 0);
@@ -390,7 +487,6 @@
                 firePointLight.intensity = THREE.MathUtils.lerp(firePointLight.intensity, 0, 0.05);
             }
 
-            // 전소 판정
             if (isBurning && activeFlames === 0 && totalTemp < 8.0) {
                 isBurning = false;
                 statusPill.innerText = "상태: 완전 연소 후 불 꺼짐 💨";
@@ -447,10 +543,19 @@
             simTexture.needsUpdate = true;
         }
 
+        // 조준 링 펄스 애니메이션용 시간 변수
+        let cursorTime = 0;
         const clock = new THREE.Clock();
         function animate() {
             requestAnimationFrame(animate);
             const dt = clock.getDelta();
+
+            // 조준 링 반짝임 효과
+            if (targetCursor.visible) {
+                cursorTime += dt * 5.0;
+                const scale = 1.0 + Math.sin(cursorTime) * 0.12;
+                targetCursor.scale.set(scale, scale, 1.0);
+            }
 
             stepCombustion();
             updateParticles(dt);

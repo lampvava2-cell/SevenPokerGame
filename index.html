@@ -1,539 +1,540 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>4인 7포커</title>
-  <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Mobile 7 Poker</title>
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    html, body {
-      width: 100%;
-      height: 100%;
-      overflow: hidden;
-      background: #0d2818;
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+    body {
+      background: #143626;
       color: #fff;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      user-select: none;
-    }
-    #app-container {
+      height: 100vh;
       display: flex;
       flex-direction: column;
-      height: 100dvh; /* 모바일 브라우저 툴바 높이 완벽 대응 */
-      width: 100vw;
-    }
-    header {
-      height: 44px;
-      background: #040f0f;
-      padding: 0 12px;
-      font-size: 13px;
-      display: flex;
       justify-content: space-between;
-      align-items: center;
-      border-bottom: 1px solid #1b4332;
-      flex-shrink: 0;
-    }
-    #setup-panel {
-      padding: 10px;
-      background: #1b4332;
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-      flex-shrink: 0;
-    }
-    .input-group { display: flex; gap: 6px; }
-    input, button {
-      padding: 10px;
-      border-radius: 6px;
-      border: none;
-      font-size: 14px;
-      font-weight: bold;
-    }
-    button { cursor: pointer; }
-    #table {
-      flex: 1;
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      grid-template-rows: 1fr 1fr;
-      gap: 6px;
-      padding: 6px;
+      padding: 12px;
       overflow: hidden;
     }
-    .player-slot {
+
+    /* 상단 알림창 */
+    .header {
+      text-align: center;
+      padding: 8px 10px;
       background: rgba(0,0,0,0.45);
+      border-radius: 10px;
+      border: 1px solid rgba(255,255,255,0.1);
+    }
+    .phase-title { font-size: 1.05rem; font-weight: bold; color: #ffd166; }
+    .status-msg { font-size: 0.85rem; color: #e2e8f0; margin-top: 3px; }
+
+    /* 플레이어 영역 */
+    .table-area {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-evenly;
+      gap: 8px;
+    }
+    .player-section {
+      background: rgba(0,0,0,0.25);
+      padding: 10px 6px;
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,0.08);
+      position: relative;
+    }
+    .player-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0 4px 6px 4px;
+    }
+    .player-label { font-size: 0.85rem; color: #94d2bd; font-weight: 700; }
+    .hand-badge {
+      font-size: 0.8rem;
+      background: #000;
+      color: #ffd166;
+      padding: 2px 8px;
+      border-radius: 6px;
+      border: 1px solid #ffd166;
+      display: none;
+    }
+
+    /* 모바일 카드 최적화 */
+    .card-row {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 106px;
+    }
+    .card {
+      width: clamp(50px, 13.5vw, 76px);
+      height: clamp(76px, 20vw, 114px);
+      background: #ffffff;
       border-radius: 8px;
-      border: 1.5px solid #2d6a4f;
-      padding: 6px;
+      border: 1.5px solid #222;
+      box-shadow: -3px 3px 6px rgba(0,0,0,0.5);
       display: flex;
       flex-direction: column;
       justify-content: space-between;
-      font-size: 11px;
+      padding: 4px 5px;
+      margin-left: -18px;
+      position: relative;
+      user-select: none;
+      transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
     }
-    .player-slot.active-turn {
+    .card:first-child { margin-left: 0; }
+    .card.hidden {
+      background: repeating-linear-gradient(45deg, #1d3557, #1d3557 6px, #457b9d 6px, #457b9d 12px);
+      border: 1.5px solid #fff;
+    }
+    .card.best-card {
+      transform: translateY(-8px);
       border: 2px solid #ffd166;
-      box-shadow: 0 0 12px rgba(255, 209, 102, 0.6);
+      box-shadow: 0 0 10px #ffd166;
     }
-    .slot-header {
-      display: flex;
-      justify-content: space-between;
-      font-weight: bold;
-    }
-    .status-badge {
-      padding: 1px 4px;
-      border-radius: 4px;
-      background: #333;
-    }
-    .cards-wrapper {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 3px;
-      align-items: center;
-    }
-    .card {
-      width: 26px;
-      height: 38px;
-      background: #ffffff;
-      color: #111;
-      border-radius: 3px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-weight: bold;
-      font-size: 11px;
-      border: 1px solid #ced4da;
-    }
-    .card.red { color: #d90429; }
-    .card.hidden-card {
-      background: repeating-linear-gradient(45deg, #1d3557, #1d3557 4px, #457b9d 4px, #457b9d 8px);
-      color: transparent;
-    }
-    .hand-eval {
-      font-size: 11px;
-      color: #ffd166;
-      text-align: right;
-      min-height: 14px;
-      font-weight: bold;
-    }
-    #controls {
-      height: 64px;
-      background: #040f0f;
+
+    .card .val { font-size: 1rem; font-weight: 900; line-height: 1; }
+    .card .suit { font-size: 0.85rem; line-height: 1; }
+    .card .center-suit { font-size: 1.6rem; text-align: center; align-self: center; }
+    .red { color: #d90429; }
+    .black { color: #1e293b; }
+
+    /* 결과 오버레이 배너 */
+    .result-banner {
+      display: none;
       padding: 8px;
-      display: flex;
-      gap: 8px;
-      flex-shrink: 0;
-      border-top: 1px solid #1b4332;
-    }
-    .action-btn {
-      flex: 1;
       border-radius: 8px;
-      font-size: 15px;
-      font-weight: bold;
-      display: flex;
-      align-items: center;
-      justify-content: center;
+      text-align: center;
+      font-weight: 800;
+      font-size: 1rem;
+      animation: pop 0.3s ease;
     }
-    .btn-fold { background: #e63946; color: white; }
-    .btn-call { background: #52b788; color: #040f0f; }
-    .btn-raise { background: #ffd166; color: #111; }
-    .action-btn:disabled {
-      background: #2b2d42 !important;
-      color: #6c757d !important;
-      opacity: 0.5;
+    .banner-win { background: #06d6a0; color: #012a1f; }
+    .banner-lose { background: #e63946; color: #fff; }
+    .banner-draw { background: #e0aaff; color: #10002b; }
+
+    /* 하단 버튼 컨트롤러 */
+    .controls { padding-bottom: 6px; }
+    .btn {
+      width: 100%;
+      padding: 15px 0;
+      border: none;
+      border-radius: 12px;
+      background: #06d6a0;
+      color: #073b4c;
+      font-weight: 800;
+      font-size: 1.05rem;
+      box-shadow: 0 4px #049f76;
+    }
+    .btn:active {
+      transform: translateY(2px);
+      box-shadow: 0 2px #049f76;
+    }
+    .btn-action {
+      background: #ffd166;
+      color: #3d2b00;
+      box-shadow: 0 4px #d4a340;
+    }
+
+    @keyframes pop {
+      0% { transform: scale(0.9); opacity: 0; }
+      100% { transform: scale(1); opacity: 1; }
     }
   </style>
 </head>
 <body>
 
-<div id="app-container">
-  <header>
-    <div><span id="game-stage">대기실</span> | <strong id="room-status">연결 준비</strong></div>
-    <div style="font-weight: bold; color: #ffd166;" id="pot-display">POT: 0</div>
-  </header>
-
-  <div id="setup-panel">
-    <div class="input-group">
-      <button id="btn-create" onclick="createRoom()" style="background:#52b788; color:#040f0f; flex:1;">방 생성</button>
-      <input id="input-room" type="text" placeholder="방 코드" style="flex:1.4;">
-      <button id="btn-join" onclick="joinRoom()" style="background:#52b788; color:#040f0f; flex:1;">참가</button>
-    </div>
-    <button id="btn-start-game" onclick="manualStartGame()" style="display:none; background:#ffd166; color:#111; padding: 10px;">
-      게임 시작 (부족 인원은 AI 자동 대체)
-    </button>
-    <div id="peer-info" style="font-size: 11px; color: #b7e4c7; word-break: break-all;"></div>
+  <div class="header">
+    <div class="phase-title" id="phase-text">7포커 준비</div>
+    <div class="status-msg" id="guide-text">아래 시작 버튼을 터치하세요.</div>
   </div>
 
-  <div id="table">
-    <div class="player-slot" id="p0">
-      <div class="slot-header"><span class="name">P1 (호스트)</span><span class="status-badge">10000</span></div>
-      <div class="cards-wrapper"></div>
-      <div class="hand-eval"></div>
+  <div class="table-area">
+    <div class="player-section">
+      <div class="player-header">
+        <span class="player-label">상대 플레이어</span>
+        <span class="hand-badge" id="dealer-score-badge"></span>
+      </div>
+      <div class="card-row" id="dealer-cards"></div>
     </div>
-    <div class="player-slot" id="p1">
-      <div class="slot-header"><span class="name">P2 대기</span><span class="status-badge">10000</span></div>
-      <div class="cards-wrapper"></div>
-      <div class="hand-eval"></div>
-    </div>
-    <div class="player-slot" id="p2">
-      <div class="slot-header"><span class="name">P3 대기</span><span class="status-badge">10000</span></div>
-      <div class="cards-wrapper"></div>
-      <div class="hand-eval"></div>
-    </div>
-    <div class="player-slot" id="p3">
-      <div class="slot-header"><span class="name">P4 대기</span><span class="status-badge">10000</span></div>
-      <div class="cards-wrapper"></div>
-      <div class="hand-eval"></div>
+
+    <div id="result-banner" class="result-banner"></div>
+
+    <div class="player-section">
+      <div class="player-header">
+        <span class="player-label">김PD님 핸드</span>
+        <span class="hand-badge" id="player-score-badge"></span>
+      </div>
+      <div class="card-row" id="player-cards"></div>
     </div>
   </div>
 
-  <div id="controls">
-    <button class="action-btn btn-fold" id="btn-fold" onclick="sendAction('fold')" disabled>다이</button>
-    <button class="action-btn btn-call" id="btn-call" onclick="sendAction('call')" disabled>콜/체크</button>
-    <button class="action-btn btn-raise" id="btn-raise" onclick="sendAction('raise')" disabled>레이즈</button>
+  <div class="controls">
+    <button class="btn btn-action" id="action-btn" onclick="handleStep()">게임 시작</button>
   </div>
-</div>
 
-<script>
-  let peer = null;
-  let isHost = false;
-  let mySeat = -1;
-  let connections = []; 
-  let hostConn = null;
-  let deck = [];
-
-  const gameState = {
-    round: 0,
-    pot: 0,
-    currentBet: 0,
-    currentTurn: 0,
-    turnCountThisRound: 0,
-    players: [
-      { id: null, isAI: false, active: false, chips: 10000, cards: [], folded: false, betThisRound: 0 },
-      { id: null, isAI: false, active: false, chips: 10000, cards: [], folded: false, betThisRound: 0 },
-      { id: null, isAI: false, active: false, chips: 10000, cards: [], folded: false, betThisRound: 0 },
-      { id: null, isAI: false, active: false, chips: 10000, cards: [], folded: false, betThisRound: 0 }
-    ]
-  };
-
-  function initPeer() {
-    peer = new Peer();
-    peer.on('open', (id) => {
-      document.getElementById('peer-info').innerText = `내 코드: ${id}`;
-    });
-  }
-  initPeer();
-
-  function createRoom() {
-    isHost = true;
-    mySeat = 0;
-    gameState.players[0].id = peer.id;
-    gameState.players[0].active = true;
-
-    document.getElementById('btn-create').style.display = 'none';
-    document.getElementById('btn-join').style.display = 'none';
-    document.getElementById('input-room').style.display = 'none';
-    document.getElementById('btn-start-game').style.display = 'block';
-    document.getElementById('room-status').innerText = '참가 대기중';
-
-    peer.on('connection', (conn) => {
-      if (connections.length >= 3) {
-        conn.close();
-        return;
+  <script>
+    // --- 1. 브라우저 내장 사운드 엔진 (Web Audio API) ---
+    let audioCtx = null;
+    function initAudio() {
+      if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
       }
-      connections.push(conn);
-      const seat = connections.length;
-      gameState.players[seat].id = conn.peer;
-      gameState.players[seat].active = true;
+      if (audioCtx.state === 'suspended') {
+        audioCtx.resume();
+      }
+    }
 
-      conn.on('open', () => {
-        conn.send({ type: 'ASSIGN_SEAT', seat: seat });
-        broadcastState();
+    // 카드 넘기는 소리 (짧은 펄스 노이즈)
+    function playDealSound() {
+      initAudio();
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(450, audioCtx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(120, audioCtx.currentTime + 0.08);
+      gain.gain.setValueAtTime(0.35, audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.08);
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.start();
+      osc.stop(audioCtx.currentTime + 0.08);
+    }
+
+    // 승리 사운드 (밝은 아르페지오 화음)
+    function playWinSound() {
+      initAudio();
+      const notes = [523.25, 659.25, 783.99, 1046.50]; // C5, E5, G5, C6
+      notes.forEach((freq, idx) => {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, audioCtx.currentTime + idx * 0.09);
+        gain.gain.setValueAtTime(0.3, audioCtx.currentTime + idx * 0.09);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + idx * 0.09 + 0.25);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start(audioCtx.currentTime + idx * 0.09);
+        osc.stop(audioCtx.currentTime + idx * 0.09 + 0.25);
       });
+    }
 
-      conn.on('data', (data) => {
-        handlePlayerAction(seat, data.action);
+    // 패배 사운드 (하강 톤)
+    function playLoseSound() {
+      initAudio();
+      const notes = [440, 415, 370, 311];
+      notes.forEach((freq, idx) => {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(freq, audioCtx.currentTime + idx * 0.12);
+        gain.gain.setValueAtTime(0.2, audioCtx.currentTime + idx * 0.12);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + idx * 0.12 + 0.18);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start(audioCtx.currentTime + idx * 0.12);
+        osc.stop(audioCtx.currentTime + idx * 0.12 + 0.18);
       });
-    });
-    updateUI();
-  }
-
-  function joinRoom() {
-    const hostId = document.getElementById('input-room').value.trim();
-    if (!hostId) return;
-
-    hostConn = peer.connect(hostId);
-    hostConn.on('open', () => {
-      document.getElementById('setup-panel').style.display = 'none';
-      document.getElementById('room-status').innerText = '호스트 연결됨';
-    });
-
-    hostConn.on('data', (msg) => {
-      if (msg.type === 'ASSIGN_SEAT') {
-        mySeat = msg.seat;
-      } else if (msg.type === 'SYNC') {
-        Object.assign(gameState, msg.state);
-        updateUI();
-      }
-    });
-  }
-
-  function manualStartGame() {
-    for (let i = 0; i < 4; i++) {
-      if (!gameState.players[i].active) {
-        gameState.players[i].active = true;
-        gameState.players[i].isAI = true;
-        gameState.players[i].id = `AI_${i}`;
-      }
-    }
-    document.getElementById('setup-panel').style.display = 'none';
-    startNewGameRound();
-  }
-
-  function createDeck() {
-    const suits = ['♠', '◆', '♥', '♣'];
-    const ranks = ['2','3','4','5','6','7','8','9','10','J','Q','K','A'];
-    deck = [];
-    for (let s of suits) {
-      for (let i = 0; i < ranks.length; i++) {
-        deck.push({ suit: s, rank: ranks[i], value: i + 2, red: (s === '♥' || s === '◆') });
-      }
-    }
-    deck.sort(() => Math.random() - 0.5);
-  }
-
-  function startNewGameRound() {
-    createDeck();
-    gameState.pot = 0;
-    gameState.round = 1;
-    gameState.currentBet = 50;
-    gameState.turnCountThisRound = 0;
-
-    gameState.players.forEach(p => {
-      if (p.active) {
-        p.chips -= 50;
-        gameState.pot += 50;
-        p.folded = false;
-        p.betThisRound = 0;
-        p.cards = [
-          { ...deck.pop(), hidden: true },
-          { ...deck.pop(), hidden: true },
-          { ...deck.pop(), hidden: false }
-        ];
-      }
-    });
-
-    gameState.currentTurn = 0;
-    broadcastState();
-    checkAITurn();
-  }
-
-  function dealNextCard() {
-    gameState.round++;
-    gameState.turnCountThisRound = 0;
-    gameState.currentBet = 0;
-    gameState.players.forEach(p => p.betThisRound = 0);
-
-    if (gameState.round <= 4) {
-      gameState.players.forEach(p => {
-        if (p.active && !p.folded) p.cards.push({ ...deck.pop(), hidden: false });
-      });
-    } else if (gameState.round === 5) {
-      gameState.players.forEach(p => {
-        if (p.active && !p.folded) p.cards.push({ ...deck.pop(), hidden: true });
-      });
-    } else {
-      resolveShowdown();
-      return;
     }
 
-    findNextActivePlayer();
-    broadcastState();
-    checkAITurn();
-  }
+    // --- 2. 카드 엔진 & 7포커 족보 계산기 ---
+    const SUITS = ['♠', '◆', '♥', '♣'];
+    const SUIT_ORDER = { '♠': 4, '◆': 3, '♥': 2, '♣': 1 };
+    const VALS = [
+      { val: '2', score: 2 }, { val: '3', score: 3 }, { val: '4', score: 4 },
+      { val: '5', score: 5 }, { val: '6', score: 6 }, { val: '7', score: 7 },
+      { val: '8', score: 8 }, { val: '9', score: 9 }, { val: '10', score: 10 },
+      { val: 'J', score: 11 }, { val: 'Q', score: 12 }, { val: 'K', score: 13 }, { val: 'A', score: 14 }
+    ];
 
-  function handlePlayerAction(seat, action) {
-    if (gameState.currentTurn !== seat || gameState.round >= 6) return;
-    const p = gameState.players[seat];
+    let deck = [], playerHand = [], dealerHand = [];
+    let currentStep = 0;
 
-    if (action === 'fold') {
-      p.folded = true;
-    } else if (action === 'call') {
-      const callAmount = gameState.currentBet - p.betThisRound;
-      p.chips -= callAmount;
-      p.betThisRound += callAmount;
-      gameState.pot += callAmount;
-    } else if (action === 'raise') {
-      const raiseTotal = gameState.currentBet + 100;
-      const needToPay = raiseTotal - p.betThisRound;
-      p.chips -= needToPay;
-      p.betThisRound = raiseTotal;
-      gameState.currentBet = raiseTotal;
-      gameState.pot += needToPay;
-    }
-
-    gameState.turnCountThisRound++;
-
-    const survivors = gameState.players.filter(pl => pl.active && !pl.folded);
-    if (survivors.length === 1) {
-      survivors[0].chips += gameState.pot;
-      gameState.round = 6;
-      broadcastState();
-      setTimeout(startNewGameRound, 3000);
-      return;
-    }
-
-    const roundFinished = survivors.every(pl => pl.betThisRound === gameState.currentBet) 
-                          && gameState.turnCountThisRound >= survivors.length;
-
-    if (roundFinished) {
-      setTimeout(dealNextCard, 600);
-    } else {
-      findNextActivePlayer();
-      broadcastState();
-      checkAITurn();
-    }
-  }
-
-  function findNextActivePlayer() {
-    let next = (gameState.currentTurn + 1) % 4;
-    while (!gameState.players[next].active || gameState.players[next].folded) {
-      next = (next + 1) % 4;
-    }
-    gameState.currentTurn = next;
-  }
-
-  function checkAITurn() {
-    if (!isHost || gameState.round >= 6) return;
-    const curr = gameState.players[gameState.currentTurn];
-    if (curr && curr.active && curr.isAI && !curr.folded) {
-      setTimeout(() => {
-        const betDiff = gameState.currentBet - curr.betThisRound;
-        let action = 'call';
-        const rand = Math.random();
-
-        if (betDiff > 200 && rand < 0.2) action = 'fold';
-        else if (rand > 0.8) action = 'raise';
-        else action = 'call';
-
-        handlePlayerAction(gameState.currentTurn, action);
-      }, 800);
-    }
-  }
-
-  function sendAction(actionType) {
-    if (isHost) {
-      handlePlayerAction(0, actionType);
-    } else if (hostConn) {
-      hostConn.send({ action: actionType });
-    }
-  }
-
-  function broadcastState() {
-    updateUI();
-    connections.forEach(conn => {
-      conn.send({ type: 'SYNC', state: gameState });
-    });
-  }
-
-  function evaluateHand(cards) {
-    if (!cards || cards.length < 3) return '';
-    const counts = {};
-    const suitCounts = {};
-    cards.forEach(c => {
-      counts[c.value] = (counts[c.value] || 0) + 1;
-      suitCounts[c.suit] = (suitCounts[c.suit] || 0) + 1;
-    });
-
-    const cVals = Object.values(counts);
-    const hasFlush = Object.values(suitCounts).some(v => v >= 5);
-    const hasFour = cVals.includes(4);
-    const hasThree = cVals.includes(3);
-    const pairCount = cVals.filter(v => v === 2).length;
-
-    if (hasFlush) return '플러시';
-    if (hasFour) return '포카드';
-    if (hasThree && pairCount >= 1) return '풀하우스';
-    if (hasThree) return '트리플';
-    if (pairCount >= 2) return '투페어';
-    if (pairCount === 1) return '원페어';
-    return '하이카드';
-  }
-
-  function resolveShowdown() {
-    let bestSeat = -1;
-    let highestRankScore = -1;
-
-    gameState.players.forEach((p, idx) => {
-      if (p.active && !p.folded) {
-        const desc = evaluateHand(p.cards);
-        let score = 1;
-        if (desc.includes('플러시')) score = 6;
-        else if (desc.includes('풀하우스')) score = 5;
-        else if (desc.includes('트리플')) score = 4;
-        else if (desc.includes('투페어')) score = 3;
-        else if (desc.includes('원페어')) score = 2;
-
-        if (score > highestRankScore) {
-          highestRankScore = score;
-          bestSeat = idx;
+    function buildDeck() {
+      deck = [];
+      for (let s of SUITS) {
+        for (let v of VALS) {
+          deck.push({
+            suit: s,
+            val: v.val,
+            score: v.score,
+            suitRank: SUIT_ORDER[s],
+            color: (s === '♥' || s === '◆') ? 'red' : 'black'
+          });
         }
       }
-    });
-
-    if (bestSeat !== -1) {
-      gameState.players[bestSeat].chips += gameState.pot;
-      alert(`P${bestSeat + 1} 승리! 판돈(${gameState.pot}) 획득`);
+      deck.sort(() => Math.random() - 0.5);
     }
 
-    broadcastState();
-    setTimeout(startNewGameRound, 4000);
-  }
+    // 7장 중 5장 조합 추출 함수
+    function getCombinations(arr, k) {
+      if (k === 1) return arr.map(e => [e]);
+      let res = [];
+      arr.forEach((e, idx) => {
+        const smaller = getCombinations(arr.slice(idx + 1), k - 1);
+        smaller.forEach(s => res.push([e, ...s]));
+      });
+      return res;
+    }
 
-  function updateUI() {
-    document.getElementById('pot-display').innerText = `POT: ${gameState.pot}`;
-    const stageNames = ['대기실', '3구 베팅', '4구 베팅', '5구 베팅', '6구 베팅', '라스트(7구)', '쇼다운'];
-    document.getElementById('game-stage').innerText = stageNames[gameState.round] || '';
+    // 5장 족보 판정
+    function evaluate5(hand5) {
+      let cards = [...hand5].sort((a, b) => b.score - a.score || b.suitRank - a.suitRank);
+      let ranks = cards.map(c => c.score);
+      let suits = cards.map(c => c.suit);
 
-    gameState.players.forEach((p, idx) => {
-      const slot = document.getElementById(`p${idx}`);
-      slot.classList.toggle('active-turn', gameState.currentTurn === idx && gameState.round > 0 && gameState.round < 6);
+      const isFlush = suits.every(s => s === suits[0]);
+      let isStraight = false;
+      let straightTop = 0;
 
-      let nameTxt = `P${idx + 1}`;
-      if (idx === mySeat) nameTxt += ' (나)';
-      if (p.isAI) nameTxt += ' [AI]';
-      if (p.folded) nameTxt += ' (다이)';
-      
-      slot.querySelector('.name').innerText = p.active ? nameTxt : `P${idx + 1} 대기`;
-      slot.querySelector('.status-badge').innerText = `${p.chips}`;
-
-      const cardBox = slot.querySelector('.cards-wrapper');
-      cardBox.innerHTML = '';
-
-      if (p.active && p.cards.length > 0) {
-        p.cards.forEach(c => {
-          const div = document.createElement('div');
-          const isShow = (idx === mySeat) || (gameState.round === 6) || !c.hidden;
-          if (isShow) {
-            div.className = `card ${c.red ? 'red' : ''}`;
-            div.innerText = `${c.suit}${c.rank}`;
-          } else {
-            div.className = 'card hidden-card';
-          }
-          cardBox.appendChild(div);
-        });
-
-        slot.querySelector('.hand-eval').innerText = (idx === mySeat || gameState.round === 6) 
-          ? evaluateHand(p.cards) 
-          : '';
-      } else {
-        slot.querySelector('.hand-eval').innerText = '';
+      // 일반 스트레이트
+      let diffCheck = ranks.every((v, i, a) => i === 0 || a[i - 1] - v === 1);
+      if (diffCheck) {
+        isStraight = true;
+        straightTop = ranks[0];
       }
-    });
+      // 백스트레이트 (A-2-3-4-5)
+      if (ranks[0] === 14 && ranks[1] === 5 && ranks[2] === 4 && ranks[3] === 3 && ranks[4] === 2) {
+        isStraight = true;
+        straightTop = 5;
+      }
 
-    const isMyTurn = (gameState.currentTurn === mySeat && gameState.round > 0 && gameState.round < 6);
-    document.getElementById('btn-fold').disabled = !isMyTurn;
-    document.getElementById('btn-call').disabled = !isMyTurn;
-    document.getElementById('btn-raise').disabled = !isMyTurn;
-  }
-</script>
+      // 동일 카드 카운트
+      let counts = {};
+      ranks.forEach(r => counts[r] = (counts[r] || 0) + 1);
+      let countEntries = Object.entries(counts).map(([r, c]) => ({ rank: +r, count: c }));
+      countEntries.sort((a, b) => b.count - a.count || b.rank - a.rank);
+
+      // 1. 로티플 & 스트레이트 플러시
+      if (isFlush && isStraight) {
+        if (straightTop === 14) return { tier: 10, name: "로열 스트레이트 플러시", tieBreaker: [14], cards };
+        return { tier: 9, name: `스트레이트 플러시 (${straightTop} 하이)`, tieBreaker: [straightTop], cards };
+      }
+      // 2. 포카드
+      if (countEntries[0].count === 4) {
+        return { tier: 8, name: `포카드 (${countEntries[0].rank})`, tieBreaker: [countEntries[0].rank, countEntries[1].rank], cards };
+      }
+      // 3. 풀하우스
+      if (countEntries[0].count === 3 && countEntries[1].count === 2) {
+        return { tier: 7, name: `풀하우스 (${countEntries[0].rank} & ${countEntries[1].rank})`, tieBreaker: [countEntries[0].rank, countEntries[1].rank], cards };
+      }
+      // 4. 플러시
+      if (isFlush) {
+        return { tier: 6, name: `플러시 (${suits[0]})`, tieBreaker: ranks, cards };
+      }
+      // 5. 스트레이트
+      if (isStraight) {
+        return { tier: 5, name: `스트레이트 (${straightTop} 하이)`, tieBreaker: [straightTop], cards };
+      }
+      // 6. 트리플
+      if (countEntries[0].count === 3) {
+        return { tier: 4, name: `트리플 (${countEntries[0].rank})`, tieBreaker: [countEntries[0].rank, countEntries[1].rank, countEntries[2].rank], cards };
+      }
+      // 7. 투페어
+      if (countEntries[0].count === 2 && countEntries[1].count === 2) {
+        return { tier: 3, name: `투페어 (${countEntries[0].rank} & ${countEntries[1].rank})`, tieBreaker: [countEntries[0].rank, countEntries[1].rank, countEntries[2].rank], cards };
+      }
+      // 8. 원페어
+      if (countEntries[0].count === 2) {
+        return { tier: 2, name: `원페어 (${countEntries[0].rank})`, tieBreaker: [countEntries[0].rank, ...ranks.filter(r => r !== countEntries[0].rank)], cards };
+      }
+      // 9. 탑
+      return { tier: 1, name: `탑 (${ranks[0]} 하이)`, tieBreaker: ranks, cards };
+    }
+
+    // 7장 중 최고 족보 찾기
+    function findBestHand(sevenCards) {
+      const combos = getCombinations(sevenCards, 5);
+      let best = null;
+
+      combos.forEach(combo => {
+        let evaluated = evaluate5(combo);
+        if (!best) {
+          best = evaluated;
+          return;
+        }
+        if (evaluated.tier > best.tier) {
+          best = evaluated;
+        } else if (evaluated.tier === best.tier) {
+          for (let i = 0; i < evaluated.tieBreaker.length; i++) {
+            if (evaluated.tieBreaker[i] > best.tieBreaker[i]) {
+              best = evaluated;
+              break;
+            } else if (evaluated.tieBreaker[i] < best.tieBreaker[i]) {
+              break;
+            }
+          }
+        }
+      });
+      return best;
+    }
+
+    // --- 3. 뷰 렌더링 ---
+    function render(highlightCards = { player: [], dealer: [] }) {
+      const pBox = document.getElementById('player-cards');
+      const dBox = document.getElementById('dealer-cards');
+      pBox.innerHTML = '';
+      dBox.innerHTML = '';
+
+      playerHand.forEach((item) => {
+        const isHighlight = highlightCards.player.some(c => c.suit === item.card.suit && c.val === item.card.val);
+        pBox.appendChild(createCardElem(item.card, item.open, isHighlight));
+      });
+
+      dealerHand.forEach((item) => {
+        const isHighlight = highlightCards.dealer.some(c => c.suit === item.card.suit && c.val === item.card.val);
+        dBox.appendChild(createCardElem(item.card, item.open, isHighlight));
+      });
+    }
+
+    function createCardElem(card, isOpen, isHighlight) {
+      const div = document.createElement('div');
+      div.className = `card ${isOpen ? '' : 'hidden'} ${isHighlight ? 'best-card' : ''}`;
+      if (isOpen) {
+        div.innerHTML = `
+          <div class="${card.color}"><div class="val">${card.val}</div><div class="suit">${card.suit}</div></div>
+          <div class="center-suit ${card.color}">${card.suit}</div>
+          <div class="${card.color}" style="text-align:right;"><div class="val">${card.val}</div><div class="suit">${card.suit}</div></div>
+        `;
+      }
+      return div;
+    }
+
+    // --- 4. 게임 루틴 컨트롤러 ---
+    function handleStep() {
+      initAudio();
+      const btn = document.getElementById('action-btn');
+      const phaseText = document.getElementById('phase-text');
+      const guideText = document.getElementById('guide-text');
+      const banner = document.getElementById('result-banner');
+      const pBadge = document.getElementById('player-score-badge');
+      const dBadge = document.getElementById('dealer-score-badge');
+
+      if (currentStep === 0) {
+        // 초기화 및 3장 분배 (1,2구 히든 / 3구 오픈)
+        buildDeck();
+        banner.style.display = 'none';
+        pBadge.style.display = 'none';
+        dBadge.style.display = 'none';
+
+        playerHand = [
+          { card: deck.pop(), open: false },
+          { card: deck.pop(), open: false },
+          { card: deck.pop(), open: true }
+        ];
+        dealerHand = [
+          { card: deck.pop(), open: false },
+          { card: deck.pop(), open: false },
+          { card: deck.pop(), open: true }
+        ];
+        playDealSound();
+        currentStep = 1;
+        phaseText.innerText = "초기 3장 배분 완료";
+        guideText.innerText = "4구 오픈 카드를 받습니다.";
+        btn.innerText = "4구 받기";
+      } else if (currentStep === 1) {
+        // 4구
+        playerHand.push({ card: deck.pop(), open: true });
+        dealerHand.push({ card: deck.pop(), open: true });
+        playDealSound();
+        currentStep = 2;
+        phaseText.innerText = "4구 진행 중";
+        guideText.innerText = "5구 오픈 카드를 받습니다.";
+        btn.innerText = "5구 받기";
+      } else if (currentStep === 2) {
+        // 5구
+        playerHand.push({ card: deck.pop(), open: true });
+        dealerHand.push({ card: deck.pop(), open: true });
+        playDealSound();
+        currentStep = 3;
+        phaseText.innerText = "5구 진행 중";
+        guideText.innerText = "6구 오픈 카드를 받습니다.";
+        btn.innerText = "6구 받기";
+      } else if (currentStep === 3) {
+        // 6구
+        playerHand.push({ card: deck.pop(), open: true });
+        dealerHand.push({ card: deck.pop(), open: true });
+        playDealSound();
+        currentStep = 4;
+        phaseText.innerText = "6구 진행 중";
+        guideText.innerText = "마지막 7구(히든) 카드를 받습니다.";
+        btn.innerText = "7구(히든) 받기";
+      } else if (currentStep === 4) {
+        // 7구 히든
+        playerHand.push({ card: deck.pop(), open: false });
+        dealerHand.push({ card: deck.pop(), open: false });
+        playDealSound();
+        currentStep = 5;
+        phaseText.innerText = "7구 배분 완료 (최종전)";
+        guideText.innerText = "패를 모두 오픈하고 족보 승패를 판정합니다.";
+        btn.innerText = "쇼다운 (결과 확인)";
+      } else if (currentStep === 5) {
+        // 모든 패 오픈 및 판정
+        playerHand.forEach(c => c.open = true);
+        dealerHand.forEach(c => c.open = true);
+
+        const playerBest = findBestHand(playerHand.map(c => c.card));
+        const dealerBest = findBestHand(dealerHand.map(c => c.card));
+
+        // 족보 배지 표기
+        pBadge.innerText = playerBest.name;
+        pBadge.style.display = 'inline-block';
+        dBadge.innerText = dealerBest.name;
+        dBadge.style.display = 'inline-block';
+
+        // 승패 판별
+        let playerWins = false;
+        let isDraw = false;
+
+        if (playerBest.tier > dealerBest.tier) {
+          playerWins = true;
+        } else if (playerBest.tier < dealerBest.tier) {
+          playerWins = false;
+        } else {
+          // 타이 브레이커 비교
+          let foundWinner = false;
+          for (let i = 0; i < playerBest.tieBreaker.length; i++) {
+            if (playerBest.tieBreaker[i] > dealerBest.tieBreaker[i]) {
+              playerWins = true;
+              foundWinner = true;
+              break;
+            } else if (playerBest.tieBreaker[i] < dealerBest.tieBreaker[i]) {
+              playerWins = false;
+              foundWinner = true;
+              break;
+            }
+          }
+          if (!foundWinner) isDraw = true;
+        }
+
+        // 결과 출력 및 사운드
+        banner.style.display = 'block';
+        if (isDraw) {
+          banner.className = 'result-banner banner-draw';
+          banner.innerText = `무승부! [동일 족보: ${playerBest.name}]`;
+          playLoseSound();
+        } else if (playerWins) {
+          banner.className = 'result-banner banner-win';
+          banner.innerText = `🎉 김PD님 승리! [${playerBest.name}] vs 상대 [${dealerBest.name}]`;
+          playWinSound();
+        } else {
+          banner.className = 'result-banner banner-lose';
+          banner.innerText = `패배... 상대 [${dealerBest.name}] vs 내 패 [${playerBest.name}]`;
+          playLoseSound();
+        }
+
+        phaseText.innerText = "경기 완료";
+        guideText.innerText = "하이라이트된 카드가 족보를 구성한 5장입니다.";
+        btn.innerText = "다음 경기 준비";
+        currentStep = 0;
+
+        render({ player: playerBest.cards, dealer: dealerBest.cards });
+        return;
+      }
+      render();
+    }
+  </script>
 </body>
 </html>

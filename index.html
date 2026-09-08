@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-  <title>알카노이드 FX 3D - 100% Round Geometry</title>
+  <title>알카노이드 FX 3D - Rainbow Bling</title>
   <style>
     * {
       box-sizing: border-box;
@@ -120,8 +120,8 @@
   </div>
 
   <div class="overlay" id="startOverlay">
-    <h1 style="color: #ff4081; margin-bottom: 6px; text-shadow: 0 0 14px #ff80ab; font-size: 28px;">★ ARKANOID POP 3D ★</h1>
-    <p style="color: #ffd54f; font-size: 13px; margin-bottom: 3px; font-weight: bold;">완전 둥근 캡슐 젤리 & 10 STAGES</p>
+    <h1 style="color: #ff4081; margin-bottom: 6px; text-shadow: 0 0 14px #ff80ab; font-size: 28px;">★ ARKANOID RAINBOW ★</h1>
+    <p style="color: #ffd54f; font-size: 13px; margin-bottom: 3px; font-weight: bold;">프리즘 홀로그램 블링블링 & 10 STAGES</p>
     <p style="color: #ff80ab; font-size: 13px;">[G] 캡슐: 혜성 스파클 화염 관통 모드</p>
     <button class="btn" id="startBtn">START GAME</button>
   </div>
@@ -133,7 +133,7 @@
   </div>
 
   <script>
-    // --- 1. 유튜브 플레이어 컨트롤러 ---
+    // --- 1. 유튜브 플레이어 ---
     let ytPlayer = null;
     const TARGET_VIDEO_ID = 'a3q2dPG3lVI';
 
@@ -323,15 +323,15 @@
         const a00 = m[0], a01 = m[1], a02 = m[2], a03 = m[3];
         const a10 = m[4], a11 = m[5], a12 = m[6], a13 = m[7];
         const out = new Float32Array(m);
-        out[0] = a00 * c + a10 * s; out[1] = a01 * c + a11 * s;
-        out[2] = a02 * c + a12 * s; out[3] = a03 * c + a13 * s;
+        out[0] = a00 * c + a10 * s; out[1] = a01 * c - a11 * s;
+        out[2] = a02 * c - a12 * s; out[3] = a03 * c - a13 * s;
         out[4] = a10 * c - a00 * s; out[5] = a11 * c - a01 * s;
         out[6] = a12 * c - a02 * s; out[7] = a13 * c - a03 * s;
         return out;
       }
     };
 
-    // --- 4. WebGL 2.0 셰이더 (안정적인 에러 프리 구조) ---
+    // --- 4. WebGL 2.0 프리즘 무지개 펄 셰이더 (Bling-Bling Iridescence) ---
     const glCanvas = document.getElementById('glCanvas');
     const gl = glCanvas.getContext('webgl2', { alpha: true, antialias: true });
 
@@ -367,31 +367,48 @@
       uniform vec3 uBallColor;
       uniform float uShininess;
       uniform float uIsGlass;
+      uniform float uTime;
 
       out vec4 fragColor;
+
+      // 무지개 프리즘 색상 함수
+      vec3 rainbow(float t) {
+        return 0.55 + 0.45 * cos(6.28318 * (vec3(0.0, 0.33, 0.67) + t));
+      }
 
       void main() {
         vec3 N = normalize(vNormal);
         vec3 V = vec3(0.0, 0.0, 1.0);
 
         vec3 base = uColor.rgb;
-        vec3 ambient = base * 0.94;
+        vec3 ambient = base * 0.92;
 
+        // 1) 주 무빙 썬 라이트
         vec3 L1 = normalize(uLight1Dir);
         float diff1 = max(dot(N, L1), 0.0);
         vec3 H1 = normalize(L1 + V);
         float spec1 = pow(max(dot(N, H1), 0.0), uShininess);
-        vec3 light1 = (base * diff1 * 0.45) + (vec3(1.0, 0.95, 1.0) * spec1 * 1.35);
 
+        // [핵심] 조명 각도와 표면 위치에 따라 실시간으로 변화하는 무지개 홀로그램 스펙큘러
+        float iridFactor1 = dot(N, H1) * 2.0 + uTime * 0.6 + (vWorldPos.x + vWorldPos.y) * 0.003;
+        vec3 rainbowColor1 = rainbow(iridFactor1);
+        vec3 light1 = (base * diff1 * 0.45) + (rainbowColor1 * spec1 * 1.4);
+
+        // 2) 보조 무빙 필 라이트
         vec3 L2 = normalize(uLight2Dir);
         float diff2 = max(dot(N, L2), 0.0);
         vec3 H2 = normalize(L2 + V);
         float spec2 = pow(max(dot(N, H2), 0.0), uShininess);
-        vec3 light2 = (vec3(0.45, 0.9, 1.0) * diff2 * 0.35) + (vec3(1.0, 0.85, 1.0) * spec2 * 0.7);
+        float iridFactor2 = dot(N, H2) * 2.0 - uTime * 0.4;
+        vec3 rainbowColor2 = rainbow(iridFactor2 + 0.5);
+        vec3 light2 = (base * diff2 * 0.35) + (rainbowColor2 * spec2 * 0.85);
 
+        // 3) 모서리 펄 림 라이트 (영롱한 핑크/시안 테두리)
         float rim = 1.0 - max(dot(N, V), 0.0);
-        vec3 rimGlow = vec3(1.0, 0.9, 1.0) * pow(rim, 2.0) * 0.65;
+        vec3 rimColor = rainbow(rim * 1.5 + uTime * 0.5);
+        vec3 rimGlow = rimColor * pow(rim, 2.2) * 0.65;
 
+        // 4) 볼 주변 스파클 발광
         vec3 toBall = uBallPos - vWorldPos;
         float dist = length(toBall);
         float ballAtten = clamp(1.0 - dist / 170.0, 0.0, 1.0);
@@ -401,7 +418,7 @@
         float alpha = uColor.a;
 
         if (uIsGlass > 0.5) {
-          finalColor += vec3(0.25, 0.45, 0.6);
+          finalColor += vec3(0.2, 0.4, 0.6);
           alpha = 0.85;
         }
 
@@ -436,11 +453,13 @@
       ballPos: gl.getUniformLocation(program, "uBallPos"),
       ballColor: gl.getUniformLocation(program, "uBallColor"),
       shininess: gl.getUniformLocation(program, "uShininess"),
-      glass: gl.getUniformLocation(program, "uIsGlass")
+      glass: gl.getUniformLocation(program, "uIsGlass"),
+      time: gl.getUniformLocation(program, "uTime")
     };
 
-    // --- 5. [핵심] 100% 곡선 3D 알약 캡슐 메쉬 ---
-    function createTrueCapsuleGeometry(aspectRatio = 2.4, segments = 16) {
+    // --- 5. 세련된 마이크로 라운드 스퀘어(Squircle) 3D 지오메트리 ---
+    function createSquircleBoxGeometry(radiusRatio = 0.22, segments = 6) {
+      // 과도하게 찌그러지지 않고 모서리 4개만 깔끔하고 쫀득하게 굴려진 프리미엄 3D 라운드 박스
       const positions = [];
       const normals = [];
 
@@ -453,77 +472,60 @@
         addTri(p0, p2, p3, n0, n2, n3);
       }
 
-      const r = 0.5;
-      const halfL = Math.max(0.01, (aspectRatio - 1.0) * 0.5 * (1.0 / aspectRatio));
+      const p = 0.5, n = -0.5;
+      const r = radiusRatio;
+      const bp = 0.5 - r, bn = -0.5 + r;
       const zTop = 0.5, zBot = -0.5;
 
-      // 1) 윗면 평면 (중앙 사각형 + 양쪽 반원)
-      addQuad(
-        [-halfL, -r, zTop], [halfL, -r, zTop], [halfL, r, zTop], [-halfL, r, zTop],
-        [0,0,1], [0,0,1], [0,0,1], [0,0,1]
-      );
+      // 1) 윗면 평면 (십자 중앙 + 4개 모서리 부채꼴)
+      // 중앙 사각형
+      addQuad([bn, bn, zTop], [bp, bn, zTop], [bp, bp, zTop], [bn, bp, zTop], [0,0,1],[0,0,1],[0,0,1],[0,0,1]);
+      // 상/하/좌/우 연장 사각형
+      addQuad([bn, bp, zTop], [bp, bp, zTop], [bp, p, zTop], [bn, p, zTop], [0,0,1],[0,0,1],[0,0,1],[0,0,1]);
+      addQuad([bn, -p, zTop], [bp, -p, zTop], [bp, bn, zTop], [bn, bn, zTop], [0,0,1],[0,0,1],[0,0,1],[0,0,1]);
+      addQuad([bp, bn, zTop], [p, bn, zTop], [p, bp, zTop], [bp, bp, zTop], [0,0,1],[0,0,1],[0,0,1],[0,0,1]);
+      addQuad([-p, bn, zTop], [bn, bn, zTop], [bn, bp, zTop], [-p, bp, zTop], [0,0,1],[0,0,1],[0,0,1],[0,0,1]);
 
-      // 우측 반원 윗면
-      for (let i = 0; i < segments; i++) {
-        const a0 = -Math.PI * 0.5 + (i * Math.PI) / segments;
-        const a1 = -Math.PI * 0.5 + ((i + 1) * Math.PI) / segments;
-        const x0 = halfL + Math.cos(a0) * r, y0 = Math.sin(a0) * r;
-        const x1 = halfL + Math.cos(a1) * r, y1 = Math.sin(a1) * r;
-        addTri([halfL, 0, zTop], [x0, y0, zTop], [x1, y1, zTop], [0,0,1], [0,0,1], [0,0,1]);
-      }
+      // 4개 코너 윗면 호(Arc)
+      const corners = [
+        { cx: bp, cy: bp, aStart: 0 },
+        { cx: bn, cy: bp, aStart: Math.PI * 0.5 },
+        { cx: bn, cy: bn, aStart: Math.PI },
+        { cx: bp, cy: bn, aStart: Math.PI * 1.5 }
+      ];
 
-      // 좌측 반원 윗면
-      for (let i = 0; i < segments; i++) {
-        const a0 = Math.PI * 0.5 + (i * Math.PI) / segments;
-        const a1 = Math.PI * 0.5 + ((i + 1) * Math.PI) / segments;
-        const x0 = -halfL + Math.cos(a0) * r, y0 = Math.sin(a0) * r;
-        const x1 = -halfL + Math.cos(a1) * r, y1 = Math.sin(a1) * r;
-        addTri([-halfL, 0, zTop], [x0, y0, zTop], [x1, y1, zTop], [0,0,1], [0,0,1], [0,0,1]);
-      }
+      corners.forEach(c => {
+        for (let i = 0; i < segments; i++) {
+          const a0 = c.aStart + (i * (Math.PI * 0.5)) / segments;
+          const a1 = c.aStart + ((i + 1) * (Math.PI * 0.5)) / segments;
+          const p0 = [c.cx + Math.cos(a0) * r, c.cy + Math.sin(a0) * r, zTop];
+          const p1 = [c.cx + Math.cos(a1) * r, c.cy + Math.sin(a1) * r, zTop];
+          addTri([c.cx, c.cy, zTop], p0, p1, [0,0,1], [0,0,1], [0,0,1]);
+        }
+      });
 
-      // 2) 둥근 곡면 측면
-      addQuad(
-        [halfL, r, zTop], [-halfL, r, zTop], [-halfL, r, zBot], [halfL, r, zBot],
-        [0,1,0.5], [0,1,0.5], [0,1,-0.5], [0,1,-0.5]
-      );
-      addQuad(
-        [-halfL, -r, zTop], [halfL, -r, zTop], [halfL, -r, zBot], [-halfL, -r, zBot],
-        [0,-1,0.5], [0,-1,0.5], [0,-1,-0.5], [0,-1,-0.5]
-      );
+      // 2) 매끄러운 측면 (4개 직선벽 + 4개 둥근 코너 곡면)
+      addQuad([bp, p, zTop], [bn, p, zTop], [bn, p, zBot], [bp, p, zBot], [0,1,0.3],[0,1,0.3],[0,1,-0.3],[0,1,-0.3]);
+      addQuad([bn, -p, zTop], [bp, -p, zTop], [bp, -p, zBot], [bn, -p, zBot], [0,-1,0.3],[0,-1,0.3],[0,-1,-0.3],[0,-1,-0.3]);
+      addQuad([p, bp, zTop], [p, bn, zTop], [p, bn, zBot], [p, bp, zBot], [1,0,0.3],[1,0,0.3],[1,0,-0.3],[1,0,-0.3]);
+      addQuad([-p, bn, zTop], [-p, bp, zTop], [-p, bp, zBot], [-p, bn, zBot], [-1,0,0.3],[-1,0,0.3],[-1,0,-0.3],[-1,0,-0.3]);
 
-      // 우측 반원 곡면
-      for (let i = 0; i < segments; i++) {
-        const a0 = -Math.PI * 0.5 + (i * Math.PI) / segments;
-        const a1 = -Math.PI * 0.5 + ((i + 1) * Math.PI) / segments;
-        const c0 = Math.cos(a0), s0 = Math.sin(a0);
-        const c1 = Math.cos(a1), s1 = Math.sin(a1);
-        const x0 = halfL + c0 * r, y0 = s0 * r;
-        const x1 = halfL + c1 * r, y1 = s1 * r;
-        addQuad(
-          [x0, y0, zTop], [x1, y1, zTop], [x1, y1, zBot], [x0, y0, zBot],
-          [c0, s0, 0.5], [c1, s1, 0.5], [c1, s1, -0.5], [c0, s0, -0.5]
-        );
-      }
-
-      // 좌측 반원 곡면
-      for (let i = 0; i < segments; i++) {
-        const a0 = Math.PI * 0.5 + (i * Math.PI) / segments;
-        const a1 = Math.PI * 0.5 + ((i + 1) * Math.PI) / segments;
-        const c0 = Math.cos(a0), s0 = Math.sin(a0);
-        const c1 = Math.cos(a1), s1 = Math.sin(a1);
-        const x0 = -halfL + c0 * r, y0 = s0 * r;
-        const x1 = -halfL + c1 * r, y1 = s1 * r;
-        addQuad(
-          [x0, y0, zTop], [x1, y1, zTop], [x1, y1, zBot], [x0, y0, zBot],
-          [c0, s0, 0.5], [c1, s1, 0.5], [c1, s1, -0.5], [c0, s0, -0.5]
-        );
-      }
+      corners.forEach(c => {
+        for (let i = 0; i < segments; i++) {
+          const a0 = c.aStart + (i * (Math.PI * 0.5)) / segments;
+          const a1 = c.aStart + ((i + 1) * (Math.PI * 0.5)) / segments;
+          const cos0 = Math.cos(a0), sin0 = Math.sin(a0);
+          const cos1 = Math.cos(a1), sin1 = Math.sin(a1);
+          const p0 = [c.cx + cos0 * r, c.cy + sin0 * r, zTop];
+          const p1 = [c.cx + cos1 * r, c.cy + sin1 * r, zTop];
+          const p2 = [c.cx + cos1 * r, c.cy + sin1 * r, zBot];
+          const p3 = [c.cx + cos0 * r, c.cy + sin0 * r, zBot];
+          addQuad(p0, p1, p2, p3, [cos0, sin0, 0.4], [cos1, sin1, 0.4], [cos1, sin1, -0.4], [cos0, sin0, -0.4]);
+        }
+      });
 
       // 3) 바닥면
-      addQuad(
-        [-halfL, -r, zBot], [-halfL, r, zBot], [halfL, r, zBot], [halfL, -r, zBot],
-        [0,0,-1], [0,0,-1], [0,0,-1], [0,0,-1]
-      );
+      addQuad([-p, -p, zBot], [-p, p, zBot], [p, p, zBot], [p, -p, zBot], [0,0,-1],[0,0,-1],[0,0,-1],[0,0,-1]);
 
       const vao = gl.createVertexArray();
       gl.bindVertexArray(vao);
@@ -597,9 +599,10 @@
       return { vao, count: indices.length, isIndexed: true };
     }
 
-    const brickCapsuleGeo = createTrueCapsuleGeometry(2.35, 14);
-    const paddleCapsuleGeo = createTrueCapsuleGeometry(4.5, 18);
-    const wallRailGeo = createTrueCapsuleGeometry(25.0, 14);
+    // 블록용(R=0.22, 약 3px 코너 라운드), 패들용(R=0.35), 테두리 레일용(R=0.3)
+    const squircleBrickGeo = createSquircleBoxGeometry(0.22, 6);
+    const squirclePaddleGeo = createSquircleBoxGeometry(0.35, 8);
+    const squircleWallGeo = createSquircleBoxGeometry(0.35, 6);
     const sphereGeo = createSphereGeometry(22, 22);
 
     function getNormalMatrix(modelMat) {
@@ -695,8 +698,8 @@
     };
 
     const BRICK_COLS = 11;
-    const BRICK_W = 27.5;
-    const BRICK_H = 12.0;
+    const BRICK_W = 28.0;
+    const BRICK_H = 12.5;
     const BRICK_D = 14.0;
     const BRICK_TOP = 50;
     const BRICK_LEFT = (GAME_W - (BRICK_COLS * BRICK_W)) / 2;
@@ -871,12 +874,13 @@
 
           const bx = BRICK_LEFT + c * BRICK_W;
           const by = BRICK_TOP + r * BRICK_H;
-          const bw = BRICK_W - 3.2;
-          const bh = BRICK_H - 2.5;
+          // 블록 간격(Gap)을 2px 주어 스쿼클 코너 윤곽선이 돋보이게 배치
+          const bw = BRICK_W - 2.2;
+          const bh = BRICK_H - 2.2;
 
           bricks.push({
-            x: bx + 1.6,
-            y: by + 1.2,
+            x: bx + 1.1,
+            y: by + 1.1,
             w: bw,
             h: bh,
             hp: maxHp,
@@ -1146,8 +1150,9 @@
       const projMat = Mat4.ortho2D(0, GAME_W, GAME_H, 0, -500, 500);
       gl.uniformMatrix4fv(loc.proj, false, projMat);
 
-      // 다이내믹 무빙 라이트
+      // 다이내믹 무빙 라이트 및 시간 파라미터 전달 (프리즘 무지개 셰이딩)
       const t = frameCount * 0.035;
+      gl.uniform1f(loc.time, t);
       gl.uniform3f(loc.light1Dir, Math.cos(t) * 0.65, Math.sin(t * 0.8) * 0.65, 0.85);
       gl.uniform3f(loc.light2Dir, Math.cos(-t * 1.3) * 0.7, Math.sin(-t * 0.9) * 0.7, 0.75);
 
@@ -1176,28 +1181,26 @@
         gl.bindVertexArray(null);
       }
 
-      // 1) 둥글둥글한 원통형 테두리 레일
+      // 1) 둥글둥글한 테두리 레일 (Squircle Walls)
       const wallColor = [0.85, 0.80, 0.95, 1.0];
       const wallD = 24;
 
       let m = Mat4.identity();
       m = Mat4.translate(m, [6, (24 + GAME_H) / 2, 0]);
-      m = Mat4.rotateZ(m, Math.PI / 2);
-      m = Mat4.scale(m, [GAME_H - 24, 12, wallD]);
-      drawMesh(wallRailGeo, m, wallColor, 50.0);
+      m = Mat4.scale(m, [12, GAME_H - 24, wallD]);
+      drawMesh(squircleWallGeo, m, wallColor, 50.0);
 
       m = Mat4.identity();
       m = Mat4.translate(m, [GAME_W - 6, (24 + GAME_H) / 2, 0]);
-      m = Mat4.rotateZ(m, Math.PI / 2);
-      m = Mat4.scale(m, [GAME_H - 24, 12, wallD]);
-      drawMesh(wallRailGeo, m, wallColor, 50.0);
+      m = Mat4.scale(m, [12, GAME_H - 24, wallD]);
+      drawMesh(squircleWallGeo, m, wallColor, 50.0);
 
       m = Mat4.identity();
       m = Mat4.translate(m, [GAME_W / 2, 30, 0]);
       m = Mat4.scale(m, [GAME_W, 12, wallD]);
-      drawMesh(wallRailGeo, m, wallColor, 50.0);
+      drawMesh(squircleWallGeo, m, wallColor, 50.0);
 
-      // 2) 100% 완전 둥근 캡슐 젤리 벽돌
+      // 2) 세련된 라운드 스퀘어(Squircle) 젤리 벽돌 (자연스럽고 예쁜 코너 R)
       for (let b of bricks) {
         if (b.hp <= 0) continue;
         m = Mat4.identity();
@@ -1206,21 +1209,21 @@
 
         const isGlass = b.type === 'GLASS' ? 1.0 : 0.0;
         const shine = (b.type === 'GOLD' || b.type === 'SILVER') ? 95.0 : 45.0;
-        drawMesh(brickCapsuleGeo, m, b.currentColor, shine, isGlass);
+        drawMesh(squircleBrickGeo, m, b.currentColor, shine, isGlass);
       }
 
-      // 3) 둥근 캡슐형 젤리 패들
+      // 3) 라운드 스퀘어 젤리 패들
       const paddleCol = activeEffects.expandTimer > 0 ? [0.45, 1.0, 0.35, 1.0] : [1.0, 0.35, 0.65, 1.0];
       m = Mat4.identity();
       m = Mat4.translate(m, [paddle.x + paddle.w / 2, paddle.y + paddle.h / 2, 0]);
       m = Mat4.scale(m, [paddle.w, paddle.h, paddle.d]);
-      drawMesh(paddleCapsuleGeo, m, paddleCol, 55.0);
+      drawMesh(squirclePaddleGeo, m, paddleCol, 55.0);
 
-      // 패들 내부 둥근 크롬 캡슐 라인
+      // 패들 내부 크롬 코어
       m = Mat4.identity();
       m = Mat4.translate(m, [paddle.x + paddle.w / 2, paddle.y + paddle.h / 2, 3]);
       m = Mat4.scale(m, [Math.max(4, paddle.w - 18), paddle.h - 5, paddle.d]);
-      drawMesh(paddleCapsuleGeo, m, [1.0, 0.95, 1.0, 1.0], 95.0);
+      drawMesh(squirclePaddleGeo, m, [1.0, 0.95, 1.0, 1.0], 95.0);
 
       // 4) 3D 공 및 혜성 스파클 잔상 트레일
       const currentRadius = isGiant ? BASE_BALL_R * 2.8 : BASE_BALL_R;
@@ -1249,15 +1252,15 @@
         drawMesh(sphereGeo, m, ballCol, 100.0);
       }
 
-      // 5) 3D 캡슐 아이템
+      // 5) 3D 아이템 (자전하는 스쿼클 캡슐)
       for (let it of items) {
         m = Mat4.identity();
         m = Mat4.translate(m, [it.x, it.y, 0]);
         m = Mat4.rotateX(m, it.rotX);
         m = Mat4.rotateY(m, it.rotY);
         m = Mat4.rotateZ(m, Math.PI / 2);
-        m = Mat4.scale(m, [10.0, 10.0, 20.0]);
-        drawMesh(paddleCapsuleGeo, m, it.color, 75.0);
+        m = Mat4.scale(m, [11.0, 11.0, 22.0]);
+        drawMesh(squirclePaddleGeo, m, it.color, 75.0);
       }
 
       // 6) 3D 조약돌 파편
@@ -1384,7 +1387,6 @@
       startGame();
     }
 
-    // 버튼 이벤트 리스너 독립 바인딩 (멈춤 원천 방지)
     startBtn.addEventListener('click', (e) => {
       e.stopPropagation();
       startGame();

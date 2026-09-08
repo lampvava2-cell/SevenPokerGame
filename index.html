@@ -81,14 +81,14 @@
     .overlay {
       position: absolute;
       inset: 0;
-      background: rgba(15, 10, 25, 0.85);
+      background: rgba(15, 10, 25, 0.88);
       backdrop-filter: blur(4px);
       display: flex;
       flex-direction: column;
       justify-content: center;
       align-items: center;
       color: #fff;
-      z-index: 10;
+      z-index: 100;
     }
     .btn {
       margin-top: 22px;
@@ -121,15 +121,15 @@
 
   <div class="overlay" id="startOverlay">
     <h1 style="color: #ff4081; margin-bottom: 6px; text-shadow: 0 0 14px #ff80ab; font-size: 28px;">★ ARKANOID POP 3D ★</h1>
-    <p style="color: #ffd54f; font-size: 13px; margin-bottom: 3px; font-weight: bold;">완전 둥근 3D 캡슐 & 블링블링 FX</p>
+    <p style="color: #ffd54f; font-size: 13px; margin-bottom: 3px; font-weight: bold;">완전 둥근 캡슐 젤리 & 10 STAGES</p>
     <p style="color: #ff80ab; font-size: 13px;">[G] 캡슐: 혜성 스파클 화염 관통 모드</p>
-    <button class="btn" onclick="startGame()">START GAME</button>
+    <button class="btn" id="startBtn">START GAME</button>
   </div>
 
   <div class="overlay" id="gameOverOverlay" style="display: none;">
     <h1 id="overTitle" style="color: #ff4081; text-shadow: 0 0 12px #ff80ab;">GAME OVER</h1>
     <p id="finalScore" style="font-size: 16px; color: #ffd54f;">점수: 0</p>
-    <button class="btn" id="overBtn" onclick="restartGame()">다시하기</button>
+    <button class="btn" id="overBtn">다시하기</button>
   </div>
 
   <script>
@@ -324,14 +324,14 @@
         const a10 = m[4], a11 = m[5], a12 = m[6], a13 = m[7];
         const out = new Float32Array(m);
         out[0] = a00 * c + a10 * s; out[1] = a01 * c + a11 * s;
-        out[2] = a02 * c - a10 * s; out[3] = a03 * c - a11 * s;
+        out[2] = a02 * c + a12 * s; out[3] = a03 * c + a13 * s;
         out[4] = a10 * c - a00 * s; out[5] = a11 * c - a01 * s;
         out[6] = a12 * c - a02 * s; out[7] = a13 * c - a03 * s;
         return out;
       }
     };
 
-    // --- 4. WebGL 2.0 블링블링 셰이더 ---
+    // --- 4. WebGL 2.0 셰이더 (안정적인 에러 프리 구조) ---
     const glCanvas = document.getElementById('glCanvas');
     const gl = glCanvas.getContext('webgl2', { alpha: true, antialias: true });
 
@@ -374,29 +374,24 @@
         vec3 N = normalize(vNormal);
         vec3 V = vec3(0.0, 0.0, 1.0);
 
-        // 화사하고 맑은 젤리 앰비언트
         vec3 base = uColor.rgb;
         vec3 ambient = base * 0.94;
 
-        // 1번 무빙 썬 라이트
         vec3 L1 = normalize(uLight1Dir);
         float diff1 = max(dot(N, L1), 0.0);
         vec3 H1 = normalize(L1 + V);
         float spec1 = pow(max(dot(N, H1), 0.0), uShininess);
         vec3 light1 = (base * diff1 * 0.45) + (vec3(1.0, 0.95, 1.0) * spec1 * 1.35);
 
-        // 2번 무빙 필 라이트
         vec3 L2 = normalize(uLight2Dir);
         float diff2 = max(dot(N, L2), 0.0);
         vec3 H2 = normalize(L2 + V);
         float spec2 = pow(max(dot(N, H2), 0.0), uShininess);
         vec3 light2 = (vec3(0.45, 0.9, 1.0) * diff2 * 0.35) + (vec3(1.0, 0.85, 1.0) * spec2 * 0.7);
 
-        // 둥근 테두리 림 글로우
         float rim = 1.0 - max(dot(N, V), 0.0);
         vec3 rimGlow = vec3(1.0, 0.9, 1.0) * pow(rim, 2.0) * 0.65;
 
-        // 볼 스파클
         vec3 toBall = uBallPos - vWorldPos;
         float dist = length(toBall);
         float ballAtten = clamp(1.0 - dist / 170.0, 0.0, 1.0);
@@ -444,10 +439,8 @@
       glass: gl.getUniformLocation(program, "uIsGlass")
     };
 
-    // --- 5. [핵심] 100% 둥근 스타디움 캡슐(Stadium Capsule) 3D 메쉬 생성 ---
+    // --- 5. [핵심] 100% 곡선 3D 알약 캡슐 메쉬 ---
     function createTrueCapsuleGeometry(aspectRatio = 2.4, segments = 16) {
-      // 너비 w=1.0, 높이 h=1.0 기준, 양쪽 끝이 완전한 반원으로 라운딩된 3D 캡슐 메쉬
-      // 사각형 바운딩 박스를 버리고 폴리곤 자체가 둥근 곡선을 형성함
       const positions = [];
       const normals = [];
 
@@ -460,11 +453,11 @@
         addTri(p0, p2, p3, n0, n2, n3);
       }
 
-      const r = 0.5; // 반경
-      const halfL = Math.max(0.01, (aspectRatio - 1.0) * 0.5 * (1.0 / aspectRatio)); // 직선 구간 길이
+      const r = 0.5;
+      const halfL = Math.max(0.01, (aspectRatio - 1.0) * 0.5 * (1.0 / aspectRatio));
       const zTop = 0.5, zBot = -0.5;
 
-      // 1) 윗면 평면 (중앙 사각형 + 양쪽 반원 부채꼴)
+      // 1) 윗면 평면 (중앙 사각형 + 양쪽 반원)
       addQuad(
         [-halfL, -r, zTop], [halfL, -r, zTop], [halfL, r, zTop], [-halfL, r, zTop],
         [0,0,1], [0,0,1], [0,0,1], [0,0,1]
@@ -488,8 +481,7 @@
         addTri([-halfL, 0, zTop], [x0, y0, zTop], [x1, y1, zTop], [0,0,1], [0,0,1], [0,0,1]);
       }
 
-      // 2) 둥근 테두리 측면 (Smooth Sides)
-      // 상/하단 직선 구간
+      // 2) 둥근 곡면 측면
       addQuad(
         [halfL, r, zTop], [-halfL, r, zTop], [-halfL, r, zBot], [halfL, r, zBot],
         [0,1,0.5], [0,1,0.5], [0,1,-0.5], [0,1,-0.5]
@@ -499,7 +491,7 @@
         [0,-1,0.5], [0,-1,0.5], [0,-1,-0.5], [0,-1,-0.5]
       );
 
-      // 우측 반원 곡면 측면
+      // 우측 반원 곡면
       for (let i = 0; i < segments; i++) {
         const a0 = -Math.PI * 0.5 + (i * Math.PI) / segments;
         const a1 = -Math.PI * 0.5 + ((i + 1) * Math.PI) / segments;
@@ -513,7 +505,7 @@
         );
       }
 
-      // 좌측 반원 곡면 측면
+      // 좌측 반원 곡면
       for (let i = 0; i < segments; i++) {
         const a0 = Math.PI * 0.5 + (i * Math.PI) / segments;
         const a1 = Math.PI * 0.5 + ((i + 1) * Math.PI) / segments;
@@ -605,7 +597,6 @@
       return { vao, count: indices.length, isIndexed: true };
     }
 
-    // 블록용 캡슐 (2.4:1 비율), 패들용 롱 캡슐 (4.5:1 비율), 테두리 레일용 롱 실린더 캡슐
     const brickCapsuleGeo = createTrueCapsuleGeometry(2.35, 14);
     const paddleCapsuleGeo = createTrueCapsuleGeometry(4.5, 18);
     const wallRailGeo = createTrueCapsuleGeometry(25.0, 14);
@@ -645,6 +636,7 @@
     const gameOverOverlay = document.getElementById('gameOverOverlay');
     const overTitle = document.getElementById('overTitle');
     const finalScore = document.getElementById('finalScore');
+    const startBtn = document.getElementById('startBtn');
     const overBtn = document.getElementById('overBtn');
 
     function resizeContainer() {
@@ -703,7 +695,6 @@
     };
 
     const BRICK_COLS = 11;
-    // 블록 간격(Gap)을 늘려 둥근 캡슐 윤곽선을 완벽하게 노출
     const BRICK_W = 27.5;
     const BRICK_H = 12.0;
     const BRICK_D = 14.0;
@@ -880,7 +871,6 @@
 
           const bx = BRICK_LEFT + c * BRICK_W;
           const by = BRICK_TOP + r * BRICK_H;
-          // 라운드 캡슐의 곡률을 살리기 위해 폭과 높이에 약간의 여백 부여
           const bw = BRICK_W - 3.2;
           const bh = BRICK_H - 2.5;
 
@@ -1139,7 +1129,7 @@
       }
     }
 
-    // --- 8. OpenGL 3D 렌더 파이프라인 (100% 완전 둥근 메쉬 적용) ---
+    // --- 8. OpenGL 3D 렌더 파이프라인 ---
     function render3D() {
       gl.enable(gl.DEPTH_TEST);
       gl.depthFunc(gl.LEQUAL);
@@ -1186,7 +1176,7 @@
         gl.bindVertexArray(null);
       }
 
-      // 1) 둥글둥글한 원통형 테두리 레일 (Round Bumpers)
+      // 1) 둥글둥글한 원통형 테두리 레일
       const wallColor = [0.85, 0.80, 0.95, 1.0];
       const wallD = 24;
 
@@ -1207,7 +1197,7 @@
       m = Mat4.scale(m, [GAME_W, 12, wallD]);
       drawMesh(wallRailGeo, m, wallColor, 50.0);
 
-      // 2) 100% 완전 둥근 캡슐 젤리 벽돌 렌더링 (각진 엣지 완전 소멸)
+      // 2) 100% 완전 둥근 캡슐 젤리 벽돌
       for (let b of bricks) {
         if (b.hp <= 0) continue;
         m = Mat4.identity();
@@ -1219,7 +1209,7 @@
         drawMesh(brickCapsuleGeo, m, b.currentColor, shine, isGlass);
       }
 
-      // 3) 둥근 캡슐형 젤리 패들 (완벽한 반원 양끝단)
+      // 3) 둥근 캡슐형 젤리 패들
       const paddleCol = activeEffects.expandTimer > 0 ? [0.45, 1.0, 0.35, 1.0] : [1.0, 0.35, 0.65, 1.0];
       m = Mat4.identity();
       m = Mat4.translate(m, [paddle.x + paddle.w / 2, paddle.y + paddle.h / 2, 0]);
@@ -1368,7 +1358,6 @@
 
     function startGame() {
       initAudio();
-      playStartWav();
       activateYouTubeAudio();
 
       score = 0;
@@ -1394,6 +1383,16 @@
     function restartGame() {
       startGame();
     }
+
+    // 버튼 이벤트 리스너 독립 바인딩 (멈춤 원천 방지)
+    startBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      startGame();
+    });
+    overBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      restartGame();
+    });
 
     function nextStageTransition() {
       stageClearPause = true;
@@ -1437,6 +1436,8 @@
       gameOverOverlay.style.display = 'flex';
     }
 
+    // 초기 화면 렌더링
+    loadStage(1);
     render3D();
     drawHUD();
   </script>

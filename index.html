@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-  <title>알카노이드 FX 3D - Bubble Bobble Edition</title>
+  <title>알카노이드 FX 3D - Bubble Bobble Edition Pro</title>
   <style>
     * {
       box-sizing: border-box;
@@ -120,9 +120,10 @@
   </div>
 
   <div class="overlay" id="startOverlay">
-    <h1 style="color: #ff4081; margin-bottom: 6px; text-shadow: 0 0 16px #ff80ab; font-size: 30px;">🫧 BUBBLE ARKAN 🫧</h1>
-    <p style="color: #ffd54f; font-size: 13px; margin-bottom: 4px; font-weight: bold;">동글동글 알약 젤리 & 비눗방울 모험</p>
-    <p style="color: #69f0ae; font-size: 13px;">[G] 캡슐: 레인보우 혜성 버블 관통 모드</p>
+    <h1 style="color: #ff4081; margin-bottom: 6px; text-shadow: 0 0 16px #ff80ab; font-size: 28px;">🫧 BUBBLE ARKAN PRO 🫧</h1>
+    <p style="color: #ffd54f; font-size: 13px; margin-bottom: 4px; font-weight: bold;">동글동글 알약 젤리 & 비눗방울 아케이드</p>
+    <p style="color: #69f0ae; font-size: 12px; margin: 3px 0;">[G] 레인보우 버블 | [L] 번개 일렬 관통</p>
+    <p style="color: #00e5ff; font-size: 12px; margin: 3px 0;">[S] 슬로우 타이밍 | [E] 패들 확장 | [M] 멀티볼</p>
     <button class="btn" id="startBtn">START POP!</button>
   </div>
 
@@ -136,6 +137,7 @@
     // --- 1. 유튜브 플레이어 컨트롤러 ---
     let ytPlayer = null;
     const TARGET_VIDEO_ID = 'a3q2dPG3lVI';
+    let isMuted = false;
 
     function onYouTubeIframeAPIReady() {
       ytPlayer = new YT.Player('ytPlayer', {
@@ -162,14 +164,32 @@
     }
 
     function activateYouTubeAudio() {
-      if (ytPlayer && ytPlayer.playVideo) {
+      if (ytPlayer && ytPlayer.playVideo && !isMuted) {
         ytPlayer.unMute();
         ytPlayer.setVolume(70);
         ytPlayer.playVideo();
       }
     }
 
-    // --- 2. 보글보글 신스 사운드 엔진 ---
+    function toggleMute() {
+      isMuted = !isMuted;
+      if (ytPlayer) {
+        if (isMuted) ytPlayer.mute();
+        else {
+          ytPlayer.unMute();
+          ytPlayer.setVolume(70);
+        }
+      }
+    }
+
+    // --- 2. 햅틱 진동 헬퍼 ---
+    function vibrate(pattern) {
+      if (typeof navigator !== 'undefined' && navigator.vibrate) {
+        try { navigator.vibrate(pattern); } catch (e) {}
+      }
+    }
+
+    // --- 3. 신스 오디오 엔진 ---
     let audioCtx = null;
     let comboCount = 0;
     let lastHitTime = 0;
@@ -185,7 +205,7 @@
     }
 
     function playTone(freq, type, duration, endFreq = null, vol = 0.25) {
-      if (!audioCtx) return;
+      if (!audioCtx || isMuted) return;
       try {
         const osc = audioCtx.createOscillator();
         const gain = audioCtx.createGain();
@@ -209,7 +229,6 @@
     }
 
     const sound = {
-      // 퐁퐁 터지는 청량한 아케이드 실로폰 콤보음
       hitBrick: (type, isDestroyed) => {
         const now = Date.now();
         if (now - lastHitTime < 450) {
@@ -218,7 +237,6 @@
           comboCount = 0;
         }
         lastHitTime = now;
-
         const pitch = Math.pow(1.06, comboCount);
 
         if (type === 'GOLD') {
@@ -233,22 +251,22 @@
           playTone(520 * pitch, 'sine', 0.09, isDestroyed ? 820 : 620, 0.24);
         }
       },
-      // 통통 튀는 탄력적인 마시멜로 패들 튕김 사운드
       hitPaddle: () => {
         comboCount = 0;
         playTone(360, 'sine', 0.12, 190, 0.32);
         setTimeout(() => playTone(280, 'triangle', 0.09, 450, 0.22), 20);
       },
-      // 청량한 방울 튕김음
       hitWall: () => {
         playTone(780, 'sine', 0.04, 950, 0.16);
       },
-      // 혜성 관통 폭발음
       hitExplosion: () => {
         playTone(200, 'triangle', 0.22, 50, 0.35);
         playTone(420, 'sine', 0.15, 100, 0.25);
       },
-      // 버블 파워업 멜로디
+      lightning: () => {
+        playTone(850, 'sawtooth', 0.18, 120, 0.3);
+        setTimeout(() => playTone(1400, 'triangle', 0.12, 300, 0.2), 30);
+      },
       powerUp: () => {
         playTone(523, 'sine', 0.08, null, 0.25);
         setTimeout(() => playTone(659, 'sine', 0.08, null, 0.25), 60);
@@ -267,7 +285,7 @@
       }
     };
 
-    // --- 3. 행렬 연산 유틸 ---
+    // --- 4. 4x4 행렬 유틸 ---
     const Mat4 = {
       ortho2D: (left, right, bottom, top, near = -500, far = 500) => {
         const lr = 1 / (left - right);
@@ -336,7 +354,7 @@
       }
     };
 
-    // --- 4. WebGL 2.0 비눗방울 & 캔디 셰이더 ---
+    // --- 5. WebGL 2.0 비눗방울 & 캔디 셰이더 ---
     const glCanvas = document.getElementById('glCanvas');
     const gl = glCanvas.getContext('webgl2', { alpha: true, antialias: true });
 
@@ -371,7 +389,7 @@
       uniform vec3 uBallPos;
       uniform vec3 uBallColor;
       uniform float uShininess;
-      uniform float uIsBubble; // 비눗방울 모드 (공 전용)
+      uniform float uIsBubble;
       uniform float uTime;
 
       out vec4 fragColor;
@@ -384,26 +402,21 @@
         vec3 N = normalize(vNormal);
         vec3 V = vec3(0.0, 0.0, 1.0);
 
-        // 비눗방울 전용 투명 프리즘 렌더링
         if (uIsBubble > 0.5) {
           float rim = 1.0 - max(dot(N, V), 0.0);
           vec3 bubRim = rainbow(rim * 2.2 + uTime * 0.8) * pow(rim, 1.6);
-
           vec3 L = normalize(uLight1Dir);
           vec3 H = normalize(L + V);
           float spec = pow(max(dot(N, H), 0.0), 90.0);
           vec3 bubSpec = vec3(1.0, 1.0, 1.0) * spec * 1.8;
-
           vec3 bubColor = (uColor.rgb * 0.3) + bubRim + bubSpec;
           fragColor = vec4(bubColor, clamp(rim * 0.85 + spec, 0.25, 0.95));
           return;
         }
 
-        // 알약 블록 & 패들 캔디 렌더링
         vec3 base = uColor.rgb;
         vec3 ambient = base * 0.93;
 
-        // 1번 라이트
         vec3 L1 = normalize(uLight1Dir);
         float diff1 = max(dot(N, L1), 0.0);
         vec3 H1 = normalize(L1 + V);
@@ -411,7 +424,6 @@
         vec3 specColor1 = rainbow(dot(N, H1) * 1.8 + uTime * 0.5);
         vec3 light1 = (base * diff1 * 0.45) + (specColor1 * spec1 * 1.35);
 
-        // 2번 라이트
         vec3 L2 = normalize(uLight2Dir);
         float diff2 = max(dot(N, L2), 0.0);
         vec3 H2 = normalize(L2 + V);
@@ -419,11 +431,9 @@
         vec3 specColor2 = rainbow(dot(N, H2) * 1.8 - uTime * 0.4 + 0.5);
         vec3 light2 = (base * diff2 * 0.35) + (specColor2 * spec2 * 0.75);
 
-        // 둥근 젤리 테두리 림 라이트
         float rim = 1.0 - max(dot(N, V), 0.0);
         vec3 rimGlow = rainbow(rim * 1.5 + uTime * 0.4) * pow(rim, 2.2) * 0.55;
 
-        // 볼 스파클
         vec3 toBall = uBallPos - vWorldPos;
         float dist = length(toBall);
         float ballAtten = clamp(1.0 - dist / 170.0, 0.0, 1.0);
@@ -465,9 +475,8 @@
       time: gl.getUniformLocation(program, "uTime")
     };
 
-    // --- 5. 완벽한 알약(Pill Capsule) 3D 지오메트리 ---
+    // --- 6. 지오메트리 빌더 ---
     function createTruePillGeometry(aspectRatio = 2.4, segments = 16) {
-      // 너비 대 높이 비율에 맞춰 양 끝단이 완전한 반원으로 라운딩된 3D 캡슐 지오메트리
       const positions = [];
       const normals = [];
 
@@ -484,73 +493,41 @@
       const halfL = Math.max(0.01, (aspectRatio - 1.0) * 0.5 * (1.0 / aspectRatio));
       const zTop = 0.5, zBot = -0.5;
 
-      // 1) 윗면 평면 (중앙 사각형 + 양쪽 반원 부채꼴)
       addQuad(
         [-halfL, -r, zTop], [halfL, -r, zTop], [halfL, r, zTop], [-halfL, r, zTop],
         [0,0,1], [0,0,1], [0,0,1], [0,0,1]
       );
 
-      // 우측 반원 윗면
       for (let i = 0; i < segments; i++) {
         const a0 = -Math.PI * 0.5 + (i * Math.PI) / segments;
         const a1 = -Math.PI * 0.5 + ((i + 1) * Math.PI) / segments;
-        const x0 = halfL + Math.cos(a0) * r, y0 = Math.sin(a0) * r;
-        const x1 = halfL + Math.cos(a1) * r, y1 = Math.sin(a1) * r;
-        addTri([halfL, 0, zTop], [x0, y0, zTop], [x1, y1, zTop], [0,0,1], [0,0,1], [0,0,1]);
+        addTri([halfL, 0, zTop], [halfL + Math.cos(a0) * r, Math.sin(a0) * r, zTop], [halfL + Math.cos(a1) * r, Math.sin(a1) * r, zTop], [0,0,1], [0,0,1], [0,0,1]);
       }
-
-      // 좌측 반원 윗면
       for (let i = 0; i < segments; i++) {
         const a0 = Math.PI * 0.5 + (i * Math.PI) / segments;
         const a1 = Math.PI * 0.5 + ((i + 1) * Math.PI) / segments;
-        const x0 = -halfL + Math.cos(a0) * r, y0 = Math.sin(a0) * r;
-        const x1 = -halfL + Math.cos(a1) * r, y1 = Math.sin(a1) * r;
-        addTri([-halfL, 0, zTop], [x0, y0, zTop], [x1, y1, zTop], [0,0,1], [0,0,1], [0,0,1]);
+        addTri([-halfL, 0, zTop], [-halfL + Math.cos(a0) * r, Math.sin(a0) * r, zTop], [-halfL + Math.cos(a1) * r, Math.sin(a1) * r, zTop], [0,0,1], [0,0,1], [0,0,1]);
       }
 
-      // 2) 둥근 곡면 측면
-      addQuad(
-        [halfL, r, zTop], [-halfL, r, zTop], [-halfL, r, zBot], [halfL, r, zBot],
-        [0,1,0.5], [0,1,0.5], [0,1,-0.5], [0,1,-0.5]
-      );
-      addQuad(
-        [-halfL, -r, zTop], [halfL, -r, zTop], [halfL, -r, zBot], [-halfL, -r, zBot],
-        [0,-1,0.5], [0,-1,0.5], [0,-1,-0.5], [0,-1,-0.5]
-      );
+      addQuad([halfL, r, zTop], [-halfL, r, zTop], [-halfL, r, zBot], [halfL, r, zBot], [0,1,0.5], [0,1,0.5], [0,1,-0.5], [0,1,-0.5]);
+      addQuad([-halfL, -r, zTop], [halfL, -r, zTop], [halfL, -r, zBot], [-halfL, -r, zBot], [0,-1,0.5], [0,-1,0.5], [0,-1,-0.5], [0,-1,-0.5]);
 
-      // 우측 반원 곡면
       for (let i = 0; i < segments; i++) {
         const a0 = -Math.PI * 0.5 + (i * Math.PI) / segments;
         const a1 = -Math.PI * 0.5 + ((i + 1) * Math.PI) / segments;
         const c0 = Math.cos(a0), s0 = Math.sin(a0);
         const c1 = Math.cos(a1), s1 = Math.sin(a1);
-        const x0 = halfL + c0 * r, y0 = s0 * r;
-        const x1 = halfL + c1 * r, y1 = s1 * r;
-        addQuad(
-          [x0, y0, zTop], [x1, y1, zTop], [x1, y1, zBot], [x0, y0, zBot],
-          [c0, s0, 0.5], [c1, s1, 0.5], [c1, s1, -0.5], [c0, s0, -0.5]
-        );
+        addQuad([halfL + c0 * r, s0 * r, zTop], [halfL + c1 * r, s1 * r, zTop], [halfL + c1 * r, s1 * r, zBot], [halfL + c0 * r, s0 * r, zBot], [c0, s0, 0.5], [c1, s1, 0.5], [c1, s1, -0.5], [c0, s0, -0.5]);
       }
-
-      // 좌측 반원 곡면
       for (let i = 0; i < segments; i++) {
         const a0 = Math.PI * 0.5 + (i * Math.PI) / segments;
         const a1 = Math.PI * 0.5 + ((i + 1) * Math.PI) / segments;
         const c0 = Math.cos(a0), s0 = Math.sin(a0);
         const c1 = Math.cos(a1), s1 = Math.sin(a1);
-        const x0 = -halfL + c0 * r, y0 = s0 * r;
-        const x1 = -halfL + c1 * r, y1 = s1 * r;
-        addQuad(
-          [x0, y0, zTop], [x1, y1, zTop], [x1, y1, zBot], [x0, y0, zBot],
-          [c0, s0, 0.5], [c1, s1, 0.5], [c1, s1, -0.5], [c0, s0, -0.5]
-        );
+        addQuad([-halfL + c0 * r, s0 * r, zTop], [-halfL + c1 * r, s1 * r, zTop], [-halfL + c1 * r, s1 * r, zBot], [-halfL + c0 * r, s0 * r, zBot], [c0, s0, 0.5], [c1, s1, 0.5], [c1, s1, -0.5], [c0, s0, -0.5]);
       }
 
-      // 3) 바닥면
-      addQuad(
-        [-halfL, -r, zBot], [-halfL, r, zBot], [halfL, r, zBot], [halfL, -r, zBot],
-        [0,0,-1], [0,0,-1], [0,0,-1], [0,0,-1]
-      );
+      addQuad([-halfL, -r, zBot], [-halfL, r, zBot], [halfL, r, zBot], [halfL, -r, zBot], [0,0,-1], [0,0,-1], [0,0,-1], [0,0,-1]);
 
       const vao = gl.createVertexArray();
       gl.bindVertexArray(vao);
@@ -583,12 +560,8 @@
 
         for (let lon = 0; lon <= lonBands; ++lon) {
           const phi = (lon * 2 * Math.PI) / lonBands;
-          const x = Math.cos(phi) * sinTheta;
-          const y = sinTheta * Math.sin(phi);
-          const z = cosTheta;
-
-          positions.push(x, y, z);
-          normals.push(x, y, z);
+          positions.push(Math.cos(phi) * sinTheta, sinTheta * Math.sin(phi), cosTheta);
+          normals.push(Math.cos(phi) * sinTheta, sinTheta * Math.sin(phi), cosTheta);
         }
       }
 
@@ -624,25 +597,21 @@
       return { vao, count: indices.length, isIndexed: true };
     }
 
-    // 알약 블록(2.3:1 비율), 롱 캡슐 패들(4.5:1 비율), 외곽 둥근 가드레일, 비눗방울 구체
     const pillBrickGeo = createTruePillGeometry(2.3, 16);
     const pillPaddleGeo = createTruePillGeometry(4.5, 18);
     const roundRailGeo = createTruePillGeometry(25.0, 14);
     const bubbleSphereGeo = createSphereGeometry(22, 22);
 
-    function getNormalMatrix(modelMat) {
-      const a00 = modelMat[0], a01 = modelMat[1], a02 = modelMat[2];
-      const a10 = modelMat[4], a11 = modelMat[5], a12 = modelMat[6];
-      const a20 = modelMat[8], a21 = modelMat[9], a22 = modelMat[10];
-
+    function getNormalMatrix(m) {
+      const a00 = m[0], a01 = m[1], a02 = m[2];
+      const a10 = m[4], a11 = m[5], a12 = m[6];
+      const a20 = m[8], a21 = m[9], a22 = m[10];
       const b01 = a22 * a11 - a12 * a21;
       const b11 = -a22 * a10 + a12 * a20;
       const b21 = a21 * a10 - a11 * a20;
-
       let d = a00 * b01 + a01 * b11 + a02 * b21;
       if (!d) return new Float32Array([1,0,0, 0,1,0, 0,0,1]);
       d = 1.0 / d;
-
       return new Float32Array([
         b01 * d, (-a22 * a01 + a02 * a21) * d, (a12 * a01 - a02 * a11) * d,
         b11 * d, (a22 * a00 - a02 * a20) * d, (-a12 * a00 + a02 * a10) * d,
@@ -650,10 +619,9 @@
       ]);
     }
 
-    // --- 6. 모바일 해상도 및 스테이지 데이터 ---
+    // --- 7. 모바일 뷰포트 & 상태 변수 ---
     const GAME_W = 360;
     const GAME_H = 640;
-
     const PADDLE_DEFAULT_Y = GAME_H - 180;
     const TOUCH_CONTROL_ZONE_Y = GAME_H - 145;
 
@@ -691,6 +659,7 @@
     let currentStage = 1;
     const MAX_STAGES = 10;
     let isPlaying = false;
+    let isPaused = false;
     let frameCount = 0;
     let stageClearPause = false;
 
@@ -705,25 +674,30 @@
 
     let balls = [];
     let particles3D = [];
+    let popTexts = [];
     const BASE_BALL_R = 5.2;
 
     function getStageBaseSpeed() {
       return 4.6 + (currentStage - 1) * 0.22;
     }
 
-    let items = [];
+    // 확장된 아이템 세트 (신규: SLOW, LIGHTNING)
     const ITEM_TYPES = [
       { type: 'MULTI', label: 'M', color: [0.35, 0.95, 1.0, 1.0] },
       { type: 'GIANT_PIERCE', label: 'G', color: [1.0, 0.25, 0.70, 1.0] },
-      { type: 'EXPAND', label: 'E', color: [0.45, 1.0, 0.35, 1.0] }
+      { type: 'EXPAND', label: 'E', color: [0.45, 1.0, 0.35, 1.0] },
+      { type: 'SLOW', label: 'S', color: [0.2, 0.9, 0.8, 1.0] },
+      { type: 'LIGHTNING', label: 'L', color: [1.0, 0.95, 0.2, 1.0] }
     ];
+
     let activeEffects = {
       giantPierceTimer: 0,
-      expandTimer: 0
+      expandTimer: 0,
+      slowTimer: 0,
+      hasLightning: false
     };
 
     const BRICK_COLS = 11;
-    // 알약 실루엣이 도드라지도록 알약 크기와 간격 최적화
     const BRICK_W = 27.6;
     const BRICK_H = 12.0;
     const BRICK_D = 14.0;
@@ -733,125 +707,16 @@
     let bricks = [];
 
     const STAGE_MAPS = [
-      // 1: Classic Wall
-      [
-        "GGGGGGGGGGG",
-        "SSSSSSSSSSS",
-        "CCCCCCCCCCC",
-        "11111111111",
-        "22222222222",
-        "33333333333",
-        "44444444444",
-        "55555555555"
-      ],
-      // 2: Pyramid
-      [
-        "00000G00000",
-        "0000GGG0000",
-        "000SSSSS000",
-        "00CCCCCCC00",
-        "01111111110",
-        "22222222222",
-        "33333333333",
-        "44444444444",
-        "55555555555"
-      ],
-      // 3: Diamond Gate
-      [
-        "00000S00000",
-        "0000CSC0000",
-        "000S1C1S000",
-        "00S12C21S00",
-        "0S123C321S0",
-        "00S12C21S00",
-        "000S1C1S000",
-        "0000CSC0000",
-        "00000S00000"
-      ],
-      // 4: Space Invader
-      [
-        "00100000100",
-        "00010001000",
-        "00111111100",
-        "01101110110",
-        "11111111111",
-        "10111111101",
-        "10100000101",
-        "00011011000",
-        "00CC000CC00"
-      ],
-      // 5: Fortress Citadel
-      [
-        "G0G0G0G0G0G",
-        "S0S0S0S0S0S",
-        "SSSSSSSSSSS",
-        "C0000G0000C",
-        "C0111G1110C",
-        "C0222G2220C",
-        "C0333G3330C",
-        "SSSSSSSSSSS",
-        "00444444400"
-      ],
-      // 6: Crystal Heart
-      [
-        "00CC000CC00",
-        "0CCCC0CCCC0",
-        "CCCCCCCCCCC",
-        "CCCCCCCCCCC",
-        "0CCCCCCCCC0",
-        "00CCCCCCC00",
-        "000CCCCC000",
-        "0000CCC0000",
-        "00000C00000"
-      ],
-      // 7: Checkerboard Matrix
-      [
-        "S0S0S0S0S0S",
-        "0C0C0C0C0C0",
-        "10101010101",
-        "02020202020",
-        "30303030303",
-        "04040404040",
-        "50505050505",
-        "0S0S0S0S0S0",
-        "C0C0C0C0C0C"
-      ],
-      // 8: Skull of Doom
-      [
-        "000SSSSS000",
-        "00S11111S00",
-        "0S1011101S0",
-        "0S1111111S0",
-        "00S10101S00",
-        "000CCCCC000",
-        "000S0S0S000",
-        "00010101000",
-        "000SSSSS000"
-      ],
-      // 9: Twin Pillars
-      [
-        "GG0000000GG",
-        "SS00CCC00SS",
-        "SS001C100SS",
-        "CC002C200CC",
-        "11003C30011",
-        "22004C40022",
-        "33005C50033",
-        "SS00CCC00SS",
-        "GG000G000GG"
-      ],
-      // 10: Final Core Nexus
-      [
-        "GGGGGGGGGGG",
-        "GSSSSSSSSSG",
-        "GSCCCCCCCSS",
-        "GSC11G11CSG",
-        "GSC1GGG1CSG",
-        "GSC11G11CSG",
-        "GSCCCCCCCSS",
-        "GSSSSSSSSSG",
-        "GGGGGGGGGGG"
-      ]
+      ["GGGGGGGGGGG","SSSSSSSSSSS","CCCCCCCCCCC","11111111111","22222222222","33333333333","44444444444","55555555555"],
+      ["00000G00000","0000GGG0000","000SSSSS000","00CCCCCCC00","01111111110","22222222222","33333333333","44444444444","55555555555"],
+      ["00000S00000","0000CSC0000","000S1C1S000","00S12C21S00","0S123C321S0","00S12C21S00","000S1C1S000","0000CSC0000","00000S00000"],
+      ["00100000100","00010001000","00111111100","01101110110","11111111111","10111111101","10100000101","00011011000","00CC000CC00"],
+      ["G0G0G0G0G0G","S0S0S0S0S0S","SSSSSSSSSSS","C0000G0000C","C0111G1110C","C0222G2220C","C0333G3330C","SSSSSSSSSSS","00444444400"],
+      ["00CC000CC00","0CCCC0CCCC0","CCCCCCCCCCC","CCCCCCCCCCC","0CCCCCCCCC0","00CCCCCCC00","000CCCCC000","0000CCC0000","00000C00000"],
+      ["S0S0S0S0S0S","0C0C0C0C0C0","10101010101","02020202020","30303030303","04040404040","50505050505","0S0S0S0S0S0","C0C0C0C0C0C"],
+      ["000SSSSS000","00S11111S00","0S1011101S0","0S1111111S0","00S10101S00","000CCCCC000","000S0S0S000","00010101000","000SSSSS000"],
+      ["GG0000000GG","SS00CCC00SS","SS001C100SS","CC002C200CC","11003C30011","22004C40022","33005C50033","SS00CCC00SS","GG000G000GG"],
+      ["GGGGGGGGGGG","GSSSSSSSSSG","GSCCCCCCCSS","GSC11G11CSG","GSC1GGG1CSG","GSC11G11CSG","GSCCCCCCCSS","GSSSSSSSSSG","GGGGGGGGGGG"]
     ];
 
     function loadStage(stageNum) {
@@ -866,50 +731,36 @@
           if (char === '0') continue;
 
           let maxHp = 1;
-          // 보글보글 풍의 젤리/캔디 파스텔 팔레트
-          let color = [1.0, 0.35, 0.52, 1.0]; // 딸기 버블껌
+          let color = [1.0, 0.35, 0.52, 1.0];
           let type = 'RED';
 
           if (char === 'G') {
-            maxHp = 3;
-            color = [1.0, 0.86, 0.28, 1.0]; // 골든 허니
-            type = 'GOLD';
+            maxHp = 3; color = [1.0, 0.86, 0.28, 1.0]; type = 'GOLD';
           } else if (char === 'S') {
-            maxHp = 2;
-            color = [0.93, 0.95, 1.0, 1.0];  // 펄 밀크
-            type = 'SILVER';
+            maxHp = 2; color = [0.93, 0.95, 1.0, 1.0]; type = 'SILVER';
           } else if (char === 'C') {
-            maxHp = 1;
-            color = [0.45, 0.95, 1.0, 0.85]; // 소다 팝
-            type = 'GLASS';
+            maxHp = 1; color = [0.45, 0.95, 1.0, 0.85]; type = 'GLASS';
           } else if (char === '1') {
-            color = [1.0, 0.35, 0.52, 1.0]; // 딸기
-            type = 'RED';
+            color = [1.0, 0.35, 0.52, 1.0]; type = 'RED';
           } else if (char === '2') {
-            color = [1.0, 0.62, 0.22, 1.0]; // 탠저린
-            type = 'ORANGE';
+            color = [1.0, 0.62, 0.22, 1.0]; type = 'ORANGE';
           } else if (char === '3') {
-            color = [1.0, 0.92, 0.28, 1.0]; // 레몬
-            type = 'YELLOW';
+            color = [1.0, 0.92, 0.28, 1.0]; type = 'YELLOW';
           } else if (char === '4') {
-            color = [0.38, 0.94, 0.58, 1.0]; // 멜론 팝
-            type = 'GREEN';
+            color = [0.38, 0.94, 0.58, 1.0]; type = 'GREEN';
           } else if (char === '5') {
-            color = [0.35, 0.72, 1.0, 1.0]; // 캔디 블루
-            type = 'BLUE';
+            color = [0.35, 0.72, 1.0, 1.0]; type = 'BLUE';
           }
 
           const bx = BRICK_LEFT + c * BRICK_W;
           const by = BRICK_TOP + r * BRICK_H;
-          // 알약 모서리가 서로 닿지 않고 예쁘게 떨어지도록 마진 적용
-          const bw = BRICK_W - 3.2;
-          const bh = BRICK_H - 2.8;
-
           bricks.push({
+            row: r,
+            col: c,
             x: bx + 1.6,
             y: by + 1.4,
-            w: bw,
-            h: bh,
+            w: BRICK_W - 3.2,
+            h: BRICK_H - 2.8,
             hp: maxHp,
             maxHp: maxHp,
             baseColor: color,
@@ -918,6 +769,10 @@
           });
         }
       }
+    }
+
+    function addPopText(text, x, y, color = '#ffd54f') {
+      popTexts.push({ text, x, y, vy: -1.2, alpha: 1.0, color });
     }
 
     function spawnExplosion3D(x, y, w, h, color, isGlass) {
@@ -941,7 +796,7 @@
     }
 
     function createBall(x, y, dx, dy) {
-      const spd = getStageBaseSpeed();
+      const spd = activeEffects.slowTimer > 0 ? getStageBaseSpeed() * 0.65 : getStageBaseSpeed();
       return {
         x: x,
         y: y,
@@ -954,14 +809,15 @@
     }
 
     function resetToSingleBall() {
-      const spd = getStageBaseSpeed();
+      const spd = activeEffects.slowTimer > 0 ? getStageBaseSpeed() * 0.65 : getStageBaseSpeed();
       const dirX = (Math.random() > 0.5 ? 1 : -1) * (spd * 0.6);
       const dirY = -Math.sqrt(Math.max(4, spd * spd - dirX * dirX));
       balls = [createBall(paddle.x + paddle.w / 2, paddle.y - 14, dirX, dirY)];
     }
 
+    let items = [];
     function maybeSpawnItem(x, y) {
-      if (Math.random() < 0.22) {
+      if (Math.random() < 0.24) {
         const itType = ITEM_TYPES[Math.floor(Math.random() * ITEM_TYPES.length)];
         items.push({
           x: x + BRICK_W / 2,
@@ -980,18 +836,51 @@
 
     function applyPowerUp(type) {
       sound.powerUp();
+      vibrate([15, 30, 20]);
       if (type === 'MULTI') {
         if (balls.length > 0) {
           const b = balls[0];
-          const spd = getStageBaseSpeed();
+          const spd = b.speed;
           balls.push(createBall(b.x, b.y, -spd * 0.7, -spd * 0.7));
           balls.push(createBall(b.x, b.y, spd * 0.7, -spd * 0.7));
         }
+        addPopText("MULTI BALL!", paddle.x + paddle.w / 2, paddle.y - 20, '#00e5ff');
       } else if (type === 'GIANT_PIERCE') {
         activeEffects.giantPierceTimer = 480;
+        addPopText("RAINBOW COMET!", paddle.x + paddle.w / 2, paddle.y - 20, '#ff4081');
       } else if (type === 'EXPAND') {
         activeEffects.expandTimer = 480;
         paddle.w = PADDLE_DEFAULT_W * 1.5;
+        addPopText("PADDLE EXPAND!", paddle.x + paddle.w / 2, paddle.y - 20, '#69f0ae');
+      } else if (type === 'SLOW') {
+        activeEffects.slowTimer = 420;
+        balls.forEach(b => {
+          b.speed = getStageBaseSpeed() * 0.65;
+          const mag = Math.sqrt(b.dx * b.dx + b.dy * b.dy);
+          b.dx = (b.dx / mag) * b.speed;
+          b.dy = (b.dy / mag) * b.speed;
+        });
+        addPopText("SLOW BUBBLE!", paddle.x + paddle.w / 2, paddle.y - 20, '#40c4ff');
+      } else if (type === 'LIGHTNING') {
+        activeEffects.hasLightning = true;
+        addPopText("LIGHTNING READY!", paddle.x + paddle.w / 2, paddle.y - 20, '#ffd54f');
+      }
+    }
+
+    function triggerLightningRow(targetRow) {
+      sound.lightning();
+      vibrate([40, 20, 60]);
+      let clearedCount = 0;
+      bricks.forEach(b => {
+        if (b.row === targetRow && b.hp > 0) {
+          b.hp = 0;
+          clearedCount++;
+          score += 25;
+          spawnExplosion3D(b.x, b.y, b.w, b.h, [1.0, 0.95, 0.2, 1.0], false);
+        }
+      });
+      if (clearedCount > 0) {
+        addPopText(`⚡ ROW CLEAR +${clearedCount * 25}!`, GAME_W / 2, BRICK_TOP + targetRow * BRICK_H, '#ffd54f');
       }
     }
 
@@ -1006,9 +895,9 @@
       }
     }
 
-    // --- 7. 물리 시뮬레이션 ---
+    // --- 8. 물리 시뮬레이션 ---
     function update() {
-      if (stageClearPause) return;
+      if (stageClearPause || isPaused) return;
       frameCount++;
 
       if (activeEffects.giantPierceTimer > 0) activeEffects.giantPierceTimer--;
@@ -1016,9 +905,27 @@
         activeEffects.expandTimer--;
         if (activeEffects.expandTimer === 0) paddle.w = PADDLE_DEFAULT_W;
       }
+      if (activeEffects.slowTimer > 0) {
+        activeEffects.slowTimer--;
+        if (activeEffects.slowTimer === 0) {
+          balls.forEach(b => {
+            b.speed = getStageBaseSpeed();
+            const mag = Math.sqrt(b.dx * b.dx + b.dy * b.dy);
+            b.dx = (b.dx / mag) * b.speed;
+            b.dy = (b.dy / mag) * b.speed;
+          });
+        }
+      }
 
       const isGiant = activeEffects.giantPierceTimer > 0;
       const currentRadius = isGiant ? BASE_BALL_R * 2.8 : BASE_BALL_R;
+
+      for (let i = popTexts.length - 1; i >= 0; i--) {
+        const pt = popTexts[i];
+        pt.y += pt.vy;
+        pt.alpha -= 0.02;
+        if (pt.alpha <= 0) popTexts.splice(i, 1);
+      }
 
       for (let i = particles3D.length - 1; i >= 0; i--) {
         const p = particles3D[i];
@@ -1029,9 +936,7 @@
         p.rotX += p.vRotX;
         p.rotY += p.vRotY;
         p.alpha -= 0.024;
-        if (p.alpha <= 0) {
-          particles3D.splice(i, 1);
-        }
+        if (p.alpha <= 0) particles3D.splice(i, 1);
       }
 
       for (let i = balls.length - 1; i >= 0; i--) {
@@ -1052,16 +957,19 @@
           ball.x = 12 + currentRadius;
           ball.dx = Math.abs(ball.dx);
           sound.hitWall();
+          vibrate(5);
         } else if (ball.x + currentRadius > GAME_W - 12) {
           ball.x = GAME_W - 12 - currentRadius;
           ball.dx = -Math.abs(ball.dx);
           sound.hitWall();
+          vibrate(5);
         }
 
         if (ball.y - currentRadius < 36) {
           ball.y = 36 + currentRadius;
           ball.dy = Math.abs(ball.dy);
           sound.hitWall();
+          vibrate(5);
         }
 
         if (
@@ -1077,6 +985,7 @@
           ball.dy = -Math.sqrt(Math.max(4, spd * spd - ball.dx * ball.dx));
           ball.y = paddle.y - currentRadius;
           sound.hitPaddle();
+          vibrate(12);
         }
 
         for (let b of bricks) {
@@ -1087,12 +996,19 @@
             ball.y + currentRadius > b.y &&
             ball.y - currentRadius < b.y + b.h
           ) {
+            if (activeEffects.hasLightning) {
+              activeEffects.hasLightning = false;
+              triggerLightningRow(b.row);
+            }
+
             if (isGiant) {
               b.hp = 0;
               score += 20;
               sound.hitExplosion();
+              vibrate(25);
               spawnExplosion3D(b.x, b.y, b.w, b.h, b.baseColor, b.type === 'GLASS');
               maybeSpawnItem(b.x, b.y);
+              addPopText("COMET POP! +20", b.x, b.y, '#ff4081');
             } else {
               if (ball.hitCooldown === 0) {
                 b.hp--;
@@ -1101,9 +1017,16 @@
                 ball.hitCooldown = 3;
                 const destroyed = b.hp <= 0;
                 sound.hitBrick(b.type, destroyed);
+                vibrate(destroyed ? 18 : 8);
+
                 if (destroyed) {
                   spawnExplosion3D(b.x, b.y, b.w, b.h, b.baseColor, b.type === 'GLASS');
                   maybeSpawnItem(b.x, b.y);
+                  if (comboCount > 1) {
+                    addPopText(`COMBO x${comboCount}!`, b.x, b.y, '#ffd54f');
+                  } else {
+                    addPopText("POP! +10", b.x, b.y, '#ffffff');
+                  }
                 } else {
                   updateBrickColor(b);
                 }
@@ -1121,8 +1044,11 @@
       if (balls.length === 0) {
         lives--;
         sound.loseLife();
+        vibrate([40, 60, 40]);
         activeEffects.giantPierceTimer = 0;
         activeEffects.expandTimer = 0;
+        activeEffects.slowTimer = 0;
+        activeEffects.hasLightning = false;
         paddle.w = PADDLE_DEFAULT_W;
         if (lives <= 0) {
           gameOver();
@@ -1160,12 +1086,11 @@
       }
     }
 
-    // --- 8. OpenGL 3D 렌더 파이프라인 ---
+    // --- 9. WebGL 3D 렌더 ---
     function render3D() {
       gl.enable(gl.DEPTH_TEST);
       gl.depthFunc(gl.LEQUAL);
       gl.disable(gl.CULL_FACE);
-
       gl.enable(gl.BLEND);
       gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
 
@@ -1177,7 +1102,6 @@
       const projMat = Mat4.ortho2D(0, GAME_W, GAME_H, 0, -500, 500);
       gl.uniformMatrix4fv(loc.proj, false, projMat);
 
-      // 다이내믹 무빙 라이트 및 시간 파라미터 (프리즘 오팔 반사광)
       const t = frameCount * 0.035;
       gl.uniform1f(loc.time, t);
       gl.uniform3f(loc.light1Dir, Math.cos(t) * 0.65, Math.sin(t * 0.8) * 0.65, 0.85);
@@ -1208,7 +1132,6 @@
         gl.bindVertexArray(null);
       }
 
-      // 1) 둥글둥글한 라벤더 범퍼 레일 (Round Bumpers)
       const wallColor = [0.88, 0.82, 0.98, 1.0];
       const wallD = 24;
 
@@ -1229,31 +1152,29 @@
       m = Mat4.scale(m, [GAME_W, 12, wallD]);
       drawMesh(roundRailGeo, m, wallColor, 50.0);
 
-      // 2) 100% 완전 둥근 알약(Pill) 젤리 블록 렌더링
       for (let b of bricks) {
         if (b.hp <= 0) continue;
         m = Mat4.identity();
         m = Mat4.translate(m, [b.x + b.w / 2, b.y + b.h / 2, 0]);
         m = Mat4.scale(m, [b.w, b.h, BRICK_D]);
-
         const shine = (b.type === 'GOLD' || b.type === 'SILVER') ? 95.0 : 50.0;
         drawMesh(pillBrickGeo, m, b.currentColor, shine, 0.0);
       }
 
-      // 3) 둥근 마시멜로 캡슐 패들
-      const paddleCol = activeEffects.expandTimer > 0 ? [0.45, 1.0, 0.35, 1.0] : [1.0, 0.35, 0.65, 1.0];
+      let paddleCol = [1.0, 0.35, 0.65, 1.0];
+      if (activeEffects.expandTimer > 0) paddleCol = [0.45, 1.0, 0.35, 1.0];
+      if (activeEffects.hasLightning) paddleCol = [1.0, 0.95, 0.2, 1.0];
+
       m = Mat4.identity();
       m = Mat4.translate(m, [paddle.x + paddle.w / 2, paddle.y + paddle.h / 2, 0]);
       m = Mat4.scale(m, [paddle.w, paddle.h, paddle.d]);
       drawMesh(pillPaddleGeo, m, paddleCol, 55.0);
 
-      // 패들 내부 크롬 코어
       m = Mat4.identity();
       m = Mat4.translate(m, [paddle.x + paddle.w / 2, paddle.y + paddle.h / 2, 3]);
       m = Mat4.scale(m, [Math.max(4, paddle.w - 18), paddle.h - 5, paddle.d]);
       drawMesh(pillPaddleGeo, m, [1.0, 0.95, 1.0, 1.0], 95.0);
 
-      // 4) 보글보글 비눗방울 공 (Bubble Sphere) & 혜성 버블 트레일
       const currentRadius = isGiant ? BASE_BALL_R * 2.8 : BASE_BALL_R;
 
       for (let b of balls) {
@@ -1263,8 +1184,6 @@
             const progress = (idx + 1) / b.trail.length;
             const trailR = currentRadius * (1.0 - progress * 0.65);
             const alpha = (1.0 - progress) * 0.85;
-
-            // 핑크-골드-바이올렛 비눗방울 스파클 잔상
             const trailCol = [1.0, 0.3 + (1.0 - progress) * 0.65, 0.85, alpha];
 
             m = Mat4.identity();
@@ -1274,7 +1193,6 @@
           }
         }
 
-        // 반투명 비눗방울 메인 볼
         const ballCol = isGiant ? [1.0, 0.35, 0.85, 0.95] : [0.75, 0.92, 1.0, 0.85];
         m = Mat4.identity();
         m = Mat4.translate(m, [b.x, b.y, 6]);
@@ -1282,7 +1200,6 @@
         drawMesh(bubbleSphereGeo, m, ballCol, 100.0, 1.0);
       }
 
-      // 5) 3D 알약 캡슐 아이템
       for (let it of items) {
         m = Mat4.identity();
         m = Mat4.translate(m, [it.x, it.y, 0]);
@@ -1293,45 +1210,82 @@
         drawMesh(pillPaddleGeo, m, it.color, 75.0);
       }
 
-      // 6) 3D 버블 파편
       for (let p of particles3D) {
         m = Mat4.identity();
         m = Mat4.translate(m, [p.x, p.y, p.z]);
         m = Mat4.rotateX(m, p.rotX);
         m = Mat4.rotateY(m, p.rotY);
         m = Mat4.scale(m, [5.0, 5.0, 5.0]);
-        const pCol = [p.color[0], p.color[1], p.color[2], p.alpha];
-        drawMesh(bubbleSphereGeo, m, pCol, 40.0, 1.0);
+        drawMesh(bubbleSphereGeo, m, [p.color[0], p.color[1], p.color[2], p.alpha], 40.0, 1.0);
       }
     }
 
-    // --- 9. HUD & 터치 영역 가이드 ---
+    // --- 10. HUD & 텍스트/UI 렌더링 ---
     function drawHUD() {
       hudCtx.clearRect(0, 0, hudCanvas.width, hudCanvas.height);
       const scale = hudCanvas.width / GAME_W;
       hudCtx.save();
       hudCtx.scale(scale, scale);
 
-      hudCtx.fillStyle = 'rgba(18, 11, 34, 0.9)';
-      hudCtx.fillRect(0, 0, GAME_W, 24);
+      hudCtx.fillStyle = 'rgba(18, 11, 34, 0.92)';
+      hudCtx.fillRect(0, 0, GAME_W, 28);
 
       hudCtx.fillStyle = '#fff';
-      hudCtx.font = 'bold 13px Courier New';
-      hudCtx.fillText(`SCORE: ${score}`, 18, 17);
+      hudCtx.font = 'bold 12px Courier New';
+      hudCtx.fillText(`SCORE:${score}`, 14, 18);
       hudCtx.fillStyle = '#ffd54f';
-      hudCtx.fillText(`ROUND ${currentStage}`, 145, 17);
+      hudCtx.fillText(`R${currentStage}`, 115, 18);
       hudCtx.fillStyle = '#ff4081';
-      hudCtx.fillText(`LIVES: ${'🫧 '.repeat(lives)}`, GAME_W - 105, 17);
+      hudCtx.fillText(`HP:${'🫧'.repeat(lives)}`, 155, 18);
 
+      // 상단 우측 Mute / Pause 버튼 영역
+      hudCtx.fillStyle = '#331f52';
+      hudCtx.beginPath();
+      hudCtx.roundRect(GAME_W - 68, 4, 30, 20, 6);
+      hudCtx.roundRect(GAME_W - 34, 4, 28, 20, 6);
+      hudCtx.fill();
+
+      hudCtx.fillStyle = '#ffffff';
+      hudCtx.font = 'bold 10px Courier New';
+      hudCtx.textAlign = 'center';
+      hudCtx.fillText(isMuted ? '🔇' : '🔊', GAME_W - 53, 18);
+      hudCtx.fillText(isPaused ? '▶' : '⏸', GAME_W - 20, 18);
+      hudCtx.textAlign = 'left';
+
+      let buffY = 48;
       if (activeEffects.giantPierceTimer > 0) {
         hudCtx.fillStyle = '#ff4081';
-        hudCtx.fillText(`[RAINBOW BUBBLE] ${(activeEffects.giantPierceTimer / 60).toFixed(1)}s`, 18, 48);
-      } else if (activeEffects.expandTimer > 0) {
+        hudCtx.fillText(`[RAINBOW] ${(activeEffects.giantPierceTimer / 60).toFixed(1)}s`, 16, buffY);
+        buffY += 16;
+      }
+      if (activeEffects.expandTimer > 0) {
         hudCtx.fillStyle = '#69f0ae';
-        hudCtx.fillText(`[EXPAND] ${(activeEffects.expandTimer / 60).toFixed(1)}s`, 18, 48);
+        hudCtx.fillText(`[EXPAND] ${(activeEffects.expandTimer / 60).toFixed(1)}s`, 16, buffY);
+        buffY += 16;
+      }
+      if (activeEffects.slowTimer > 0) {
+        hudCtx.fillStyle = '#00e5ff';
+        hudCtx.fillText(`[SLOW] ${(activeEffects.slowTimer / 60).toFixed(1)}s`, 16, buffY);
+        buffY += 16;
+      }
+      if (activeEffects.hasLightning) {
+        hudCtx.fillStyle = '#ffd54f';
+        hudCtx.fillText(`[⚡ LIGHTNING ARMED]`, 16, buffY);
       }
 
-      hudCtx.fillStyle = 'rgba(255, 128, 171, 0.06)';
+      // 플로팅 텍스트 렌더링
+      for (let pt of popTexts) {
+        hudCtx.save();
+        hudCtx.globalAlpha = Math.max(0, pt.alpha);
+        hudCtx.fillStyle = pt.color;
+        hudCtx.font = 'bold 12px Courier New';
+        hudCtx.textAlign = 'center';
+        hudCtx.fillText(pt.text, pt.x, pt.y);
+        hudCtx.restore();
+      }
+
+      // 하단 터치 상대 조작 존
+      hudCtx.fillStyle = 'rgba(255, 128, 171, 0.05)';
       hudCtx.beginPath();
       hudCtx.roundRect(14, TOUCH_CONTROL_ZONE_Y, GAME_W - 28, GAME_H - TOUCH_CONTROL_ZONE_Y - 14, 20);
       hudCtx.fill();
@@ -1345,11 +1299,21 @@
       hudCtx.fillStyle = 'rgba(255, 213, 79, 0.85)';
       hudCtx.font = 'bold 11px Courier New';
       hudCtx.textAlign = 'center';
-      hudCtx.fillText("🫧 TOUCH & DRAG ZONE 🫧", GAME_W / 2, TOUCH_CONTROL_ZONE_Y + 28);
+      hudCtx.fillText("🫧 RELATIVE SWIPE ZONE 🫧", GAME_W / 2, TOUCH_CONTROL_ZONE_Y + 28);
       hudCtx.font = '10px Courier New';
       hudCtx.fillStyle = 'rgba(255, 255, 255, 0.45)';
-      hudCtx.fillText("(여기를 스와이프하여 패들을 이동하세요)", GAME_W / 2, TOUCH_CONTROL_ZONE_Y + 48);
+      hudCtx.fillText("(어디든 좌우로 밀면 패들이 즉각 이동합니다)", GAME_W / 2, TOUCH_CONTROL_ZONE_Y + 48);
       hudCtx.textAlign = 'left';
+
+      if (isPaused) {
+        hudCtx.fillStyle = 'rgba(18, 11, 34, 0.8)';
+        hudCtx.fillRect(0, 0, GAME_W, GAME_H);
+        hudCtx.fillStyle = '#ffd54f';
+        hudCtx.font = 'bold 24px Courier New';
+        hudCtx.textAlign = 'center';
+        hudCtx.fillText("PAUSED", GAME_W / 2, GAME_H / 2);
+        hudCtx.textAlign = 'left';
+      }
 
       if (stageClearPause) {
         hudCtx.fillStyle = 'rgba(18, 11, 34, 0.88)';
@@ -1366,21 +1330,66 @@
       hudCtx.restore();
     }
 
-    // --- 10. 터치 입력 핸들러 및 게임 루프 ---
-    function handleTouch(e) {
-      if (!isPlaying || stageClearPause) return;
+    // --- 11. 상대 좌표(Delta Drag) 터치 핸들러 ---
+    let lastTouchX = null;
+
+    function getTouchGamePos(e) {
       const rect = hudCanvas.getBoundingClientRect();
       const scaleX = GAME_W / rect.width;
+      const scaleY = GAME_H / rect.height;
       const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-      const touchX = (clientX - rect.left) * scaleX;
-
-      paddle.x = Math.max(12, Math.min(GAME_W - paddle.w - 12, touchX - paddle.w / 2));
+      const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+      return {
+        x: (clientX - rect.left) * scaleX,
+        y: (clientY - rect.top) * scaleY
+      };
     }
 
-    ['pointermove', 'touchmove', 'pointerdown', 'touchstart'].forEach(type => {
-      hudCanvas.addEventListener(type, handleTouch, { passive: true });
-    });
+    function handleTouchStart(e) {
+      if (!isPlaying) return;
+      const pos = getTouchGamePos(e);
 
+      // 상단 우측 버튼 터치 감지
+      if (pos.y <= 32) {
+        if (pos.x >= GAME_W - 68 && pos.x <= GAME_W - 38) {
+          toggleMute();
+          vibrate(10);
+          return;
+        } else if (pos.x >= GAME_W - 34 && pos.x <= GAME_W - 6) {
+          isPaused = !isPaused;
+          vibrate(10);
+          return;
+        }
+      }
+
+      lastTouchX = pos.x;
+    }
+
+    function handleTouchMove(e) {
+      if (!isPlaying || stageClearPause || isPaused) return;
+      if (lastTouchX === null) return;
+
+      const pos = getTouchGamePos(e);
+      const deltaX = pos.x - lastTouchX;
+      lastTouchX = pos.x;
+
+      paddle.x = Math.max(12, Math.min(GAME_W - paddle.w - 12, paddle.x + deltaX));
+    }
+
+    function handleTouchEnd() {
+      lastTouchX = null;
+    }
+
+    hudCanvas.addEventListener('touchstart', handleTouchStart, { passive: true });
+    hudCanvas.addEventListener('touchmove', handleTouchMove, { passive: true });
+    hudCanvas.addEventListener('touchend', handleTouchEnd, { passive: true });
+    hudCanvas.addEventListener('touchcancel', handleTouchEnd, { passive: true });
+
+    hudCanvas.addEventListener('mousedown', handleTouchStart);
+    window.addEventListener('mousemove', handleTouchMove);
+    window.addEventListener('mouseup', handleTouchEnd);
+
+    // --- 12. 메인 루프 ---
     function loop() {
       if (!isPlaying) return;
       update();
@@ -1397,9 +1406,13 @@
       lives = 3;
       currentStage = 1;
       stageClearPause = false;
+      isPaused = false;
       comboCount = 0;
+      popTexts = [];
       activeEffects.giantPierceTimer = 0;
       activeEffects.expandTimer = 0;
+      activeEffects.slowTimer = 0;
+      activeEffects.hasLightning = false;
       paddle.w = PADDLE_DEFAULT_W;
       paddle.y = PADDLE_DEFAULT_Y;
       paddle.x = GAME_W / 2 - paddle.w / 2;
@@ -1413,22 +1426,13 @@
       requestAnimationFrame(loop);
     }
 
-    function restartGame() {
-      startGame();
-    }
-
-    startBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      startGame();
-    });
-    overBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      restartGame();
-    });
+    startBtn.addEventListener('click', (e) => { e.stopPropagation(); startGame(); });
+    overBtn.addEventListener('click', (e) => { e.stopPropagation(); startGame(); });
 
     function nextStageTransition() {
       stageClearPause = true;
       sound.stageClear();
+      vibrate([50, 40, 80]);
       score += currentStage * 500;
 
       setTimeout(() => {
@@ -1440,6 +1444,8 @@
 
         activeEffects.giantPierceTimer = 0;
         activeEffects.expandTimer = 0;
+        activeEffects.slowTimer = 0;
+        activeEffects.hasLightning = false;
         paddle.w = PADDLE_DEFAULT_W;
         paddle.y = PADDLE_DEFAULT_Y;
         paddle.x = GAME_W / 2 - paddle.w / 2;
@@ -1468,7 +1474,6 @@
       gameOverOverlay.style.display = 'flex';
     }
 
-    // 초기 화면 렌더링
     loadStage(1);
     render3D();
     drawHUD();

@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-  <title>알카노이드 FX 3D - OpenGL Top View</title>
+  <title>알카노이드 FX 3D - 10 STAGES</title>
   <style>
     * {
       box-sizing: border-box;
@@ -111,15 +111,13 @@
         <div id="ytPlayer"></div>
       </div>
     </div>
-    <!-- OpenGL (WebGL 2.0) 캔버스 -->
     <canvas id="glCanvas"></canvas>
-    <!-- HUD & 터치 제어 오버레이 -->
     <canvas id="hudCanvas"></canvas>
   </div>
 
   <div class="overlay" id="startOverlay">
-    <h1 style="color: #ff3333; margin-bottom: 4px; text-shadow: 0 0 10px #ff0055;">ARKANOID 3D TOP-VIEW</h1>
-    <p style="color: #aaa; font-size: 13px; margin-bottom: 2px;">직교 투영 1:1 완벽 픽셀 핏 매칭</p>
+    <h1 style="color: #ff3333; margin-bottom: 4px; text-shadow: 0 0 10px #ff0055;">ARKANOID FX 10 STAGES</h1>
+    <p style="color: #aaa; font-size: 13px; margin-bottom: 2px;">총 10개 정규 스테이지 돌파 도전!</p>
     <p style="color: #ff0055; font-size: 13px;">[G] 캡슐: 혜성 화염 관통 모드</p>
     <button class="btn" onclick="startGame()">게임 시작</button>
   </div>
@@ -242,9 +240,8 @@
       loseLife: () => playTone(250, 'sawtooth', 0.35, 40, 0.3)
     };
 
-    // --- 3. 행렬 연산 유틸 (직교 1:1 매핑 & 모델 변환) ---
+    // --- 3. 행렬 연산 유틸 ---
     const Mat4 = {
-      // 2D 캔버스 좌표계와 완전히 일치하는 직교 투영 행렬 (Top: 0, Bottom: 640)
       ortho2D: (left, right, bottom, top, near = -500, far = 500) => {
         const lr = 1 / (left - right);
         const bt = 1 / (bottom - top);
@@ -312,7 +309,7 @@
       }
     };
 
-    // --- 4. WebGL 2.0 (OpenGL ES 3.0) 셰이더 ---
+    // --- 4. WebGL 2.0 셰이더 ---
     const glCanvas = document.getElementById('glCanvas');
     const gl = glCanvas.getContext('webgl2', { alpha: true, antialias: true });
 
@@ -353,15 +350,13 @@
 
       void main() {
         vec3 N = normalize(vNormal);
-        vec3 V = vec3(0.0, 0.0, 1.0); // 직교 탑뷰 시선 벡터
+        vec3 V = vec3(0.0, 0.0, 1.0);
 
-        // 1) 3D 입체 음영을 위한 사선 메인 조명
         vec3 L = normalize(uLightPos - vWorldPos);
         float diff = max(dot(N, L), 0.0);
         vec3 H = normalize(L + V);
         float spec = pow(max(dot(N, H), 0.0), uShininess);
 
-        // 2) 공 포인트 조명
         vec3 ballToFrag = uBallLightPos - vWorldPos;
         float dist = length(ballToFrag);
         vec3 Lball = normalize(ballToFrag);
@@ -414,21 +409,15 @@
       glass: gl.getUniformLocation(program, "uGlassEffect")
     };
 
-    // --- 5. 3D 메쉬 버퍼 생성 (Cube, Sphere, Cylinder) ---
+    // --- 5. 3D 메쉬 생성 ---
     function createBoxGeometry() {
       const p = 0.5, n = -0.5;
       const positions = new Float32Array([
-        // Front
         n,n,p,  p,n,p,  p,p,p,  n,n,p,  p,p,p,  n,p,p,
-        // Back
         p,n,n,  n,n,n,  n,p,n,  p,n,n,  n,p,n,  p,p,n,
-        // Top
         n,p,p,  p,p,p,  p,p,n,  n,p,p,  p,p,n,  n,p,n,
-        // Bottom
         n,n,n,  p,n,n,  p,n,p,  n,n,n,  p,n,p,  n,n,p,
-        // Right
         p,n,p,  p,n,n,  p,p,n,  p,n,p,  p,p,n,  p,p,p,
-        // Left
         n,n,n,  n,n,p,  n,p,p,  n,n,n,  n,p,p,  n,p,n
       ]);
       const normals = new Float32Array([
@@ -578,11 +567,10 @@
       ]);
     }
 
-    // --- 6. 모바일 해상도 및 게임 필드 좌표계 ---
+    // --- 6. 모바일 해상도 및 스테이지 맵 데이터 (1~10 STAGES) ---
     const GAME_W = 360;
     const GAME_H = 640;
 
-    // 패들을 터치 트랙패드 바로 위 안전 지대에 명확히 배치
     const PADDLE_DEFAULT_Y = GAME_H - 180;
     const TOUCH_CONTROL_ZONE_Y = GAME_H - 145;
 
@@ -654,39 +642,49 @@
     const BRICK_W = 28;
     const BRICK_H = 12;
     const BRICK_D = 14;
-    const BRICK_TOP = 75;
+    const BRICK_TOP = 50;
     const BRICK_LEFT = (GAME_W - (BRICK_COLS * BRICK_W)) / 2;
 
     let bricks = [];
 
+    // [10단계 정규 스테이지 맵 데이터]
     const STAGE_MAPS = [
+      // Stage 1: Classic Wall (정통 클래식 벽돌)
       [
         "GGGGGGGGGGG",
         "SSSSSSSSSSS",
         "CCCCCCCCCCC",
+        "11111111111",
         "22222222222",
         "33333333333",
         "44444444444",
         "55555555555"
       ],
+      // Stage 2: Pyramid of Light (빛의 피라미드)
       [
         "00000G00000",
-        "0000SSS0000",
-        "000CCCCC000",
-        "00111111100",
-        "02222222220",
+        "0000GGG0000",
+        "000SSSSS000",
+        "00CCCCCCC00",
+        "01111111110",
+        "22222222222",
         "33333333333",
-        "44444444444"
+        "44444444444",
+        "55555555555"
       ],
+      // Stage 3: Diamond Gate (다이아몬드 관문)
       [
         "00000S00000",
-        "000SC0CS000",
-        "00S11011S00",
-        "0S2220222S0",
-        "00S33033S00",
-        "000SC0CS000",
+        "0000CSC0000",
+        "000S1C1S000",
+        "00S12C21S00",
+        "0S123C321S0",
+        "00S12C21S00",
+        "000S1C1S000",
+        "0000CSC0000",
         "00000S00000"
       ],
+      // Stage 4: Space Invader (인베이더 공격대)
       [
         "00100000100",
         "00010001000",
@@ -694,26 +692,35 @@
         "01101110110",
         "11111111111",
         "10111111101",
-        "10100000101"
+        "10100000101",
+        "00011011000",
+        "00CC000CC00"
       ],
+      // Stage 5: Fortress Citadel (철옹성 요새)
       [
         "G0G0G0G0G0G",
         "S0S0S0S0S0S",
         "SSSSSSSSSSS",
-        "C0C0C0C0C0C",
-        "22222222222",
-        "00033333000",
-        "00044444000"
+        "C0000G0000C",
+        "C0111G1110C",
+        "C0222G2220C",
+        "C0333G3330C",
+        "SSSSSSSSSSS",
+        "00444444400"
       ],
+      // Stage 6: Crystal Heart (크리스탈 하트)
       [
-        "01100000110",
-        "1CC10001CC1",
-        "1CCCC11CCCC1",
-        "01CCCCCCCC10",
-        "001CCCCCC100",
-        "0001CCCC1000",
-        "000001100000"
+        "00CC000CC00",
+        "0CCCC0CCCC0",
+        "CCCCCCCCCCC",
+        "CCCCCCCCCCC",
+        "0CCCCCCCCC0",
+        "00CCCCCCC00",
+        "000CCCCC000",
+        "0000CCC0000",
+        "00000C00000"
       ],
+      // Stage 7: Checkerboard Matrix (체커보드 매트릭스)
       [
         "S0S0S0S0S0S",
         "0C0C0C0C0C0",
@@ -721,8 +728,11 @@
         "02020202020",
         "30303030303",
         "04040404040",
-        "50505050505"
+        "50505050505",
+        "0S0S0S0S0S0",
+        "C0C0C0C0C0C"
       ],
+      // Stage 8: Skull of Doom (파멸의 해골)
       [
         "000SSSSS000",
         "00S11111S00",
@@ -730,24 +740,32 @@
         "0S1111111S0",
         "00S10101S00",
         "000CCCCC000",
-        "000S0S0S000"
+        "000S0S0S000",
+        "00010101000",
+        "000SSSSS000"
       ],
+      // Stage 9: Twin Pillars (쌍둥이 메탈 기둥)
       [
         "GG0000000GG",
-        "SS000C000SS",
-        "CC0011100CC",
-        "11002220011",
-        "22003330022",
-        "SS0044400SS",
-        "GG000C000GG"
+        "SS00CCC00SS",
+        "SS001C100SS",
+        "CC002C200CC",
+        "11003C30011",
+        "22004C40022",
+        "33005C50033",
+        "SS00CCC00SS",
+        "GG000G000GG"
       ],
+      // Stage 10: Final Core Nexus (최종 보스 코어 넥서스)
       [
         "GGGGGGGGGGG",
         "GSSSSSSSSSG",
         "GSCCCCCCCSS",
-        "GSC00G00CSG",
-        "GSC0GGG0CSG",
+        "GSC11G11CSG",
+        "GSC1GGG1CSG",
+        "GSC11G11CSG",
         "GSCCCCCCCSS",
+        "GSSSSSSSSSG",
         "GGGGGGGGGGG"
       ]
     ];
@@ -915,7 +933,6 @@
       const isGiant = activeEffects.giantPierceTimer > 0;
       const currentRadius = isGiant ? BASE_BALL_R * 2.8 : BASE_BALL_R;
 
-      // 파티클
       for (let i = particles3D.length - 1; i >= 0; i--) {
         const p = particles3D[i];
         p.x += p.vx;
@@ -930,14 +947,12 @@
         }
       }
 
-      // 공
       for (let i = balls.length - 1; i >= 0; i--) {
         const ball = balls[i];
         ball.x += ball.dx;
         ball.y += ball.dy;
         if (ball.hitCooldown > 0) ball.hitCooldown--;
 
-        // 좌우 벽 충돌
         if (ball.x - currentRadius < 12) {
           ball.x = 12 + currentRadius;
           ball.dx = Math.abs(ball.dx);
@@ -948,14 +963,12 @@
           sound.hitWall();
         }
 
-        // 상단 벽 충돌 (상단 바 36px 아래)
         if (ball.y - currentRadius < 36) {
           ball.y = 36 + currentRadius;
           ball.dy = Math.abs(ball.dy);
           sound.hitWall();
         }
 
-        // 패들 충돌
         if (
           ball.y + currentRadius >= paddle.y &&
           ball.y - currentRadius <= paddle.y + paddle.h &&
@@ -971,7 +984,6 @@
           sound.hitPaddle();
         }
 
-        // 벽돌 충돌
         for (let b of bricks) {
           if (b.hp <= 0) continue;
           if (
@@ -1006,7 +1018,6 @@
           }
         }
 
-        // 패들 아래로 볼 낙하 시 아웃
         if (ball.y - currentRadius > paddle.y + 60) {
           balls.splice(i, 1);
         }
@@ -1067,11 +1078,8 @@
 
       gl.useProgram(program);
 
-      // [핵심 해결] 캔버스(0,0 ~ 360,640)와 완전히 1:1 직결되는 직교 투영 행렬
       const projMat = Mat4.ortho2D(0, GAME_W, GAME_H, 0, -500, 500);
       gl.uniformMatrix4fv(loc.proj, false, projMat);
-
-      // 상단 좌측 사선에서 비추는 메인 입체 광원
       gl.uniform3f(loc.lightPos, GAME_W / 2 - 80, 80, 260);
 
       const isGiant = activeEffects.giantPierceTimer > 0;
@@ -1104,29 +1112,24 @@
         gl.bindVertexArray(null);
       }
 
-      // 1) 3D 테두리 메탈 프레임 월
       const wallColor = [0.42, 0.42, 0.48, 1.0];
       const wallD = 24;
 
-      // 좌측 벽 (X: 0~12, Y: 24~GAME_H)
       let m = Mat4.identity();
       m = Mat4.translate(m, [6, (24 + GAME_H) / 2, 0]);
       m = Mat4.scale(m, [12, GAME_H - 24, wallD]);
       drawMesh(boxGeo, m, wallColor, 40.0);
 
-      // 우측 벽 (X: GAME_W-12~GAME_W, Y: 24~GAME_H)
       m = Mat4.identity();
       m = Mat4.translate(m, [GAME_W - 6, (24 + GAME_H) / 2, 0]);
       m = Mat4.scale(m, [12, GAME_H - 24, wallD]);
       drawMesh(boxGeo, m, wallColor, 40.0);
 
-      // 상단 벽 (X: 0~GAME_W, Y: 24~36)
       m = Mat4.identity();
       m = Mat4.translate(m, [GAME_W / 2, 30, 0]);
       m = Mat4.scale(m, [GAME_W, 12, wallD]);
       drawMesh(boxGeo, m, wallColor, 40.0);
 
-      // 2) 3D 벽돌 렌더링 (가로 11열 칼정렬)
       for (let b of bricks) {
         if (b.hp <= 0) continue;
         m = Mat4.identity();
@@ -1138,20 +1141,17 @@
         drawMesh(boxGeo, m, b.currentColor, shine, isGlass);
       }
 
-      // 3) 3D 패들
       const paddleCol = activeEffects.expandTimer > 0 ? [0.22, 1.0, 0.08, 1.0] : [0.9, 0.15, 0.13, 1.0];
       m = Mat4.identity();
       m = Mat4.translate(m, [paddle.x + paddle.w / 2, paddle.y + paddle.h / 2, 0]);
       m = Mat4.scale(m, [paddle.w, paddle.h, paddle.d]);
       drawMesh(boxGeo, m, paddleCol, 32.0);
 
-      // 패들 내부 메탈 코어
       m = Mat4.identity();
       m = Mat4.translate(m, [paddle.x + paddle.w / 2, paddle.y + paddle.h / 2, 2]);
       m = Mat4.scale(m, [Math.max(4, paddle.w - 18), paddle.h - 4, paddle.d]);
       drawMesh(boxGeo, m, [1.0, 1.0, 1.0, 1.0], 80.0);
 
-      // 4) 3D 공
       const currentRadius = isGiant ? BASE_BALL_R * 2.8 : BASE_BALL_R;
       const ballCol = isGiant ? [1.0, 0.2, 0.0, 1.0] : [1.0, 1.0, 1.0, 1.0];
 
@@ -1162,7 +1162,6 @@
         drawMesh(sphereGeo, m, ballCol, 96.0);
       }
 
-      // 5) 3D 아이템 (자전하는 실린더)
       for (let it of items) {
         m = Mat4.identity();
         m = Mat4.translate(m, [it.x, it.y, 0]);
@@ -1173,7 +1172,6 @@
         drawMesh(cylinderGeo, m, it.color, 48.0);
       }
 
-      // 6) 3D 파편
       for (let p of particles3D) {
         m = Mat4.identity();
         m = Mat4.translate(m, [p.x, p.y, p.z]);
@@ -1185,14 +1183,13 @@
       }
     }
 
-    // --- 9. HUD & 터치 트랙패드 영역 렌더링 ---
+    // --- 9. HUD & 터치 트랙패드 영역 ---
     function drawHUD() {
       hudCtx.clearRect(0, 0, hudCanvas.width, hudCanvas.height);
       const scale = hudCanvas.width / GAME_W;
       hudCtx.save();
       hudCtx.scale(scale, scale);
 
-      // 상단 점수 바 배경
       hudCtx.fillStyle = '#000';
       hudCtx.fillRect(0, 0, GAME_W, 24);
 
@@ -1212,7 +1209,6 @@
         hudCtx.fillText(`[EXPAND] ${(activeEffects.expandTimer / 60).toFixed(1)}s`, 18, 48);
       }
 
-      // 하단 터치 드래그 트랙패드 (패들 바로 밑 안전 영역)
       hudCtx.fillStyle = 'rgba(255, 255, 255, 0.04)';
       hudCtx.fillRect(14, TOUCH_CONTROL_ZONE_Y, GAME_W - 28, GAME_H - TOUCH_CONTROL_ZONE_Y - 14);
 
@@ -1230,7 +1226,6 @@
       hudCtx.fillText("(여기를 터치/드래그하여 패들을 이동하세요)", GAME_W / 2, TOUCH_CONTROL_ZONE_Y + 48);
       hudCtx.textAlign = 'left';
 
-      // 스테이지 클리어
       if (stageClearPause) {
         hudCtx.fillStyle = 'rgba(0, 0, 0, 0.75)';
         hudCtx.fillRect(20, GAME_H / 2 - 45, GAME_W - 40, 70);
@@ -1244,7 +1239,7 @@
       hudCtx.restore();
     }
 
-    // --- 10. 모바일 터치 이벤트 핸들러 ---
+    // --- 10. 터치 핸들러 및 게임 루프 ---
     function handleTouch(e) {
       if (!isPlaying || stageClearPause) return;
       const rect = hudCanvas.getBoundingClientRect();
@@ -1323,7 +1318,7 @@
       isPlaying = false;
       overTitle.textContent = "ALL CLEAR! CHAMPION";
       overTitle.style.color = "#ffd700";
-      finalScore.textContent = `축하합니다! 전 스테이지 클리어 | 점수: ${score}`;
+      finalScore.textContent = `축하합니다! 10개 전 스테이지 클리어 | 점수: ${score}`;
       overBtn.textContent = "처음부터 다시하기";
       gameOverOverlay.style.display = 'flex';
     }
@@ -1332,7 +1327,7 @@
       isPlaying = false;
       overTitle.textContent = "GAME OVER";
       overTitle.style.color = "#ff3333";
-      finalScore.textContent = `도달 스테이지: ${currentStage} | 최종 점수: ${score}`;
+      finalScore.textContent = `도달 스테이지: ${currentStage} / 10 | 최종 점수: ${score}`;
       overBtn.textContent = "다시하기";
       gameOverOverlay.style.display = 'flex';
     }

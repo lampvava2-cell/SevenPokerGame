@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-  <title>알카노이드 FX 3D - OpenGL (Mobile Optimized)</title>
+  <title>알카노이드 FX 3D - OpenGL (Mobile Full View)</title>
   <style>
     * {
       box-sizing: border-box;
@@ -113,13 +113,13 @@
     </div>
     <!-- OpenGL (WebGL 2.0) 캔버스 -->
     <canvas id="glCanvas"></canvas>
-    <!-- HUD 및 터치 입력 오버레이 -->
+    <!-- HUD & 터치 이벤트 전용 오버레이 -->
     <canvas id="hudCanvas"></canvas>
   </div>
 
   <div class="overlay" id="startOverlay">
     <h1 style="color: #ff3333; margin-bottom: 4px; text-shadow: 0 0 10px #ff0055;">ARKANOID OPENGL 3D</h1>
-    <p style="color: #aaa; font-size: 13px; margin-bottom: 2px;">모바일 핸드 가림 방지 최적화 뷰</p>
+    <p style="color: #aaa; font-size: 13px; margin-bottom: 2px;">스마트폰 풀 뷰 & 손가락 가림 방지 최적화</p>
     <p style="color: #ff0055; font-size: 13px;">[G] 캡슐: 혜성 화염 관통 모드</p>
     <button class="btn" onclick="startGame()">게임 시작</button>
   </div>
@@ -330,7 +330,7 @@
         const a10 = m[4], a11 = m[5], a12 = m[6], a13 = m[7];
         const out = new Float32Array(m);
         out[0] = a00 * c + a10 * s; out[1] = a01 * c + a11 * s;
-        out[2] = a02 * c + a12 * s; out[3] = a03 * c + a13 * s;
+        out[2] = a02 * c - a10 * s; out[3] = a03 * c - a11 * s;
         out[4] = a10 * c - a00 * s; out[5] = a11 * c - a01 * s;
         out[6] = a12 * c - a02 * s; out[7] = a13 * c - a03 * s;
         return out;
@@ -379,7 +379,7 @@
 
       void main() {
         vec3 N = normalize(vNormal);
-        vec3 V = normalize(vec3(180.0, -320.0, 520.0) - vWorldPos);
+        vec3 V = normalize(vec3(180.0, -320.0, 720.0) - vWorldPos);
 
         // 1) 씬 메인 조명
         vec3 L = normalize(uLightPos - vWorldPos);
@@ -391,7 +391,7 @@
         vec3 ballToFrag = uBallLightPos - vWorldPos;
         float dist = length(ballToFrag);
         vec3 Lball = normalize(ballToFrag);
-        float atten = clamp(1.0 - dist / 260.0, 0.0, 1.0);
+        float atten = clamp(1.0 - dist / 300.0, 0.0, 1.0);
         float ballDiff = max(dot(N, Lball), 0.0) * atten * uBallLightIntensity;
 
         vec3 ambient = vec3(0.38) * uColor.rgb;
@@ -599,14 +599,14 @@
       ]);
     }
 
-    // --- 6. 모바일 해상도 및 패들 위치 최적화 ---
+    // --- 6. 모바일 풀 뷰 & 패들 Y위치 대폭 상향 재조정 ---
     const GAME_W = 360;
     const GAME_H = 640;
 
-    // 패들 위치를 기존 GAME_H - 135 에서 GAME_H - 200 으로 크게 상향하여
-    // 손가락에 가려지지 않도록 전진 배치함
-    const PADDLE_DEFAULT_Y = GAME_H - 200;
-    const TOUCH_CONTROL_ZONE_Y = GAME_H - 150; // 아래쪽 터치 조작 영역
+    // 패들을 화면 전체 높이의 약 60% 지점(GAME_H - 240)으로 상향 배치
+    // -> 손가락으로 화면 하단 절반을 쥐거나 문질러도 패들과 공이 절대 가려지지 않음
+    const PADDLE_DEFAULT_Y = GAME_H - 240;
+    const TOUCH_CONTROL_ZONE_Y = GAME_H - 180;
 
     const container = document.getElementById('gameContainer');
     const hudCanvas = document.getElementById('hudCanvas');
@@ -972,7 +972,7 @@
           sound.hitWall();
         }
 
-        // 패들 충돌
+        // 패들 충돌 판정
         if (
           ball.y + currentRadius >= paddle.y &&
           ball.y - currentRadius <= paddle.y + paddle.h &&
@@ -1023,7 +1023,7 @@
           }
         }
 
-        // 패들 아래로 통과 시 낙하 판정
+        // 패들 아래로 낙하 판정
         if (ball.y - currentRadius > paddle.y + 60) {
           balls.splice(i, 1);
         }
@@ -1071,7 +1071,7 @@
       }
     }
 
-    // --- 8. OpenGL 3D 렌더 파이프라인 ---
+    // --- 8. OpenGL 3D 렌더 파이프라인 (카메라 풀 뷰 보정) ---
     function render3D() {
       gl.enable(gl.DEPTH_TEST);
       gl.enable(gl.CULL_FACE);
@@ -1084,17 +1084,18 @@
 
       gl.useProgram(program);
 
-      // 패들이 위로 이동함에 따라 카메라 중심점을 맞춤
+      // 전체 게임 필드(상단 바 ~ 패들 ~ 바닥)가 한눈에 들어오도록 카메라 거리와 화각을 재조정
+      // Z축 거리를 520 -> 720으로 확장하고 피치 각도를 낮춰 필드 전체를 조망
       const aspect = glCanvas.width / glCanvas.height;
-      const projMat = Mat4.perspective((50 * Math.PI) / 180, aspect, 1.0, 2000.0);
-      const eye = [GAME_W / 2, -GAME_H / 2 - 10, 520];
-      const target = [GAME_W / 2, -GAME_H / 2 + 35, 0];
+      const projMat = Mat4.perspective((46 * Math.PI) / 180, aspect, 1.0, 2500.0);
+      const eye = [GAME_W / 2, -GAME_H / 2 - 15, 720];
+      const target = [GAME_W / 2, -GAME_H / 2 + 10, 0];
       const up = [0, 1, 0];
       const viewMat = Mat4.lookAt(eye, target, up);
 
       gl.uniformMatrix4fv(loc.proj, false, projMat);
       gl.uniformMatrix4fv(loc.view, false, viewMat);
-      gl.uniform3f(loc.lightPos, GAME_W / 2, -100, 320);
+      gl.uniform3f(loc.lightPos, GAME_W / 2, -100, 360);
 
       const isGiant = activeEffects.giantPierceTimer > 0;
       if (balls.length > 0) {
@@ -1157,7 +1158,7 @@
         drawMesh(boxGeo, m, b.currentColor, shine, isGlass);
       }
 
-      // 3D 패들 (상향 배치된 위치)
+      // 3D 패들 (시야 상단으로 확실하게 부상한 위치)
       const paddleCol = activeEffects.expandTimer > 0 ? [0.22, 1.0, 0.08, 1.0] : [0.9, 0.15, 0.13, 1.0];
       m = Mat4.identity();
       m = Mat4.translate(m, [paddle.x + paddle.w / 2, -(paddle.y + paddle.h / 2), paddle.d / 2]);
@@ -1203,7 +1204,7 @@
       }
     }
 
-    // --- 9. HUD & 스마트폰 터치 영역 가이드라인 ---
+    // --- 9. HUD & 터치 패드 존 시각화 ---
     function drawHUD() {
       hudCtx.clearRect(0, 0, hudCanvas.width, hudCanvas.height);
       const scale = hudCanvas.width / GAME_W;
@@ -1230,22 +1231,25 @@
         hudCtx.fillText(`[EXPAND] ${(activeEffects.expandTimer / 60).toFixed(1)}s`, 18, 48);
       }
 
-      // 하단 모바일 터치 패드 존 시각화 (패들 밑 영역)
-      hudCtx.fillStyle = 'rgba(255, 255, 255, 0.04)';
+      // 하단 터치 트랙패드 영역 (패들 밑 넓은 조작 구역)
+      hudCtx.fillStyle = 'rgba(255, 255, 255, 0.05)';
       hudCtx.fillRect(14, TOUCH_CONTROL_ZONE_Y, GAME_W - 28, GAME_H - TOUCH_CONTROL_ZONE_Y - 14);
 
-      hudCtx.strokeStyle = 'rgba(255, 255, 255, 0.25)';
-      hudCtx.setLineDash([6, 6]);
+      hudCtx.strokeStyle = 'rgba(255, 255, 255, 0.28)';
+      hudCtx.setLineDash([5, 5]);
       hudCtx.strokeRect(14, TOUCH_CONTROL_ZONE_Y, GAME_W - 28, GAME_H - TOUCH_CONTROL_ZONE_Y - 14);
       hudCtx.setLineDash([]);
 
-      hudCtx.fillStyle = 'rgba(255, 255, 255, 0.35)';
-      hudCtx.font = '11px Courier New';
+      hudCtx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+      hudCtx.font = 'bold 11px Courier New';
       hudCtx.textAlign = 'center';
-      hudCtx.fillText("◀ TOUCH & DRAG ZONE ▶", GAME_W / 2, TOUCH_CONTROL_ZONE_Y + 28);
+      hudCtx.fillText("◀ FINGER TOUCH & SLIDE ZONE ▶", GAME_W / 2, TOUCH_CONTROL_ZONE_Y + 30);
+      hudCtx.font = '10px Courier New';
+      hudCtx.fillStyle = 'rgba(255, 255, 255, 0.25)';
+      hudCtx.fillText("(여기를 터치하여 패들을 조작하세요)", GAME_W / 2, TOUCH_CONTROL_ZONE_Y + 52);
       hudCtx.textAlign = 'left';
 
-      // 스테이지 클리어
+      // 스테이지 클리어 연출
       if (stageClearPause) {
         hudCtx.fillStyle = 'rgba(0, 0, 0, 0.75)';
         hudCtx.fillRect(20, GAME_H / 2 - 45, GAME_W - 40, 70);
@@ -1259,7 +1263,7 @@
       hudCtx.restore();
     }
 
-    // --- 10. 스마트폰 터치 입력 핸들러 (손가락 위치 비종속 패들 트래킹) ---
+    // --- 10. 스마트폰 터치 입력 핸들러 ---
     function handleTouch(e) {
       if (!isPlaying || stageClearPause) return;
       const rect = hudCanvas.getBoundingClientRect();
@@ -1267,7 +1271,6 @@
       const clientX = e.touches ? e.touches[0].clientX : e.clientX;
       const touchX = (clientX - rect.left) * scaleX;
 
-      // 손가락이 하단 어디를 터치/슬라이드해도 패들의 X축만 정확하게 추적
       paddle.x = Math.max(14, Math.min(GAME_W - paddle.w - 14, touchX - paddle.w / 2));
     }
 

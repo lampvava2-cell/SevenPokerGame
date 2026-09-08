@@ -1,107 +1,1380 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Game Background</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <title>알카노이드 FX 3D - OpenGL (WebGL 2.0)</title>
   <style>
     * {
       box-sizing: border-box;
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: none;
+    }
+    html, body {
       margin: 0;
       padding: 0;
-    }
-
-    body {
       width: 100vw;
       height: 100vh;
-      background-color: #030308;
-      /* 우주 배경: 미세한 별빛 효과 */
-      background-image: 
-        radial-gradient(1px 1px at 20px 30px, #eee, rgba(0,0,0,0)),
-        radial-gradient(1.5px 1.5px at 100px 150px, #fff, rgba(0,0,0,0)),
-        radial-gradient(1px 1px at 250px 80px, #aaa, rgba(0,0,0,0)),
-        radial-gradient(2px 2px at 320px 300px, #fff, rgba(0,0,0,0));
-      background-size: 400px 400px;
+      overflow: hidden;
+      background-color: #000;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-family: 'Courier New', Courier, monospace;
+    }
+    #gameContainer {
+      position: relative;
+      background-color: #000;
+      box-shadow: 0 0 30px rgba(0, 0, 0, 0.95);
+      overflow: hidden;
+    }
+    #ytPlayerWrapper {
+      position: absolute;
+      top: 5.625%;
+      left: 3.333%;
+      width: 93.334%;
+      height: 94.375%;
+      background-color: #000000;
       display: flex;
       justify-content: center;
       align-items: center;
       overflow: hidden;
+      z-index: 1;
+      pointer-events: none;
     }
-
-    /* 게임 컨테이너: 화면 중앙에 지정된 폭으로 고정 */
-    #game-container {
+    #ytBox {
       position: relative;
       width: 100%;
-      max-width: 480px; /* 게임 캔버스 폭 기준 */
-      height: 100vh;
-      background: #000;
-      overflow: hidden;
-      box-shadow: 0 0 30px rgba(0, 0, 0, 0.9);
+      height: 0;
+      padding-bottom: 56.25%;
+      background: #000000;
     }
-
-    /* 유튜브 배경 레이어: 영상의 중앙이 크롭되어 게임 폭에 맞도록 커버 */
-    .video-background {
+    #ytBox iframe, #ytPlayer {
       position: absolute;
-      top: 50%;
-      left: 50%;
-      width: 100vh; /* 세로 화면을 꽉 채우기 위해 가로폭 확장 */
-      min-width: 177.77vh; /* 16:9 비율 유지 */
-      height: 100vh;
-      transform: translate(-50%, -50%);
-      pointer-events: none; /* 클릭 이벤트가 게임 레이어로 통과되도록 설정 */
-      z-index: 1;
-      opacity: 0.85; /* 필요 시 게임 요소 가독성을 위해 조절 */
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      filter: brightness(0.6) contrast(1.1);
     }
-
-    /* 실제 게임 요소가 올라갈 전면 레이어 */
-    #game-canvas {
+    #glCanvas {
       position: absolute;
       top: 0;
       left: 0;
       width: 100%;
       height: 100%;
       z-index: 2;
-      pointer-events: auto;
+    }
+    #hudCanvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 3;
+      pointer-events: none;
+      background: transparent;
+    }
+    .overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.85);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      color: #fff;
+      z-index: 10;
+    }
+    .btn {
+      margin-top: 20px;
+      padding: 14px 34px;
+      font-size: 18px;
+      font-weight: bold;
+      background: linear-gradient(45deg, #e60012, #ff4500);
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      box-shadow: 0 0 15px rgba(230, 0, 18, 0.6);
     }
   </style>
+  <script src="https://www.youtube.com/iframe_api"></script>
 </head>
 <body>
 
-  <div id="game-container">
-    <!-- 유튜브 영상이 렌더링될 영역 -->
-    <div id="player" class="video-background"></div>
-    
-    <!-- 게임 캔버스 또는 UI 영역 -->
-    <div id="game-canvas"></div>
+  <div id="gameContainer">
+    <div id="ytPlayerWrapper">
+      <div id="ytBox">
+        <div id="ytPlayer"></div>
+      </div>
+    </div>
+    <!-- 순수 OpenGL ES / WebGL 2.0 렌더 타겟 -->
+    <canvas id="glCanvas"></canvas>
+    <!-- HUD 오버레이 -->
+    <canvas id="hudCanvas"></canvas>
+  </div>
+
+  <div class="overlay" id="startOverlay">
+    <h1 style="color: #ff3333; margin-bottom: 4px; text-shadow: 0 0 10px #ff0055;">ARKANOID OPENGL 3D</h1>
+    <p style="color: #aaa; font-size: 13px; margin-bottom: 2px;">하드웨어 가속 GLSL 셰이더 & 10 STAGES</p>
+    <p style="color: #ff0055; font-size: 13px;">[G] 캡슐: 혜성 화염 관통 모드</p>
+    <button class="btn" onclick="startGame()">게임 시작</button>
+  </div>
+
+  <div class="overlay" id="gameOverOverlay" style="display: none;">
+    <h1 id="overTitle" style="color: #ff3333;">GAME OVER</h1>
+    <p id="finalScore" style="font-size: 16px;">점수: 0</p>
+    <button class="btn" id="overBtn" onclick="restartGame()">다시하기</button>
   </div>
 
   <script>
-    // YouTube IFrame API 비동기 로드
-    const tag = document.createElement('script');
-    tag.src = "https://www.youtube.com/iframe_api";
-    const firstScriptTag = document.getElementsByTagName('script')[0];
-    firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+    // --- 1. 유튜브 BGM 플레이어 컨트롤러 ---
+    let ytPlayer = null;
+    const TARGET_VIDEO_ID = 'a3q2dPG3lVI';
 
-    let player;
     function onYouTubeIframeAPIReady() {
-      player = new YT.Player('player', {
-        videoId: 'a3q2dPG3lVI',
+      ytPlayer = new YT.Player('ytPlayer', {
+        videoId: TARGET_VIDEO_ID,
         playerVars: {
           autoplay: 1,
+          mute: 1,
           controls: 0,
           disablekb: 1,
           fs: 0,
-          loop: 1,
-          playlist: 'a3q2dPG3lVI',
+          rel: 0,
           modestbranding: 1,
-          mute: 1,        // 모바일 자동재생 필수 정책
-          playsinline: 1  // 모바일 전체화면 강제 전환 방지
+          playsinline: 1,
+          loop: 1,
+          playlist: TARGET_VIDEO_ID
         },
         events: {
-          onReady: (event) => event.target.playVideo()
+          onReady: (e) => {
+            e.target.mute();
+            e.target.playVideo();
+          }
         }
       });
     }
+
+    function activateYouTubeAudio() {
+      if (ytPlayer && ytPlayer.playVideo) {
+        ytPlayer.unMute();
+        ytPlayer.setVolume(70);
+        ytPlayer.playVideo();
+      }
+    }
+
+    // --- 2. 사운드 FX 엔진 (Web Audio API) ---
+    let audioCtx = null;
+    const startAudio = new Audio('start.wav');
+    startAudio.preload = 'auto';
+
+    function initAudio() {
+      if (!audioCtx) {
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        audioCtx = new AudioContext();
+      }
+      if (audioCtx.state === 'suspended') {
+        audioCtx.resume();
+      }
+    }
+
+    function playStartWav() {
+      try {
+        startAudio.currentTime = 0;
+        startAudio.play().catch(() => {});
+      } catch (e) {}
+    }
+
+    function playTone(freq, type, duration, endFreq = null, vol = 0.2) {
+      if (!audioCtx) return;
+      try {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        const now = audioCtx.currentTime;
+
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq, now);
+        if (endFreq) {
+          osc.frequency.exponentialRampToValueAtTime(endFreq, now + duration);
+        }
+
+        gain.gain.setValueAtTime(vol, now);
+        gain.gain.linearRampToValueAtTime(0.01, now + duration);
+
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+
+        osc.start(now);
+        osc.stop(now + duration);
+      } catch (e) {}
+    }
+
+    const sound = {
+      hitBrickByType: (type, isDestroyed) => {
+        if (type === 'GOLD') playTone(220, 'square', 0.12, isDestroyed ? 90 : 160, 0.25);
+        else if (type === 'SILVER') playTone(340, 'triangle', 0.1, isDestroyed ? 140 : 260, 0.22);
+        else if (type === 'GLASS') {
+          playTone(1050, 'sine', 0.18, 1400, 0.28);
+          setTimeout(() => playTone(1580, 'sine', 0.12, 1900, 0.2), 30);
+        } else if (type === 'RED') playTone(440, 'square', 0.08, 520, 0.18);
+        else if (type === 'ORANGE') playTone(494, 'square', 0.08, 580, 0.18);
+        else if (type === 'YELLOW') playTone(554, 'square', 0.08, 660, 0.18);
+        else if (type === 'GREEN') playTone(659, 'square', 0.08, 780, 0.18);
+        else playTone(740, 'square', 0.08, 880, 0.18);
+      },
+      hitPaddle: () => playTone(220, 'triangle', 0.12, 110, 0.25),
+      hitWall: () => playTone(440, 'sine', 0.04, null, 0.1),
+      powerUp: () => {
+        playTone(400, 'square', 0.08, null, 0.25);
+        setTimeout(() => playTone(600, 'square', 0.08, null, 0.25), 70);
+        setTimeout(() => playTone(800, 'square', 0.14, null, 0.25), 140);
+      },
+      stageClear: () => {
+        playTone(523, 'triangle', 0.1, null, 0.25);
+        setTimeout(() => playTone(659, 'triangle', 0.1, null, 0.25), 100);
+        setTimeout(() => playTone(784, 'triangle', 0.15, null, 0.25), 200);
+        setTimeout(() => playTone(1046, 'triangle', 0.3, null, 0.3), 300);
+      },
+      loseLife: () => playTone(250, 'sawtooth', 0.35, 40, 0.3)
+    };
+
+    // --- 3. 행렬 연산 유틸 (OpenGL 4x4 Matrix) ---
+    const Mat4 = {
+      create: () => new Float32Array([
+        1,0,0,0,
+        0,1,0,0,
+        0,0,1,0,
+        0,0,0,1
+      ]),
+      perspective: (fovy, aspect, near, far) => {
+        const f = 1.0 / Math.tan(fovy / 2);
+        const nf = 1 / (near - far);
+        return new Float32Array([
+          f / aspect, 0, 0, 0,
+          0, f, 0, 0,
+          0, 0, (far + near) * nf, -1,
+          0, 0, (2 * far * near) * nf, 0
+        ]);
+      },
+      lookAt: (eye, center, up) => {
+        let z0 = eye[0] - center[0], z1 = eye[1] - center[1], z2 = eye[2] - center[2];
+        let len = 1 / Math.hypot(z0, z1, z2);
+        z0 *= len; z1 *= len; z2 *= len;
+
+        let x0 = up[1] * z2 - up[2] * z1;
+        let x1 = up[2] * z0 - up[0] * z2;
+        let x2 = up[0] * z1 - up[1] * z0;
+        len = Math.hypot(x0, x1, x2);
+        if (!len) { x0 = 0; x1 = 0; x2 = 0; }
+        else { len = 1 / len; x0 *= len; x1 *= len; x2 *= len; }
+
+        let y0 = z1 * x2 - z2 * x1;
+        let y1 = z2 * x0 - z0 * x2;
+        let y2 = z0 * x1 - z1 * x0;
+
+        return new Float32Array([
+          x0, y0, z0, 0,
+          x1, y1, z1, 0,
+          x2, y2, z2, 0,
+          -(x0 * eye[0] + x1 * eye[1] + x2 * eye[2]),
+          -(y0 * eye[0] + y1 * eye[1] + y2 * eye[2]),
+          -(z0 * eye[0] + z1 * eye[1] + z2 * eye[2]),
+          1
+        ]);
+      },
+      multiply: (a, b) => {
+        const out = new Float32Array(16);
+        for (let r = 0; r < 4; ++r) {
+          for (let c = 0; c < 4; ++c) {
+            out[c * 4 + r] =
+              a[r] * b[c * 4] +
+              a[4 + r] * b[c * 4 + 1] +
+              a[8 + r] * b[c * 4 + 2] +
+              a[12 + r] * b[c * 4 + 3];
+          }
+        }
+        return out;
+      },
+      identity: () => Mat4.create(),
+      translate: (m, v) => {
+        const out = new Float32Array(m);
+        out[12] = m[0] * v[0] + m[4] * v[1] + m[8] * v[2] + m[12];
+        out[13] = m[1] * v[0] + m[5] * v[1] + m[9] * v[2] + m[13];
+        out[14] = m[2] * v[0] + m[6] * v[1] + m[10] * v[2] + m[14];
+        out[15] = m[3] * v[0] + m[7] * v[1] + m[11] * v[2] + m[15];
+        return out;
+      },
+      scale: (m, v) => {
+        const out = new Float32Array(m);
+        out[0] *= v[0]; out[1] *= v[0]; out[2] *= v[0]; out[3] *= v[0];
+        out[4] *= v[1]; out[5] *= v[1]; out[6] *= v[1]; out[7] *= v[1];
+        out[8] *= v[2]; out[9] *= v[2]; out[10] *= v[2]; out[11] *= v[2];
+        return out;
+      },
+      rotateX: (m, rad) => {
+        const s = Math.sin(rad), c = Math.cos(rad);
+        const a10 = m[4], a11 = m[5], a12 = m[6], a13 = m[7];
+        const a20 = m[8], a21 = m[9], a22 = m[10], a23 = m[11];
+        const out = new Float32Array(m);
+        out[4] = a10 * c + a20 * s; out[5] = a11 * c + a21 * s;
+        out[6] = a12 * c + a22 * s; out[7] = a13 * c + a23 * s;
+        out[8] = a20 * c - a10 * s; out[9] = a21 * c - a11 * s;
+        out[10] = a22 * c - a12 * s; out[11] = a23 * c - a13 * s;
+        return out;
+      },
+      rotateY: (m, rad) => {
+        const s = Math.sin(rad), c = Math.cos(rad);
+        const a00 = m[0], a01 = m[1], a02 = m[2], a03 = m[3];
+        const a20 = m[8], a21 = m[9], a22 = m[10], a23 = m[11];
+        const out = new Float32Array(m);
+        out[0] = a00 * c - a20 * s; out[1] = a01 * c - a21 * s;
+        out[2] = a02 * c - a22 * s; out[3] = a03 * c - a23 * s;
+        out[8] = a00 * s + a20 * c; out[9] = a01 * s + a21 * c;
+        out[10] = a02 * s + a22 * c; out[11] = a03 * s + a23 * c;
+        return out;
+      },
+      rotateZ: (m, rad) => {
+        const s = Math.sin(rad), c = Math.cos(rad);
+        const a00 = m[0], a01 = m[1], a02 = m[2], a03 = m[3];
+        const a10 = m[4], a11 = m[5], a12 = m[6], a13 = m[7];
+        const out = new Float32Array(m);
+        out[0] = a00 * c + a10 * s; out[1] = a01 * c + a11 * s;
+        out[2] = a02 * c + a12 * s; out[3] = a03 * c + a13 * s;
+        out[4] = a10 * c - a00 * s; out[5] = a11 * c - a01 * s;
+        out[6] = a12 * c - a02 * s; out[7] = a13 * c - a03 * s;
+        return out;
+      }
+    };
+
+    // --- 4. WebGL 2.0 (OpenGL ES 3.0) 셰이더 및 파이프라인 구축 ---
+    const glCanvas = document.getElementById('glCanvas');
+    const gl = glCanvas.getContext('webgl2', { alpha: true, antialias: true });
+
+    if (!gl) {
+      alert("이 브라우저/디바이스는 WebGL 2.0(OpenGL ES 3.0)을 지원하지 않습니다.");
+    }
+
+    const vsSource = `#version 300 es
+      layout(location = 0) in vec3 aPosition;
+      layout(location = 1) in vec3 aNormal;
+
+      uniform mat4 uModel;
+      uniform mat4 uView;
+      uniform mat4 uProjection;
+      uniform mat3 uNormalMatrix;
+
+      out vec3 vWorldPos;
+      out vec3 vNormal;
+
+      void main() {
+        vec4 worldPos = uModel * vec4(aPosition, 1.0);
+        vWorldPos = worldPos.xyz;
+        vNormal = normalize(uNormalMatrix * aNormal);
+        gl_Position = uProjection * uView * worldPos;
+      }
+    `;
+
+    const fsSource = `#version 300 es
+      precision mediump float;
+
+      in vec3 vWorldPos;
+      in vec3 vNormal;
+
+      uniform vec4 uColor;
+      uniform vec3 uLightPos;
+      uniform vec3 uBallLightPos;
+      uniform vec3 uBallLightColor;
+      uniform float uBallLightIntensity;
+      uniform float uShininess;
+      uniform float uGlassEffect;
+
+      out vec4 fragColor;
+
+      void main() {
+        vec3 N = normalize(vNormal);
+        vec3 V = normalize(vec3(180.0, -355.0, 520.0) - vWorldPos);
+
+        // 1) 씬 메인 조명
+        vec3 L = normalize(uLightPos - vWorldPos);
+        float diff = max(dot(N, L), 0.0);
+        vec3 H = normalize(L + V);
+        float spec = pow(max(dot(N, H), 0.0), uShininess);
+
+        // 2) 공 다이내믹 포인트 조명 (점광원 감쇠)
+        vec3 ballToFrag = uBallLightPos - vWorldPos;
+        float dist = length(ballToFrag);
+        vec3 Lball = normalize(ballToFrag);
+        float atten = clamp(1.0 - dist / 260.0, 0.0, 1.0);
+        float ballDiff = max(dot(N, Lball), 0.0) * atten * uBallLightIntensity;
+
+        vec3 ambient = vec3(0.38) * uColor.rgb;
+        vec3 diffuse = (diff * 0.72) * uColor.rgb;
+        vec3 specular = vec3(0.55) * spec;
+        vec3 pointLightEffect = uBallLightColor * ballDiff;
+
+        float alpha = uColor.a;
+        if (uGlassEffect > 0.5) {
+          alpha = 0.72;
+          diffuse *= 1.35;
+          specular *= 1.8;
+        }
+
+        fragColor = vec4(ambient + diffuse + specular + pointLightEffect, alpha);
+      }
+    `;
+
+    function compileShader(type, src) {
+      const s = gl.createShader(type);
+      gl.shaderSource(s, src);
+      gl.compileShader(s);
+      if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) {
+        console.error(gl.getShaderInfoLog(s));
+        gl.deleteShader(s);
+        return null;
+      }
+      return s;
+    }
+
+    const program = gl.createProgram();
+    gl.attachShader(program, compileShader(gl.VERTEX_SHADER, vsSource));
+    gl.attachShader(program, compileShader(gl.FRAGMENT_SHADER, fsSource));
+    gl.linkProgram(program);
+
+    const loc = {
+      model: gl.getUniformLocation(program, "uModel"),
+      view: gl.getUniformLocation(program, "uView"),
+      proj: gl.getUniformLocation(program, "uProjection"),
+      normMat: gl.getUniformLocation(program, "uNormalMatrix"),
+      color: gl.getUniformLocation(program, "uColor"),
+      lightPos: gl.getUniformLocation(program, "uLightPos"),
+      ballLightPos: gl.getUniformLocation(program, "uBallLightPos"),
+      ballLightColor: gl.getUniformLocation(program, "uBallLightColor"),
+      ballLightIntensity: gl.getUniformLocation(program, "uBallLightIntensity"),
+      shininess: gl.getUniformLocation(program, "uShininess"),
+      glass: gl.getUniformLocation(program, "uGlassEffect")
+    };
+
+    // --- 5. 3D 메쉬 버퍼 생성 (Cube, Sphere, Cylinder) ---
+    function createBoxGeometry() {
+      // 1x1x1 중심 큐브
+      const p = 0.5, n = -0.5;
+      const positions = new Float32Array([
+        // Front
+        n,n,p,  p,n,p,  p,p,p,  n,n,p,  p,p,p,  n,p,p,
+        // Back
+        p,n,n,  n,n,n,  n,p,n,  p,n,n,  n,p,n,  p,p,n,
+        // Top
+        n,p,p,  p,p,p,  p,p,n,  n,p,p,  p,p,n,  n,p,n,
+        // Bottom
+        n,n,n,  p,n,n,  p,n,p,  n,n,n,  p,n,p,  n,n,p,
+        // Right
+        p,n,p,  p,n,n,  p,p,n,  p,n,p,  p,p,n,  p,p,p,
+        // Left
+        n,n,n,  n,n,p,  n,p,p,  n,n,n,  n,p,p,  n,p,n
+      ]);
+      const normals = new Float32Array([
+        0,0,1, 0,0,1, 0,0,1, 0,0,1, 0,0,1, 0,0,1,
+        0,0,-1, 0,0,-1, 0,0,-1, 0,0,-1, 0,0,-1, 0,0,-1,
+        0,1,0, 0,1,0, 0,1,0, 0,1,0, 0,1,0, 0,1,0,
+        0,-1,0, 0,-1,0, 0,-1,0, 0,-1,0, 0,-1,0, 0,-1,0,
+        1,0,0, 1,0,0, 1,0,0, 1,0,0, 1,0,0, 1,0,0,
+        -1,0,0, -1,0,0, -1,0,0, -1,0,0, -1,0,0, -1,0,0
+      ]);
+
+      const vao = gl.createVertexArray();
+      gl.bindVertexArray(vao);
+
+      const posBuf = gl.createBuffer();
+      gl.bindBuffer(gl.ARRAY_BUFFER, posBuf);
+      gl.bufferData(gl.ARRAY_BUFFER, positions, gl.STATIC_DRAW);
+      gl.enableVertexAttribArray(0);
+      gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 0, 0);
+
+      const normBuf = gl.createBuffer();
+      gl.bindBuffer(gl.ARRAY_BUFFER, normBuf);
+      gl.bufferData(gl.ARRAY_BUFFER, normals, gl.STATIC_DRAW);
+      gl.enableVertexAttribArray(1);
+      gl.vertexAttribPointer(1, 3, gl.FLOAT, false, 0, 0);
+
+      gl.bindVertexArray(null);
+      return { vao, count: 36 };
+    }
+
+    function createSphereGeometry(latBands = 18, lonBands = 18) {
+      const positions = [];
+      const normals = [];
+      const indices = [];
+
+      for (let lat = 0; lat <= latBands; ++lat) {
+        const theta = (lat * Math.PI) / latBands;
+        const sinTheta = Math.sin(theta);
+        const cosTheta = Math.cos(theta);
+
+        for (let lon = 0; lon <= lonBands; ++lon) {
+          const phi = (lon * 2 * Math.PI) / lonBands;
+          const x = Math.cos(phi) * sinTheta;
+          const y = cosTheta;
+          const z = Math.sin(phi) * sinTheta;
+
+          positions.push(x, y, z);
+          normals.push(x, y, z);
+        }
+      }
+
+      for (let lat = 0; lat < latBands; ++lat) {
+        for (let lon = 0; lon < lonBands; ++lon) {
+          const first = lat * (lonBands + 1) + lon;
+          const second = first + lonBands + 1;
+          indices.push(first, second, first + 1);
+          indices.push(second, second + 1, first + 1);
+        }
+      }
+
+      const vao = gl.createVertexArray();
+      gl.bindVertexArray(vao);
+
+      const posBuf = gl.createBuffer();
+      gl.bindBuffer(gl.ARRAY_BUFFER, posBuf);
+      gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(positions), gl.STATIC_DRAW);
+      gl.enableVertexAttribArray(0);
+      gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 0, 0);
+
+      const normBuf = gl.createBuffer();
+      gl.bindBuffer(gl.ARRAY_BUFFER, normBuf);
+      gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(normals), gl.STATIC_DRAW);
+      gl.enableVertexAttribArray(1);
+      gl.vertexAttribPointer(1, 3, gl.FLOAT, false, 0, 0);
+
+      const idxBuf = gl.createBuffer();
+      gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, idxBuf);
+      gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(indices), gl.STATIC_DRAW);
+
+      gl.bindVertexArray(null);
+      return { vao, count: indices.length, isIndexed: true };
+    }
+
+    function createCylinderGeometry(segments = 18) {
+      const positions = [];
+      const normals = [];
+
+      for (let i = 0; i < segments; i++) {
+        const a0 = (i * 2 * Math.PI) / segments;
+        const a1 = ((i + 1) * 2 * Math.PI) / segments;
+
+        const x0 = Math.cos(a0), y0 = Math.sin(a0);
+        const x1 = Math.cos(a1), y1 = Math.sin(a1);
+
+        // Side Quad (2 Tris)
+        positions.push(x0, y0, -0.5,  x1, y1, -0.5,  x1, y1, 0.5);
+        positions.push(x0, y0, -0.5,  x1, y1, 0.5,   x0, y0, 0.5);
+        normals.push(x0, y0, 0,  x1, y1, 0,  x1, y1, 0);
+        normals.push(x0, y0, 0,  x1, y1, 0,  x0, y0, 0);
+
+        // Top Cap
+        positions.push(0, 0, 0.5,  x0, y0, 0.5,  x1, y1, 0.5);
+        normals.push(0, 0, 1,  0, 0, 1,  0, 0, 1);
+
+        // Bottom Cap
+        positions.push(0, 0, -0.5,  x1, y1, -0.5,  x0, y0, -0.5);
+        normals.push(0, 0, -1,  0, 0, -1,  0, 0, -1);
+      }
+
+      const vao = gl.createVertexArray();
+      gl.bindVertexArray(vao);
+
+      const posBuf = gl.createBuffer();
+      gl.bindBuffer(gl.ARRAY_BUFFER, posBuf);
+      gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(positions), gl.STATIC_DRAW);
+      gl.enableVertexAttribArray(0);
+      gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 0, 0);
+
+      const normBuf = gl.createBuffer();
+      gl.bindBuffer(gl.ARRAY_BUFFER, normBuf);
+      gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(normals), gl.STATIC_DRAW);
+      gl.enableVertexAttribArray(1);
+      gl.vertexAttribPointer(1, 3, gl.FLOAT, false, 0, 0);
+
+      gl.bindVertexArray(null);
+      return { vao, count: positions.length / 3 };
+    }
+
+    const boxGeo = createBoxGeometry();
+    const sphereGeo = createSphereGeometry(18, 18);
+    const cylinderGeo = createCylinderGeometry(18);
+
+    function getNormalMatrix(modelMat) {
+      // 3x3 normal matrix calculation
+      const a00 = modelMat[0], a01 = modelMat[1], a02 = modelMat[2];
+      const a10 = modelMat[4], a11 = modelMat[5], a12 = modelMat[6];
+      const a20 = modelMat[8], a21 = modelMat[9], a22 = modelMat[10];
+
+      const b01 = a22 * a11 - a12 * a21;
+      const b11 = -a22 * a10 + a12 * a20;
+      const b21 = a21 * a10 - a11 * a20;
+
+      let d = a00 * b01 + a01 * b11 + a02 * b21;
+      if (!d) return new Float32Array([1,0,0, 0,1,0, 0,0,1]);
+      d = 1.0 / d;
+
+      return new Float32Array([
+        b01 * d, (-a22 * a01 + a02 * a21) * d, (a12 * a01 - a02 * a11) * d,
+        b11 * d, (a22 * a00 - a02 * a20) * d, (-a12 * a00 + a02 * a10) * d,
+        b21 * d, (-a21 * a00 + a01 * a20) * d, (a11 * a00 - a01 * a10) * d
+      ]);
+    }
+
+    // --- 6. 게임 좌표 & 상태 데이터 ---
+    const GAME_W = 360;
+    const GAME_H = 640;
+    const container = document.getElementById('gameContainer');
+    const hudCanvas = document.getElementById('hudCanvas');
+    const hudCtx = hudCanvas.getContext('2d');
+    const startOverlay = document.getElementById('startOverlay');
+    const gameOverOverlay = document.getElementById('gameOverOverlay');
+    const overTitle = document.getElementById('overTitle');
+    const finalScore = document.getElementById('finalScore');
+    const overBtn = document.getElementById('overBtn');
+
+    function resizeContainer() {
+      const scale = Math.min(window.innerWidth / GAME_W, window.innerHeight / GAME_H);
+      const w = Math.floor(GAME_W * scale);
+      const h = Math.floor(GAME_H * scale);
+
+      container.style.width = `${w}px`;
+      container.style.height = `${h}px`;
+
+      glCanvas.width = GAME_W * scale;
+      glCanvas.height = GAME_H * scale;
+      gl.viewport(0, 0, glCanvas.width, glCanvas.height);
+
+      hudCanvas.width = GAME_W * scale;
+      hudCanvas.height = GAME_H * scale;
+      hudCtx.imageSmoothingEnabled = true;
+    }
+    window.addEventListener('resize', resizeContainer);
+    resizeContainer();
+
+    let score = 0;
+    let lives = 3;
+    let currentStage = 1;
+    const MAX_STAGES = 10;
+    let isPlaying = false;
+    let frameCount = 0;
+    let stageClearPause = false;
+
+    const PADDLE_DEFAULT_W = 68;
+    const paddle = {
+      w: PADDLE_DEFAULT_W,
+      h: 14,
+      d: 14,
+      x: GAME_W / 2 - 34,
+      y: GAME_H - 135
+    };
+
+    let balls = [];
+    let particles3D = [];
+    const BASE_BALL_R = 5.2;
+
+    function getStageBaseSpeed() {
+      return 4.6 + (currentStage - 1) * 0.22;
+    }
+
+    let items = [];
+    const ITEM_TYPES = [
+      { type: 'MULTI', label: 'M', color: [0.0, 1.0, 1.0, 1.0] },
+      { type: 'GIANT_PIERCE', label: 'G', color: [1.0, 0.0, 0.33, 1.0] },
+      { type: 'EXPAND', label: 'E', color: [0.22, 1.0, 0.08, 1.0] }
+    ];
+    let activeEffects = {
+      giantPierceTimer: 0,
+      expandTimer: 0
+    };
+
+    const BRICK_COLS = 11;
+    const BRICK_W = 28;
+    const BRICK_H = 12;
+    const BRICK_D = 14;
+    const BRICK_TOP = 75;
+    const BRICK_LEFT = (GAME_W - (BRICK_COLS * BRICK_W)) / 2;
+
+    let bricks = [];
+
+    const STAGE_MAPS = [
+      [
+        "GGGGGGGGGGG",
+        "SSSSSSSSSSS",
+        "CCCCCCCCCCC",
+        "22222222222",
+        "33333333333",
+        "44444444444",
+        "55555555555"
+      ],
+      [
+        "00000G00000",
+        "0000SSS0000",
+        "000CCCCC000",
+        "00111111100",
+        "02222222220",
+        "33333333333",
+        "44444444444"
+      ],
+      [
+        "00000S00000",
+        "000SC0CS000",
+        "00S11011S00",
+        "0S2220222S0",
+        "00S33033S00",
+        "000SC0CS000",
+        "00000S00000"
+      ],
+      [
+        "00100000100",
+        "00010001000",
+        "00111111100",
+        "01101110110",
+        "11111111111",
+        "10111111101",
+        "10100000101"
+      ],
+      [
+        "G0G0G0G0G0G",
+        "S0S0S0S0S0S",
+        "SSSSSSSSSSS",
+        "C0C0C0C0C0C",
+        "22222222222",
+        "00033333000",
+        "00044444000"
+      ],
+      [
+        "01100000110",
+        "1CC10001CC1",
+        "1CCCC11CCCC1",
+        "01CCCCCCCC10",
+        "001CCCCCC100",
+        "0001CCCC1000",
+        "000001100000"
+      ],
+      [
+        "S0S0S0S0S0S",
+        "0C0C0C0C0C0",
+        "10101010101",
+        "02020202020",
+        "30303030303",
+        "04040404040",
+        "50505050505"
+      ],
+      [
+        "000SSSSS000",
+        "00S11111S00",
+        "0S1011101S0",
+        "0S1111111S0",
+        "00S10101S00",
+        "000CCCCC000",
+        "000S0S0S000"
+      ],
+      [
+        "GG0000000GG",
+        "SS000C000SS",
+        "CC0011100CC",
+        "11002220011",
+        "22003330022",
+        "SS0044400SS",
+        "GG000C000GG"
+      ],
+      [
+        "GGGGGGGGGGG",
+        "GSSSSSSSSSG",
+        "GSCCCCCCCSS",
+        "GSC00G00CSG",
+        "GSC0GGG0CSG",
+        "GSCCCCCCCSS",
+        "GGGGGGGGGGG"
+      ]
+    ];
+
+    function loadStage(stageNum) {
+      bricks = [];
+      const map = STAGE_MAPS[stageNum - 1];
+      const rows = map.length;
+
+      for (let r = 0; r < rows; r++) {
+        const rowStr = map[r];
+        for (let c = 0; c < BRICK_COLS; c++) {
+          const char = rowStr[c] || '0';
+          if (char === '0') continue;
+
+          let maxHp = 1;
+          let color = [0.9, 0.15, 0.13, 1.0];
+          let type = 'RED';
+
+          if (char === 'G') {
+            maxHp = 3;
+            color = [1.0, 0.84, 0.0, 1.0];
+            type = 'GOLD';
+          } else if (char === 'S') {
+            maxHp = 2;
+            color = [0.85, 0.85, 0.85, 1.0];
+            type = 'SILVER';
+          } else if (char === 'C') {
+            maxHp = 1;
+            color = [0.49, 0.98, 1.0, 0.72];
+            type = 'GLASS';
+          } else if (char === '1') {
+            color = [0.9, 0.15, 0.13, 1.0];
+            type = 'RED';
+          } else if (char === '2') {
+            color = [1.0, 0.37, 0.0, 1.0];
+            type = 'ORANGE';
+          } else if (char === '3') {
+            color = [0.98, 0.82, 0.0, 1.0];
+            type = 'YELLOW';
+          } else if (char === '4') {
+            color = [0.0, 0.6, 0.27, 1.0];
+            type = 'GREEN';
+          } else if (char === '5') {
+            color = [0.0, 0.44, 0.93, 1.0];
+            type = 'BLUE';
+          }
+
+          const bx = BRICK_LEFT + c * BRICK_W;
+          const by = BRICK_TOP + r * BRICK_H;
+          const bw = BRICK_W - 1.5;
+          const bh = BRICK_H - 1.5;
+
+          bricks.push({
+            x: bx,
+            y: by,
+            w: bw,
+            h: bh,
+            hp: maxHp,
+            maxHp: maxHp,
+            baseColor: color,
+            currentColor: [...color],
+            type: type
+          });
+        }
+      }
+    }
+
+    function spawnExplosion3D(x, y, w, h, color, isGlass) {
+      const count = isGlass ? 18 : 12;
+      for (let i = 0; i < count; i++) {
+        particles3D.push({
+          x: x + w / 2,
+          y: y + h / 2,
+          z: BRICK_D / 2,
+          vx: (Math.random() - 0.5) * 8.5,
+          vy: (Math.random() - 0.7) * 8.0,
+          vz: (Math.random() - 0.3) * 6.0,
+          rotX: Math.random() * Math.PI,
+          rotY: Math.random() * Math.PI,
+          vRotX: (Math.random() - 0.5) * 0.4,
+          vRotY: (Math.random() - 0.5) * 0.4,
+          color: [...color],
+          alpha: 1.0
+        });
+      }
+    }
+
+    function createBall(x, y, dx, dy) {
+      const spd = getStageBaseSpeed();
+      return {
+        x: x,
+        y: y,
+        dx: dx,
+        dy: dy,
+        speed: spd,
+        hitCooldown: 0
+      };
+    }
+
+    function resetToSingleBall() {
+      const spd = getStageBaseSpeed();
+      const dirX = (Math.random() > 0.5 ? 1 : -1) * (spd * 0.6);
+      const dirY = -Math.sqrt(Math.max(4, spd * spd - dirX * dirX));
+      balls = [createBall(paddle.x + paddle.w / 2, paddle.y - 14, dirX, dirY)];
+    }
+
+    function maybeSpawnItem(x, y) {
+      if (Math.random() < 0.22) {
+        const itType = ITEM_TYPES[Math.floor(Math.random() * ITEM_TYPES.length)];
+        items.push({
+          x: x + BRICK_W / 2,
+          y: y + BRICK_H / 2,
+          w: 22,
+          h: 12,
+          type: itType.type,
+          label: itType.label,
+          color: itType.color,
+          speed: 2.2,
+          rotX: 0,
+          rotY: 0
+        });
+      }
+    }
+
+    function applyPowerUp(type) {
+      sound.powerUp();
+      if (type === 'MULTI') {
+        if (balls.length > 0) {
+          const b = balls[0];
+          const spd = getStageBaseSpeed();
+          balls.push(createBall(b.x, b.y, -spd * 0.7, -spd * 0.7));
+          balls.push(createBall(b.x, b.y, spd * 0.7, -spd * 0.7));
+        }
+      } else if (type === 'GIANT_PIERCE') {
+        activeEffects.giantPierceTimer = 480;
+      } else if (type === 'EXPAND') {
+        activeEffects.expandTimer = 480;
+        paddle.w = PADDLE_DEFAULT_W * 1.5;
+      }
+    }
+
+    function updateBrickColor(b) {
+      if (b.type === 'GOLD') {
+        if (b.hp === 3) b.currentColor = [1.0, 0.84, 0.0, 1.0];
+        else if (b.hp === 2) b.currentColor = [0.8, 0.5, 0.2, 1.0];
+        else b.currentColor = [0.4, 0.26, 0.13, 1.0];
+      } else if (b.type === 'SILVER') {
+        if (b.hp === 2) b.currentColor = [0.86, 0.86, 0.86, 1.0];
+        else b.currentColor = [0.44, 0.5, 0.56, 1.0];
+      }
+    }
+
+    // --- 7. 물리 시뮬레이션 루프 ---
+    function update() {
+      if (stageClearPause) return;
+      frameCount++;
+
+      if (activeEffects.giantPierceTimer > 0) activeEffects.giantPierceTimer--;
+      if (activeEffects.expandTimer > 0) {
+        activeEffects.expandTimer--;
+        if (activeEffects.expandTimer === 0) paddle.w = PADDLE_DEFAULT_W;
+      }
+
+      const isGiant = activeEffects.giantPierceTimer > 0;
+      const currentRadius = isGiant ? BASE_BALL_R * 2.8 : BASE_BALL_R;
+
+      // 3D 파티클 업데이트
+      for (let i = particles3D.length - 1; i >= 0; i--) {
+        const p = particles3D[i];
+        p.x += p.vx;
+        p.y += p.vy;
+        p.z += p.vz;
+        p.vy += 0.22;
+        p.rotX += p.vRotX;
+        p.rotY += p.vRotY;
+        p.alpha -= 0.024;
+        if (p.alpha <= 0) {
+          particles3D.splice(i, 1);
+        }
+      }
+
+      // 공 업데이트
+      for (let i = balls.length - 1; i >= 0; i--) {
+        const ball = balls[i];
+        ball.x += ball.dx;
+        ball.y += ball.dy;
+        if (ball.hitCooldown > 0) ball.hitCooldown--;
+
+        if (ball.x - currentRadius < 14) {
+          ball.x = 14 + currentRadius;
+          ball.dx = Math.abs(ball.dx);
+          sound.hitWall();
+        } else if (ball.x + currentRadius > GAME_W - 14) {
+          ball.x = GAME_W - 14 - currentRadius;
+          ball.dx = -Math.abs(ball.dx);
+          sound.hitWall();
+        }
+        if (ball.y - currentRadius < 40) {
+          ball.y = 40 + currentRadius;
+          ball.dy = Math.abs(ball.dy);
+          sound.hitWall();
+        }
+
+        // 패들 충돌
+        if (
+          ball.y + currentRadius >= paddle.y &&
+          ball.y - currentRadius <= paddle.y + paddle.h &&
+          ball.x >= paddle.x &&
+          ball.x <= paddle.x + paddle.w &&
+          ball.dy > 0
+        ) {
+          const hitPos = (ball.x - (paddle.x + paddle.w / 2)) / (paddle.w / 2);
+          const spd = ball.speed;
+          ball.dx = hitPos * (spd * 0.9);
+          ball.dy = -Math.sqrt(Math.max(4, spd * spd - ball.dx * ball.dx));
+          ball.y = paddle.y - currentRadius;
+          sound.hitPaddle();
+        }
+
+        // 벽돌 충돌
+        for (let b of bricks) {
+          if (b.hp <= 0) continue;
+          if (
+            ball.x + currentRadius > b.x &&
+            ball.x - currentRadius < b.x + b.w &&
+            ball.y + currentRadius > b.y &&
+            ball.y - currentRadius < b.y + b.h
+          ) {
+            if (isGiant) {
+              b.hp = 0;
+              score += 20;
+              sound.hitBrickByType(b.type, true);
+              spawnExplosion3D(b.x, b.y, b.w, b.h, b.baseColor, b.type === 'GLASS');
+              maybeSpawnItem(b.x, b.y);
+            } else {
+              if (ball.hitCooldown === 0) {
+                b.hp--;
+                score += 10;
+                ball.dy = -ball.dy;
+                ball.hitCooldown = 3;
+                const destroyed = b.hp <= 0;
+                sound.hitBrickByType(b.type, destroyed);
+                if (destroyed) {
+                  spawnExplosion3D(b.x, b.y, b.w, b.h, b.baseColor, b.type === 'GLASS');
+                  maybeSpawnItem(b.x, b.y);
+                } else {
+                  updateBrickColor(b);
+                }
+              }
+              break;
+            }
+          }
+        }
+
+        if (ball.y - currentRadius > GAME_H) {
+          balls.splice(i, 1);
+        }
+      }
+
+      // 볼 소실 판정
+      if (balls.length === 0) {
+        lives--;
+        sound.loseLife();
+        activeEffects.giantPierceTimer = 0;
+        activeEffects.expandTimer = 0;
+        paddle.w = PADDLE_DEFAULT_W;
+        if (lives <= 0) {
+          gameOver();
+          return;
+        } else {
+          resetToSingleBall();
+        }
+      }
+
+      // 아이템 업데이트
+      for (let i = items.length - 1; i >= 0; i--) {
+        const it = items[i];
+        it.y += it.speed;
+        it.rotX += 0.05;
+        it.rotY += 0.08;
+
+        if (
+          it.x + it.w / 2 >= paddle.x &&
+          it.x - it.w / 2 <= paddle.x + paddle.w &&
+          it.y + it.h / 2 >= paddle.y &&
+          it.y - it.h / 2 <= paddle.y + paddle.h
+        ) {
+          applyPowerUp(it.type);
+          score += 50;
+          items.splice(i, 1);
+          continue;
+        }
+
+        if (it.y > GAME_H) {
+          items.splice(i, 1);
+        }
+      }
+
+      if (bricks.every(b => b.hp <= 0)) {
+        nextStageTransition();
+      }
+    }
+
+    // --- 8. OpenGL 3D 렌더 파이프라인 ---
+    function render3D() {
+      gl.enable(gl.DEPTH_TEST);
+      gl.enable(gl.CULL_FACE);
+      gl.cullFace(gl.BACK);
+      gl.enable(gl.BLEND);
+      gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+
+      gl.clearColor(0.0, 0.0, 0.0, 0.0);
+      gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+
+      gl.useProgram(program);
+
+      // 카메라 행렬 설정
+      const aspect = glCanvas.width / glCanvas.height;
+      const projMat = Mat4.perspective((52 * Math.PI) / 180, aspect, 1.0, 2000.0);
+      const eye = [GAME_W / 2, -GAME_H / 2 - 35, 520];
+      const target = [GAME_W / 2, -GAME_H / 2 + 30, 0];
+      const up = [0, 1, 0];
+      const viewMat = Mat4.lookAt(eye, target, up);
+
+      gl.uniformMatrix4fv(loc.proj, false, projMat);
+      gl.uniformMatrix4fv(loc.view, false, viewMat);
+      gl.uniform3f(loc.lightPos, GAME_W / 2, -100, 300);
+
+      // 공 위치 다이내믹 라이트
+      const isGiant = activeEffects.giantPierceTimer > 0;
+      if (balls.length > 0) {
+        gl.uniform3f(loc.ballLightPos, balls[0].x, -balls[0].y, 35);
+        if (isGiant) {
+          gl.uniform3f(loc.ballLightColor, 1.0, 0.15, 0.0);
+          gl.uniform1f(loc.ballLightIntensity, 2.5);
+        } else {
+          gl.uniform3f(loc.ballLightColor, 0.0, 1.0, 1.0);
+          gl.uniform1f(loc.ballLightIntensity, 1.3);
+        }
+      } else {
+        gl.uniform1f(loc.ballLightIntensity, 0.0);
+      }
+
+      function drawMesh(geo, modelMat, color, shininess = 32.0, isGlass = 0.0) {
+        gl.uniformMatrix4fv(loc.model, false, modelMat);
+        gl.uniformMatrix3fv(loc.normMat, false, getNormalMatrix(modelMat));
+        gl.uniform4fv(loc.color, color);
+        gl.uniform1f(loc.shininess, shininess);
+        gl.uniform1f(loc.glass, isGlass);
+
+        gl.bindVertexArray(geo.vao);
+        if (geo.isIndexed) {
+          gl.drawElements(gl.TRIANGLES, geo.count, gl.UNSIGNED_SHORT, 0);
+        } else {
+          gl.drawArrays(gl.TRIANGLES, 0, geo.count);
+        }
+        gl.bindVertexArray(null);
+      }
+
+      // 1) 3D 테두리 월 (좌, 우, 상)
+      const wallColor = [0.35, 0.35, 0.4, 1.0];
+      const wallD = 24;
+
+      // 좌측 벽
+      let m = Mat4.identity();
+      m = Mat4.translate(m, [6, -(36 + (GAME_H - 36) / 2), wallD / 2]);
+      m = Mat4.scale(m, [12, GAME_H - 36, wallD]);
+      drawMesh(boxGeo, m, wallColor, 40.0);
+
+      // 우측 벽
+      m = Mat4.identity();
+      m = Mat4.translate(m, [GAME_W - 6, -(36 + (GAME_H - 36) / 2), wallD / 2]);
+      m = Mat4.scale(m, [12, GAME_H - 36, wallD]);
+      drawMesh(boxGeo, m, wallColor, 40.0);
+
+      // 상단 벽
+      m = Mat4.identity();
+      m = Mat4.translate(m, [GAME_W / 2, -(24 + 6), wallD / 2]);
+      m = Mat4.scale(m, [GAME_W, 12, wallD]);
+      drawMesh(boxGeo, m, wallColor, 40.0);
+
+      // 2) 3D 벽돌 렌더링
+      for (let b of bricks) {
+        if (b.hp <= 0) continue;
+        m = Mat4.identity();
+        m = Mat4.translate(m, [b.x + b.w / 2, -(b.y + b.h / 2), BRICK_D / 2]);
+        m = Mat4.scale(m, [b.w, b.h, BRICK_D]);
+
+        const isGlass = b.type === 'GLASS' ? 1.0 : 0.0;
+        const shine = (b.type === 'GOLD' || b.type === 'SILVER') ? 64.0 : 24.0;
+        drawMesh(boxGeo, m, b.currentColor, shine, isGlass);
+      }
+
+      // 3) 3D 패들 렌더링
+      const paddleCol = activeEffects.expandTimer > 0 ? [0.22, 1.0, 0.08, 1.0] : [0.9, 0.15, 0.13, 1.0];
+      m = Mat4.identity();
+      m = Mat4.translate(m, [paddle.x + paddle.w / 2, -(paddle.y + paddle.h / 2), paddle.d / 2]);
+      m = Mat4.scale(m, [paddle.w, paddle.h, paddle.d]);
+      drawMesh(boxGeo, m, paddleCol, 32.0);
+
+      // 패들 내부 메탈 코어 라인
+      m = Mat4.identity();
+      m = Mat4.translate(m, [paddle.x + paddle.w / 2, -(paddle.y + paddle.h / 2), paddle.d / 2 + 1]);
+      m = Mat4.scale(m, [Math.max(4, paddle.w - 18), paddle.h - 4, paddle.d]);
+      drawMesh(boxGeo, m, [1.0, 1.0, 1.0, 1.0], 80.0);
+
+      // 4) 3D 공 (Sphere)
+      const currentRadius = isGiant ? BASE_BALL_R * 2.8 : BASE_BALL_R;
+      const ballCol = isGiant ? [1.0, 0.2, 0.0, 1.0] : [1.0, 1.0, 1.0, 1.0];
+
+      for (let b of balls) {
+        m = Mat4.identity();
+        m = Mat4.translate(m, [b.x, -b.y, currentRadius + 2]);
+        m = Mat4.scale(m, [currentRadius * 2, currentRadius * 2, currentRadius * 2]);
+        drawMesh(sphereGeo, m, ballCol, 96.0);
+      }
+
+      // 5) 3D 아이템 (자전하는 실린더 캡슐)
+      for (let it of items) {
+        m = Mat4.identity();
+        m = Mat4.translate(m, [it.x, -it.y, BRICK_D / 2]);
+        m = Mat4.rotateX(m, it.rotX);
+        m = Mat4.rotateY(m, it.rotY);
+        m = Mat4.rotateZ(m, Math.PI / 2);
+        m = Mat4.scale(m, [9.0, 9.0, 18.0]);
+        drawMesh(cylinderGeo, m, it.color, 48.0);
+      }
+
+      // 6) 3D 파편 파티클
+      for (let p of particles3D) {
+        m = Mat4.identity();
+        m = Mat4.translate(m, [p.x, -p.y, p.z]);
+        m = Mat4.rotateX(m, p.rotX);
+        m = Mat4.rotateY(m, p.rotY);
+        m = Mat4.scale(m, [4.5, 4.5, 4.5]);
+        const pCol = [p.color[0], p.color[1], p.color[2], p.alpha];
+        drawMesh(boxGeo, m, pCol, 20.0);
+      }
+    }
+
+    // --- 9. HUD 렌더링 (2D Overlay Canvas) ---
+    function drawHUD() {
+      hudCtx.clearRect(0, 0, hudCanvas.width, hudCanvas.height);
+      const scale = hudCanvas.width / GAME_W;
+      hudCtx.save();
+      hudCtx.scale(scale, scale);
+
+      // 상단 바
+      hudCtx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+      hudCtx.fillRect(0, 0, GAME_W, 26);
+
+      hudCtx.fillStyle = '#fff';
+      hudCtx.font = 'bold 13px Courier New';
+      hudCtx.fillText(`SCORE: ${score}`, 18, 18);
+      hudCtx.fillStyle = '#ffd700';
+      hudCtx.fillText(`ROUND ${currentStage}`, 145, 18);
+      hudCtx.fillStyle = '#e60012';
+      hudCtx.fillText(`LIVES: ${'● '.repeat(lives)}`, GAME_W - 105, 18);
+
+      if (activeEffects.giantPierceTimer > 0) {
+        hudCtx.fillStyle = '#ff3300';
+        hudCtx.fillText(`[COMET FIRE] ${(activeEffects.giantPierceTimer / 60).toFixed(1)}s`, 18, 48);
+      } else if (activeEffects.expandTimer > 0) {
+        hudCtx.fillStyle = '#39ff14';
+        hudCtx.fillText(`[EXPAND] ${(activeEffects.expandTimer / 60).toFixed(1)}s`, 18, 48);
+      }
+
+      if (stageClearPause) {
+        hudCtx.fillStyle = 'rgba(0, 0, 0, 0.75)';
+        hudCtx.fillRect(20, GAME_H / 2 - 35, GAME_W - 40, 70);
+        hudCtx.fillStyle = '#4cd964';
+        hudCtx.font = 'bold 20px Courier New';
+        hudCtx.textAlign = 'center';
+        hudCtx.fillText(`STAGE ${currentStage} CLEAR!`, GAME_W / 2, GAME_H / 2 + 6);
+        hudCtx.textAlign = 'left';
+      }
+
+      // 하단 터치 가이드 라인
+      hudCtx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+      hudCtx.setLineDash([4, 4]);
+      hudCtx.beginPath();
+      hudCtx.moveTo(14, GAME_H - 105);
+      hudCtx.lineTo(GAME_W - 14, GAME_H - 105);
+      hudCtx.stroke();
+      hudCtx.setLineDash([]);
+
+      hudCtx.restore();
+    }
+
+    // --- 10. 터치 입력 및 제어 루프 ---
+    function handleTouch(e) {
+      if (!isPlaying || stageClearPause) return;
+      const rect = hudCanvas.getBoundingClientRect();
+      const scaleX = GAME_W / rect.width;
+      const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+      const touchX = (clientX - rect.left) * scaleX;
+      paddle.x = Math.max(14, Math.min(GAME_W - paddle.w - 14, touchX - paddle.w / 2));
+    }
+
+    ['pointermove', 'touchmove', 'pointerdown', 'touchstart'].forEach(type => {
+      window.addEventListener(type, handleTouch, { passive: true });
+    });
+
+    function loop() {
+      if (!isPlaying) return;
+      update();
+      render3D();
+      drawHUD();
+      requestAnimationFrame(loop);
+    }
+
+    function startGame() {
+      initAudio();
+      playStartWav();
+      activateYouTubeAudio();
+
+      score = 0;
+      lives = 3;
+      currentStage = 1;
+      stageClearPause = false;
+      activeEffects.giantPierceTimer = 0;
+      activeEffects.expandTimer = 0;
+      paddle.w = PADDLE_DEFAULT_W;
+      paddle.x = GAME_W / 2 - paddle.w / 2;
+
+      loadStage(currentStage);
+      resetToSingleBall();
+
+      startOverlay.style.display = 'none';
+      gameOverOverlay.style.display = 'none';
+      isPlaying = true;
+      requestAnimationFrame(loop);
+    }
+
+    function restartGame() {
+      startGame();
+    }
+
+    function nextStageTransition() {
+      stageClearPause = true;
+      sound.stageClear();
+      score += currentStage * 500;
+
+      setTimeout(() => {
+        currentStage++;
+        if (currentStage > MAX_STAGES) {
+          gameEndVictory();
+          return;
+        }
+
+        activeEffects.giantPierceTimer = 0;
+        activeEffects.expandTimer = 0;
+        paddle.w = PADDLE_DEFAULT_W;
+        paddle.x = GAME_W / 2 - paddle.w / 2;
+
+        loadStage(currentStage);
+        resetToSingleBall();
+        stageClearPause = false;
+      }, 1200);
+    }
+
+    function gameEndVictory() {
+      isPlaying = false;
+      overTitle.textContent = "ALL CLEAR! CHAMPION";
+      overTitle.style.color = "#ffd700";
+      finalScore.textContent = `축하합니다! 전 스테이지 클리어 | 점수: ${score}`;
+      overBtn.textContent = "처음부터 다시하기";
+      gameOverOverlay.style.display = 'flex';
+    }
+
+    function gameOver() {
+      isPlaying = false;
+      overTitle.textContent = "GAME OVER";
+      overTitle.style.color = "#ff3333";
+      finalScore.textContent = `도달 스테이지: ${currentStage} | 최종 점수: ${score}`;
+      overBtn.textContent = "다시하기";
+      gameOverOverlay.style.display = 'flex';
+    }
+
+    // 초기 화면 렌더링
+    render3D();
+    drawHUD();
   </script>
 </body>
 </html>

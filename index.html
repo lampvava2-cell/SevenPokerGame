@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-  <title>알카노이드 FX 3D - Rounded 10 STAGES</title>
+  <title>알카노이드 FX 3D - Vivid High-Light</title>
   <style>
     * {
       box-sizing: border-box;
@@ -116,8 +116,8 @@
   </div>
 
   <div class="overlay" id="startOverlay">
-    <h1 style="color: #ff3333; margin-bottom: 4px; text-shadow: 0 0 10px #ff0055;">ARKANOID 3D ROUND FX</h1>
-    <p style="color: #ccc; font-size: 13px; margin-bottom: 2px;">다이내믹 무빙 라이트 & 라운드 오브젝트 10 STAGES</p>
+    <h1 style="color: #ff3333; margin-bottom: 4px; text-shadow: 0 0 10px #ff0055;">ARKANOID 3D FX</h1>
+    <p style="color: #ccc; font-size: 13px; margin-bottom: 2px;">선명한 고휘도 입체 라이팅 & 10 STAGES</p>
     <p style="color: #ff0055; font-size: 13px;">[G] 캡슐: 혜성 화염 관통 모드</p>
     <button class="btn" onclick="startGame()">게임 시작</button>
   </div>
@@ -129,7 +129,7 @@
   </div>
 
   <script>
-    // --- 1. 유튜브 BGM 플레이어 ---
+    // --- 1. 유튜브 플레이어 컨트롤러 ---
     let ytPlayer = null;
     const TARGET_VIDEO_ID = 'a3q2dPG3lVI';
 
@@ -165,7 +165,7 @@
       }
     }
 
-    // --- 2. 사운드 FX 엔진 ---
+    // --- 2. 오디오 FX 엔진 ---
     let audioCtx = null;
     const startAudio = new Audio('start.wav');
     startAudio.preload = 'auto';
@@ -309,7 +309,7 @@
       }
     };
 
-    // --- 4. WebGL 2.0 셰이더 (고휘도 + 반사광 극대화) ---
+    // --- 4. WebGL 2.0 고휘도 셰이더 (암전 현상 완전 차단) ---
     const glCanvas = document.getElementById('glCanvas');
     const gl = glCanvas.getContext('webgl2', { alpha: true, antialias: true });
 
@@ -321,8 +321,8 @@
       uniform mat4 uProjection;
       uniform mat3 uNormalMatrix;
 
-      out vec3 vWorldPos;
       out vec3 vNormal;
+      out vec3 vWorldPos;
 
       void main() {
         vec4 worldPos = uModel * vec4(aPosition, 1.0);
@@ -335,50 +335,55 @@
     const fsSource = `#version 300 es
       precision mediump float;
 
-      in vec3 vWorldPos;
       in vec3 vNormal;
+      in vec3 vWorldPos;
 
       uniform vec4 uColor;
-      uniform vec3 uLightPos;
-      uniform vec3 uBallLightPos;
-      uniform vec3 uBallLightColor;
-      uniform float uBallLightIntensity;
+      uniform vec3 uLightDir;          // 회전하는 무빙 라이트 방향 벡터
+      uniform vec3 uBallPos;           // 공 위치
+      uniform vec3 uBallColor;
       uniform float uShininess;
-      uniform float uGlassEffect;
+      uniform float uIsGlass;
 
       out vec4 fragColor;
 
       void main() {
         vec3 N = normalize(vNormal);
-        vec3 V = vec3(0.0, 0.0, 1.0); // 직교 탑뷰 시선
+        vec3 V = vec3(0.0, 0.0, 1.0); // 직교 탑뷰 시선 벡터
 
-        // 1) 움직이는 메인 조명 계산 (밝고 선명한 반사광)
-        vec3 L = normalize(uLightPos - vWorldPos);
+        // 1) 고휘도 기본 앰비언트 (오브젝트 본연의 색상을 밝고 쨍하게 유지)
+        vec3 baseColor = uColor.rgb;
+        vec3 ambient = baseColor * 0.85;
+
+        // 2) 회전하는 메인 디렉셔널 라이트 (상공을 공전하며 모서리를 쓸고 감)
+        vec3 L = normalize(uLightDir);
         float diff = max(dot(N, L), 0.0);
+        vec3 diffuse = baseColor * (diff * 0.45);
+
+        // 3) 입체 하이라이트 (Specular Highlight & Rim Light)
         vec3 H = normalize(L + V);
         float spec = pow(max(dot(N, H), 0.0), uShininess);
+        vec3 specular = vec3(1.0, 1.0, 1.0) * (spec * 0.8);
 
-        // 2) 공의 다이내믹 발광
-        vec3 ballToFrag = uBallLightPos - vWorldPos;
-        float dist = length(ballToFrag);
-        vec3 Lball = normalize(ballToFrag);
-        float atten = clamp(1.0 - dist / 240.0, 0.0, 1.0);
-        float ballDiff = max(dot(N, Lball), 0.0) * atten * uBallLightIntensity;
+        // 테두리 림 라이트 (모서리 입체감 부각)
+        float rim = 1.0 - max(dot(N, V), 0.0);
+        vec3 rimLight = vec3(1.0) * pow(rim, 3.0) * 0.35;
 
-        // 전체 씬 기본 조도를 화사하게 상향
-        vec3 ambient = vec3(0.55) * uColor.rgb;
-        vec3 diffuse = (diff * 0.85) * uColor.rgb;
-        vec3 specular = vec3(0.9) * spec;
-        vec3 pointLightEffect = uBallLightColor * ballDiff;
+        // 4) 공 주변의 역동적인 글로우 반사
+        vec3 toBall = uBallPos - vWorldPos;
+        float dist = length(toBall);
+        float ballAtten = clamp(1.0 - dist / 180.0, 0.0, 1.0);
+        vec3 ballGlow = uBallColor * (ballAtten * 0.5);
 
+        vec3 finalRGB = ambient + diffuse + specular + rimLight + ballGlow;
         float alpha = uColor.a;
-        if (uGlassEffect > 0.5) {
-          alpha = 0.8;
-          diffuse *= 1.4;
-          specular *= 2.2;
+
+        if (uIsGlass > 0.5) {
+          alpha = 0.82;
+          finalRGB += vec3(0.2, 0.4, 0.5);
         }
 
-        fragColor = vec4(ambient + diffuse + specular + pointLightEffect, alpha);
+        fragColor = vec4(clamp(finalRGB, 0.0, 1.0), alpha);
       }
     `;
 
@@ -404,65 +409,44 @@
       proj: gl.getUniformLocation(program, "uProjection"),
       normMat: gl.getUniformLocation(program, "uNormalMatrix"),
       color: gl.getUniformLocation(program, "uColor"),
-      lightPos: gl.getUniformLocation(program, "uLightPos"),
-      ballLightPos: gl.getUniformLocation(program, "uBallLightPos"),
-      ballLightColor: gl.getUniformLocation(program, "uBallLightColor"),
-      ballLightIntensity: gl.getUniformLocation(program, "uBallLightIntensity"),
+      lightDir: gl.getUniformLocation(program, "uLightDir"),
+      ballPos: gl.getUniformLocation(program, "uBallPos"),
+      ballColor: gl.getUniformLocation(program, "uBallColor"),
       shininess: gl.getUniformLocation(program, "uShininess"),
-      glass: gl.getUniformLocation(program, "uGlassEffect")
+      glass: gl.getUniformLocation(program, "uIsGlass")
     };
 
-    // --- 5. 모서리가 둥근 3D 메쉬 생성 (Chamfered / Rounded Box) ---
-    function createRoundedBoxGeometry(bevel = 0.28) {
-      // 중심 평면과 테두리 4방향으로 비스듬히 꺾인 베벨 패싯을 생성하여 둥근 반사광 유도
+    // --- 5. 모서리가 둥글게 깎인 3D 메쉬 버퍼 (Chamfered Bevel Box) ---
+    function createRoundedBoxGeometry(bevel = 0.22) {
       const p = 0.5, n = -0.5;
       const bp = 0.5 - bevel, bn = -0.5 + bevel;
-      const bz = 0.5 - bevel * 0.5;
+      const bz = 0.5 - bevel * 0.45;
 
       const positions = [];
       const normals = [];
 
-      function addQuad(p0, p1, p2, p3, n0, n1, n2, n3) {
+      function addQuad(p0, p1, p2, p3, norm) {
         positions.push(...p0, ...p1, ...p2,  ...p0, ...p2, ...p3);
-        normals.push(...n0, ...n1, ...n2,  ...n0, ...n2, ...n3);
+        normals.push(...norm, ...norm, ...norm,  ...norm, ...norm, ...norm);
       }
 
-      // 1) 상단 메인 플랫 면 (Z = +0.5)
-      addQuad(
-        [bn, bn, p], [bp, bn, p], [bp, bp, p], [bn, bp, p],
-        [0,0,1], [0,0,1], [0,0,1], [0,0,1]
-      );
+      // 상단 메인 윗면 (Z = +0.5)
+      addQuad([bn, bn, p], [bp, bn, p], [bp, bp, p], [bn, bp, p], [0, 0, 1]);
 
-      // 2) 4방향 둥근 모서리 베벨 (라운드 챔퍼)
-      // Top-North
-      addQuad(
-        [bn, bp, p], [bp, bp, p], [p, p, bz], [-p, p, bz],
-        [0, 0.7, 0.7], [0, 0.7, 0.7], [0, 0.9, 0.4], [0, 0.9, 0.4]
-      );
-      // Top-South
-      addQuad(
-        [bp, bn, p], [bn, bn, p], [-p, -p, bz], [p, -p, bz],
-        [0, -0.7, 0.7], [0, -0.7, 0.7], [0, -0.9, 0.4], [0, -0.9, 0.4]
-      );
-      // Top-East
-      addQuad(
-        [bp, bn, p], [p, -p, bz], [p, p, bz], [bp, bp, p],
-        [0.7, 0, 0.7], [0.9, 0, 0.4], [0.9, 0, 0.4], [0.7, 0, 0.7]
-      );
-      // Top-West
-      addQuad(
-        [bn, bp, p], [-p, p, bz], [-p, -p, bz], [bn, bn, p],
-        [-0.7, 0, 0.7], [-0.9, 0, 0.4], [-0.9, 0, 0.4], [-0.7, 0, 0.7]
-      );
+      // 4면 둥근 모서리 경사면 (Chamfer)
+      addQuad([bn, bp, p], [bp, bp, p], [p, p, bz], [-p, p, bz], [0, 0.7, 0.7]);
+      addQuad([bp, bn, p], [bn, bn, p], [-p, -p, bz], [p, -p, bz], [0, -0.7, 0.7]);
+      addQuad([bp, bn, p], [p, -p, bz], [p, p, bz], [bp, bp, p], [0.7, 0, 0.7]);
+      addQuad([bn, bp, p], [-p, p, bz], [-p, -p, bz], [bn, bn, p], [-0.7, 0, 0.7]);
 
-      // 3) 수직 측면 (Sides)
-      addQuad([p, -p, bz], [p, -p, -p], [p, p, -p], [p, p, bz], [1,0,0], [1,0,0], [1,0,0], [1,0,0]);
-      addQuad([-p, p, bz], [-p, p, -p], [-p, -p, -p], [-p, -p, bz], [-1,0,0], [-1,0,0], [-1,0,0], [-1,0,0]);
-      addQuad([-p, p, bz], [p, p, bz], [p, p, -p], [-p, p, -p], [0,1,0], [0,1,0], [0,1,0], [0,1,0]);
-      addQuad([p, -p, bz], [-p, -p, bz], [-p, -p, -p], [p, -p, -p], [0,-1,0], [0,-1,0], [0,-1,0], [0,-1,0]);
+      // 4측면 (Sides)
+      addQuad([p, -p, bz], [p, -p, n], [p, p, n], [p, p, bz], [1, 0, 0]);
+      addQuad([-p, p, bz], [-p, p, n], [-p, -p, n], [-p, -p, bz], [-1, 0, 0]);
+      addQuad([-p, p, bz], [p, p, bz], [p, p, n], [-p, p, n], [0, 1, 0]);
+      addQuad([p, -p, bz], [-p, -p, bz], [-p, -p, n], [p, -p, n], [0, -1, 0]);
 
-      // 4) 하단 면
-      addQuad([-p, -p, -p], [p, -p, -p], [p, p, -p], [-p, p, -p], [0,0,-1], [0,0,-1], [0,0,-1], [0,0,-1]);
+      // 바닥면
+      addQuad([-p, -p, n], [p, -p, n], [p, p, n], [-p, p, n], [0, 0, -1]);
 
       const vao = gl.createVertexArray();
       gl.bindVertexArray(vao);
@@ -664,9 +648,9 @@
 
     let items = [];
     const ITEM_TYPES = [
-      { type: 'MULTI', label: 'M', color: [0.0, 1.0, 1.0, 1.0] },
-      { type: 'GIANT_PIERCE', label: 'G', color: [1.0, 0.0, 0.33, 1.0] },
-      { type: 'EXPAND', label: 'E', color: [0.22, 1.0, 0.08, 1.0] }
+      { type: 'MULTI', label: 'M', color: [0.1, 1.0, 1.0, 1.0] },
+      { type: 'GIANT_PIERCE', label: 'G', color: [1.0, 0.05, 0.35, 1.0] },
+      { type: 'EXPAND', label: 'E', color: [0.25, 1.0, 0.1, 1.0] }
     ];
     let activeEffects = {
       giantPierceTimer: 0,
@@ -816,35 +800,35 @@
           if (char === '0') continue;
 
           let maxHp = 1;
-          let color = [1.0, 0.22, 0.2, 1.0];
+          let color = [1.0, 0.25, 0.22, 1.0];
           let type = 'RED';
 
           if (char === 'G') {
             maxHp = 3;
-            color = [1.0, 0.88, 0.1, 1.0];
+            color = [1.0, 0.88, 0.15, 1.0];
             type = 'GOLD';
           } else if (char === 'S') {
             maxHp = 2;
-            color = [0.92, 0.92, 0.95, 1.0];
+            color = [0.92, 0.94, 0.98, 1.0];
             type = 'SILVER';
           } else if (char === 'C') {
             maxHp = 1;
             color = [0.55, 0.98, 1.0, 0.78];
             type = 'GLASS';
           } else if (char === '1') {
-            color = [1.0, 0.22, 0.2, 1.0];
+            color = [1.0, 0.25, 0.22, 1.0];
             type = 'RED';
           } else if (char === '2') {
-            color = [1.0, 0.48, 0.05, 1.0];
+            color = [1.0, 0.52, 0.08, 1.0];
             type = 'ORANGE';
           } else if (char === '3') {
-            color = [1.0, 0.88, 0.05, 1.0];
+            color = [1.0, 0.9, 0.08, 1.0];
             type = 'YELLOW';
           } else if (char === '4') {
-            color = [0.1, 0.85, 0.35, 1.0];
+            color = [0.15, 0.9, 0.38, 1.0];
             type = 'GREEN';
           } else if (char === '5') {
-            color = [0.1, 0.58, 1.0, 1.0];
+            color = [0.15, 0.62, 1.0, 1.0];
             type = 'BLUE';
           }
 
@@ -944,12 +928,12 @@
 
     function updateBrickColor(b) {
       if (b.type === 'GOLD') {
-        if (b.hp === 3) b.currentColor = [1.0, 0.88, 0.1, 1.0];
-        else if (b.hp === 2) b.currentColor = [0.85, 0.55, 0.2, 1.0];
-        else b.currentColor = [0.45, 0.28, 0.15, 1.0];
+        if (b.hp === 3) b.currentColor = [1.0, 0.88, 0.15, 1.0];
+        else if (b.hp === 2) b.currentColor = [0.88, 0.58, 0.2, 1.0];
+        else b.currentColor = [0.48, 0.3, 0.16, 1.0];
       } else if (b.type === 'SILVER') {
-        if (b.hp === 2) b.currentColor = [0.92, 0.92, 0.95, 1.0];
-        else b.currentColor = [0.55, 0.6, 0.68, 1.0];
+        if (b.hp === 2) b.currentColor = [0.92, 0.94, 0.98, 1.0];
+        else b.currentColor = [0.58, 0.64, 0.72, 1.0];
       }
     }
 
@@ -1099,11 +1083,14 @@
       }
     }
 
-    // --- 8. OpenGL 3D 렌더 파이프라인 (무빙 라이트 & 라운드 오브젝트) ---
+    // --- 8. OpenGL 3D 고휘도 탑뷰 렌더링 파이프라인 ---
     function render3D() {
       gl.enable(gl.DEPTH_TEST);
-      gl.enable(gl.CULL_FACE);
-      gl.cullFace(gl.BACK);
+      gl.depthFunc(gl.LEQUAL);
+
+      // CULL_FACE로 인한 단면 탈락 방지
+      gl.disable(gl.CULL_FACE);
+
       gl.enable(gl.BLEND);
       gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
 
@@ -1112,28 +1099,24 @@
 
       gl.useProgram(program);
 
+      // 1:1 직교 투영 행렬
       const projMat = Mat4.ortho2D(0, GAME_W, GAME_H, 0, -500, 500);
       gl.uniformMatrix4fv(loc.proj, false, projMat);
 
-      // [핵심] 필드 상공을 타원형으로 순환하는 다이내믹 무빙 라이트 (빛반사 강조)
-      const lightTime = frameCount * 0.028;
-      const lx = GAME_W / 2 + Math.cos(lightTime) * 150;
-      const ly = GAME_H / 2 + Math.sin(lightTime * 0.8) * 180;
-      const lz = 260 + Math.sin(lightTime * 1.5) * 60;
-      gl.uniform3f(loc.lightPos, lx, ly, lz);
+      // 상공을 회전하는 다이내믹 무빙 라이트 방향 벡터 (3D 입체 광택 유도)
+      const lightTime = frameCount * 0.03;
+      const lx = Math.cos(lightTime) * 0.6;
+      const ly = Math.sin(lightTime * 0.8) * 0.6;
+      const lz = 0.85;
+      gl.uniform3f(loc.lightDir, lx, ly, lz);
 
       const isGiant = activeEffects.giantPierceTimer > 0;
       if (balls.length > 0) {
-        gl.uniform3f(loc.ballLightPos, balls[0].x, balls[0].y, 25);
-        if (isGiant) {
-          gl.uniform3f(loc.ballLightColor, 1.0, 0.25, 0.0);
-          gl.uniform1f(loc.ballLightIntensity, 2.8);
-        } else {
-          gl.uniform3f(loc.ballLightColor, 0.2, 1.0, 1.0);
-          gl.uniform1f(loc.ballLightIntensity, 1.6);
-        }
+        gl.uniform3f(loc.ballPos, balls[0].x, balls[0].y, 10.0);
+        gl.uniform3f(loc.ballColor, isGiant ? 1.0 : 0.2, isGiant ? 0.2 : 0.8, isGiant ? 0.05 : 1.0);
       } else {
-        gl.uniform1f(loc.ballLightIntensity, 0.0);
+        gl.uniform3f(loc.ballPos, -999, -999, 0);
+        gl.uniform3f(loc.ballColor, 0, 0, 0);
       }
 
       function drawMesh(geo, modelMat, color, shininess = 40.0, isGlass = 0.0) {
@@ -1153,7 +1136,7 @@
       }
 
       // 1) 3D 라운드 테두리 프레임 월
-      const wallColor = [0.55, 0.55, 0.62, 1.0];
+      const wallColor = [0.65, 0.68, 0.75, 1.0];
       const wallD = 24;
 
       // 좌측 벽
@@ -1182,7 +1165,7 @@
         m = Mat4.scale(m, [b.w, b.h, BRICK_D]);
 
         const isGlass = b.type === 'GLASS' ? 1.0 : 0.0;
-        const shine = (b.type === 'GOLD' || b.type === 'SILVER') ? 75.0 : 35.0;
+        const shine = (b.type === 'GOLD' || b.type === 'SILVER') ? 80.0 : 35.0;
         drawMesh(roundedBoxGeo, m, b.currentColor, shine, isGlass);
       }
 
@@ -1193,24 +1176,24 @@
       m = Mat4.scale(m, [paddle.w, paddle.h, paddle.d]);
       drawMesh(roundedBoxGeo, m, paddleCol, 45.0);
 
-      // 패들 내부 크롬 코어
+      // 패들 내부 메탈 코어 라인
       m = Mat4.identity();
-      m = Mat4.translate(m, [paddle.x + paddle.w / 2, paddle.y + paddle.h / 2, 2]);
+      m = Mat4.translate(m, [paddle.x + paddle.w / 2, paddle.y + paddle.h / 2, 3]);
       m = Mat4.scale(m, [Math.max(4, paddle.w - 18), paddle.h - 4, paddle.d]);
       drawMesh(roundedBoxGeo, m, [1.0, 1.0, 1.0, 1.0], 90.0);
 
       // 4) 3D 공
       const currentRadius = isGiant ? BASE_BALL_R * 2.8 : BASE_BALL_R;
-      const ballCol = isGiant ? [1.0, 0.25, 0.05, 1.0] : [1.0, 1.0, 1.0, 1.0];
+      const ballCol = isGiant ? [1.0, 0.3, 0.1, 1.0] : [1.0, 1.0, 1.0, 1.0];
 
       for (let b of balls) {
         m = Mat4.identity();
-        m = Mat4.translate(m, [b.x, b.y, 4]);
+        m = Mat4.translate(m, [b.x, b.y, 6]);
         m = Mat4.scale(m, [currentRadius * 2, currentRadius * 2, currentRadius * 2]);
         drawMesh(sphereGeo, m, ballCol, 100.0);
       }
 
-      // 5) 3D 아이템 (자전하는 실린더)
+      // 5) 3D 아이템 (자전 실린더)
       for (let it of items) {
         m = Mat4.identity();
         m = Mat4.translate(m, [it.x, it.y, 0]);
@@ -1259,10 +1242,10 @@
         hudCtx.fillText(`[EXPAND] ${(activeEffects.expandTimer / 60).toFixed(1)}s`, 18, 48);
       }
 
-      hudCtx.fillStyle = 'rgba(255, 255, 255, 0.04)';
+      hudCtx.fillStyle = 'rgba(255, 255, 255, 0.05)';
       hudCtx.fillRect(14, TOUCH_CONTROL_ZONE_Y, GAME_W - 28, GAME_H - TOUCH_CONTROL_ZONE_Y - 14);
 
-      hudCtx.strokeStyle = 'rgba(255, 255, 255, 0.25)';
+      hudCtx.strokeStyle = 'rgba(255, 255, 255, 0.28)';
       hudCtx.setLineDash([5, 5]);
       hudCtx.strokeRect(14, TOUCH_CONTROL_ZONE_Y, GAME_W - 28, GAME_H - TOUCH_CONTROL_ZONE_Y - 14);
       hudCtx.setLineDash([]);
@@ -1289,7 +1272,7 @@
       hudCtx.restore();
     }
 
-    // --- 10. 터치 입력 및 루프 ---
+    // --- 10. 터치 입력 핸들러 및 게임 루프 ---
     function handleTouch(e) {
       if (!isPlaying || stageClearPause) return;
       const rect = hudCanvas.getBoundingClientRect();

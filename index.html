@@ -113,13 +113,13 @@
     </div>
     <!-- OpenGL (WebGL 2.0) 캔버스 -->
     <canvas id="glCanvas"></canvas>
-    <!-- HUD & 터치 이벤트 전용 오버레이 -->
+    <!-- HUD & 터치 제어 오버레이 -->
     <canvas id="hudCanvas"></canvas>
   </div>
 
   <div class="overlay" id="startOverlay">
     <h1 style="color: #ff3333; margin-bottom: 4px; text-shadow: 0 0 10px #ff0055;">ARKANOID 3D TOP-VIEW</h1>
-    <p style="color: #aaa; font-size: 13px; margin-bottom: 2px;">직교 투영 1:1 풀 스크린 매칭</p>
+    <p style="color: #aaa; font-size: 13px; margin-bottom: 2px;">직교 투영 1:1 완벽 픽셀 핏 매칭</p>
     <p style="color: #ff0055; font-size: 13px;">[G] 캡슐: 혜성 화염 관통 모드</p>
     <button class="btn" onclick="startGame()">게임 시작</button>
   </div>
@@ -242,16 +242,10 @@
       loseLife: () => playTone(250, 'sawtooth', 0.35, 40, 0.3)
     };
 
-    // --- 3. 행렬 연산 유틸 (OpenGL Orthographic & LookAt) ---
+    // --- 3. 행렬 연산 유틸 (직교 1:1 매핑 & 모델 변환) ---
     const Mat4 = {
-      create: () => new Float32Array([
-        1,0,0,0,
-        0,1,0,0,
-        0,0,1,0,
-        0,0,0,1
-      ]),
-      // 직교 투영 행렬 (원근 왜곡 없음, 화면 1:1 매핑)
-      ortho: (left, right, bottom, top, near, far) => {
+      // 2D 캔버스 좌표계와 완전히 일치하는 직교 투영 행렬 (Top: 0, Bottom: 640)
+      ortho2D: (left, right, bottom, top, near = -500, far = 500) => {
         const lr = 1 / (left - right);
         const bt = 1 / (bottom - top);
         const nf = 1 / (near - far);
@@ -262,33 +256,12 @@
           (left + right) * lr, (top + bottom) * bt, (far + near) * nf, 1
         ]);
       },
-      lookAt: (eye, center, up) => {
-        let z0 = eye[0] - center[0], z1 = eye[1] - center[1], z2 = eye[2] - center[2];
-        let len = 1 / Math.hypot(z0, z1, z2);
-        z0 *= len; z1 *= len; z2 *= len;
-
-        let x0 = up[1] * z2 - up[2] * z1;
-        let x1 = up[2] * z0 - up[0] * z2;
-        let x2 = up[0] * z1 - up[1] * z0;
-        len = Math.hypot(x0, x1, x2);
-        if (!len) { x0 = 0; x1 = 0; x2 = 0; }
-        else { len = 1 / len; x0 *= len; x1 *= len; x2 *= len; }
-
-        let y0 = z1 * x2 - z2 * x1;
-        let y1 = z2 * x0 - z0 * x2;
-        let y2 = z0 * x1 - z1 * x0;
-
-        return new Float32Array([
-          x0, y0, z0, 0,
-          x1, y1, z1, 0,
-          x2, y2, z2, 0,
-          -(x0 * eye[0] + x1 * eye[1] + x2 * eye[2]),
-          -(y0 * eye[0] + y1 * eye[1] + y2 * eye[2]),
-          -(z0 * eye[0] + z1 * eye[1] + z2 * eye[2]),
-          1
-        ]);
-      },
-      identity: () => Mat4.create(),
+      identity: () => new Float32Array([
+        1,0,0,0,
+        0,1,0,0,
+        0,0,1,0,
+        0,0,0,1
+      ]),
       translate: (m, v) => {
         const out = new Float32Array(m);
         out[12] = m[0] * v[0] + m[4] * v[1] + m[8] * v[2] + m[12];
@@ -348,7 +321,6 @@
       layout(location = 1) in vec3 aNormal;
 
       uniform mat4 uModel;
-      uniform mat4 uView;
       uniform mat4 uProjection;
       uniform mat3 uNormalMatrix;
 
@@ -359,7 +331,7 @@
         vec4 worldPos = uModel * vec4(aPosition, 1.0);
         vWorldPos = worldPos.xyz;
         vNormal = normalize(uNormalMatrix * aNormal);
-        gl_Position = uProjection * uView * worldPos;
+        gl_Position = uProjection * worldPos;
       }
     `;
 
@@ -381,24 +353,24 @@
 
       void main() {
         vec3 N = normalize(vNormal);
-        vec3 V = vec3(0.0, 0.0, 1.0); // 탑뷰 시선 벡터
+        vec3 V = vec3(0.0, 0.0, 1.0); // 직교 탑뷰 시선 벡터
 
-        // 1) 3D 입체감을 위한 사선 메인 조명
+        // 1) 3D 입체 음영을 위한 사선 메인 조명
         vec3 L = normalize(uLightPos - vWorldPos);
         float diff = max(dot(N, L), 0.0);
         vec3 H = normalize(L + V);
         float spec = pow(max(dot(N, H), 0.0), uShininess);
 
-        // 2) 볼 포인트 조명
+        // 2) 공 포인트 조명
         vec3 ballToFrag = uBallLightPos - vWorldPos;
         float dist = length(ballToFrag);
         vec3 Lball = normalize(ballToFrag);
-        float atten = clamp(1.0 - dist / 260.0, 0.0, 1.0);
+        float atten = clamp(1.0 - dist / 220.0, 0.0, 1.0);
         float ballDiff = max(dot(N, Lball), 0.0) * atten * uBallLightIntensity;
 
-        vec3 ambient = vec3(0.42) * uColor.rgb;
-        vec3 diffuse = (diff * 0.68) * uColor.rgb;
-        vec3 specular = vec3(0.5) * spec;
+        vec3 ambient = vec3(0.45) * uColor.rgb;
+        vec3 diffuse = (diff * 0.65) * uColor.rgb;
+        vec3 specular = vec3(0.45) * spec;
         vec3 pointLightEffect = uBallLightColor * ballDiff;
 
         float alpha = uColor.a;
@@ -431,7 +403,6 @@
 
     const loc = {
       model: gl.getUniformLocation(program, "uModel"),
-      view: gl.getUniformLocation(program, "uView"),
       proj: gl.getUniformLocation(program, "uProjection"),
       normMat: gl.getUniformLocation(program, "uNormalMatrix"),
       color: gl.getUniformLocation(program, "uColor"),
@@ -447,11 +418,17 @@
     function createBoxGeometry() {
       const p = 0.5, n = -0.5;
       const positions = new Float32Array([
+        // Front
         n,n,p,  p,n,p,  p,p,p,  n,n,p,  p,p,p,  n,p,p,
+        // Back
         p,n,n,  n,n,n,  n,p,n,  p,n,n,  n,p,n,  p,p,n,
+        // Top
         n,p,p,  p,p,p,  p,p,n,  n,p,p,  p,p,n,  n,p,n,
+        // Bottom
         n,n,n,  p,n,n,  p,n,p,  n,n,n,  p,n,p,  n,n,p,
+        // Right
         p,n,p,  p,n,n,  p,p,n,  p,n,p,  p,p,n,  p,p,p,
+        // Left
         n,n,n,  n,n,p,  n,p,p,  n,n,n,  n,p,p,  n,p,n
       ]);
       const normals = new Float32Array([
@@ -495,8 +472,8 @@
         for (let lon = 0; lon <= lonBands; ++lon) {
           const phi = (lon * 2 * Math.PI) / lonBands;
           const x = Math.cos(phi) * sinTheta;
-          const y = cosTheta;
-          const z = Math.sin(phi) * sinTheta;
+          const y = sinTheta * Math.sin(phi);
+          const z = cosTheta;
 
           positions.push(x, y, z);
           normals.push(x, y, z);
@@ -601,11 +578,11 @@
       ]);
     }
 
-    // --- 6. 모바일 해상도 및 패들 위치 설정 ---
+    // --- 6. 모바일 해상도 및 게임 필드 좌표계 ---
     const GAME_W = 360;
     const GAME_H = 640;
 
-    // 패들을 하단 터치 조작부 위쪽 안전선에 배치 (손가락에 가려지지 않음)
+    // 패들을 터치 트랙패드 바로 위 안전 지대에 명확히 배치
     const PADDLE_DEFAULT_Y = GAME_H - 180;
     const TOUCH_CONTROL_ZONE_Y = GAME_H - 145;
 
@@ -938,6 +915,7 @@
       const isGiant = activeEffects.giantPierceTimer > 0;
       const currentRadius = isGiant ? BASE_BALL_R * 2.8 : BASE_BALL_R;
 
+      // 파티클
       for (let i = particles3D.length - 1; i >= 0; i--) {
         const p = particles3D[i];
         p.x += p.vx;
@@ -952,28 +930,32 @@
         }
       }
 
+      // 공
       for (let i = balls.length - 1; i >= 0; i--) {
         const ball = balls[i];
         ball.x += ball.dx;
         ball.y += ball.dy;
         if (ball.hitCooldown > 0) ball.hitCooldown--;
 
-        if (ball.x - currentRadius < 14) {
-          ball.x = 14 + currentRadius;
+        // 좌우 벽 충돌
+        if (ball.x - currentRadius < 12) {
+          ball.x = 12 + currentRadius;
           ball.dx = Math.abs(ball.dx);
           sound.hitWall();
-        } else if (ball.x + currentRadius > GAME_W - 14) {
-          ball.x = GAME_W - 14 - currentRadius;
+        } else if (ball.x + currentRadius > GAME_W - 12) {
+          ball.x = GAME_W - 12 - currentRadius;
           ball.dx = -Math.abs(ball.dx);
           sound.hitWall();
         }
-        if (ball.y - currentRadius < 40) {
-          ball.y = 40 + currentRadius;
+
+        // 상단 벽 충돌 (상단 바 36px 아래)
+        if (ball.y - currentRadius < 36) {
+          ball.y = 36 + currentRadius;
           ball.dy = Math.abs(ball.dy);
           sound.hitWall();
         }
 
-        // 패들 충돌 판정
+        // 패들 충돌
         if (
           ball.y + currentRadius >= paddle.y &&
           ball.y - currentRadius <= paddle.y + paddle.h &&
@@ -1024,6 +1006,7 @@
           }
         }
 
+        // 패들 아래로 볼 낙하 시 아웃
         if (ball.y - currentRadius > paddle.y + 60) {
           balls.splice(i, 1);
         }
@@ -1071,7 +1054,7 @@
       }
     }
 
-    // --- 8. OpenGL 3D 탑뷰 (Orthographic) 렌더 파이프라인 ---
+    // --- 8. OpenGL 3D 정규 탑뷰 렌더 파이프라인 ---
     function render3D() {
       gl.enable(gl.DEPTH_TEST);
       gl.enable(gl.CULL_FACE);
@@ -1084,24 +1067,16 @@
 
       gl.useProgram(program);
 
-      // [핵심] 원근감(Perspective)을 완전히 없앤 직교 투영(Orthographic) 1:1 매핑
-      // X: 0 ~ GAME_W (360), Y: -GAME_H (-640) ~ 0 -> 화면 테두리 잘림 완벽 해결
-      const projMat = Mat4.ortho(0, GAME_W, -GAME_H, 0, 1.0, 2000.0);
-
-      // 카메라는 화면 정중앙 수직 위(Z=500)에서 직각 수직으로 내려다봄
-      const eye = [GAME_W / 2, -GAME_H / 2, 500];
-      const target = [GAME_W / 2, -GAME_H / 2, 0];
-      const up = [0, 1, 0];
-      const viewMat = Mat4.lookAt(eye, target, up);
-
+      // [핵심 해결] 캔버스(0,0 ~ 360,640)와 완전히 1:1 직결되는 직교 투영 행렬
+      const projMat = Mat4.ortho2D(0, GAME_W, GAME_H, 0, -500, 500);
       gl.uniformMatrix4fv(loc.proj, false, projMat);
-      gl.uniformMatrix4fv(loc.view, false, viewMat);
-      // 블록의 윗면과 모서리 입체감을 살려주는 사선 조명
-      gl.uniform3f(loc.lightPos, GAME_W / 2 - 80, -GAME_H / 2 + 100, 320);
+
+      // 상단 좌측 사선에서 비추는 메인 입체 광원
+      gl.uniform3f(loc.lightPos, GAME_W / 2 - 80, 80, 260);
 
       const isGiant = activeEffects.giantPierceTimer > 0;
       if (balls.length > 0) {
-        gl.uniform3f(loc.ballLightPos, balls[0].x, -balls[0].y, 25);
+        gl.uniform3f(loc.ballLightPos, balls[0].x, balls[0].y, 25);
         if (isGiant) {
           gl.uniform3f(loc.ballLightColor, 1.0, 0.15, 0.0);
           gl.uniform1f(loc.ballLightIntensity, 2.5);
@@ -1129,33 +1104,33 @@
         gl.bindVertexArray(null);
       }
 
-      // 1) 3D 테두리 프레임 월
-      const wallColor = [0.38, 0.38, 0.44, 1.0];
+      // 1) 3D 테두리 메탈 프레임 월
+      const wallColor = [0.42, 0.42, 0.48, 1.0];
       const wallD = 24;
 
-      // 좌측 벽
+      // 좌측 벽 (X: 0~12, Y: 24~GAME_H)
       let m = Mat4.identity();
-      m = Mat4.translate(m, [6, -(36 + (GAME_H - 36) / 2), wallD / 2]);
-      m = Mat4.scale(m, [12, GAME_H - 36, wallD]);
+      m = Mat4.translate(m, [6, (24 + GAME_H) / 2, 0]);
+      m = Mat4.scale(m, [12, GAME_H - 24, wallD]);
       drawMesh(boxGeo, m, wallColor, 40.0);
 
-      // 우측 벽
+      // 우측 벽 (X: GAME_W-12~GAME_W, Y: 24~GAME_H)
       m = Mat4.identity();
-      m = Mat4.translate(m, [GAME_W - 6, -(36 + (GAME_H - 36) / 2), wallD / 2]);
-      m = Mat4.scale(m, [12, GAME_H - 36, wallD]);
+      m = Mat4.translate(m, [GAME_W - 6, (24 + GAME_H) / 2, 0]);
+      m = Mat4.scale(m, [12, GAME_H - 24, wallD]);
       drawMesh(boxGeo, m, wallColor, 40.0);
 
-      // 상단 벽
+      // 상단 벽 (X: 0~GAME_W, Y: 24~36)
       m = Mat4.identity();
-      m = Mat4.translate(m, [GAME_W / 2, -(24 + 6), wallD / 2]);
+      m = Mat4.translate(m, [GAME_W / 2, 30, 0]);
       m = Mat4.scale(m, [GAME_W, 12, wallD]);
       drawMesh(boxGeo, m, wallColor, 40.0);
 
-      // 2) 3D 블록 렌더링
+      // 2) 3D 벽돌 렌더링 (가로 11열 칼정렬)
       for (let b of bricks) {
         if (b.hp <= 0) continue;
         m = Mat4.identity();
-        m = Mat4.translate(m, [b.x + b.w / 2, -(b.y + b.h / 2), BRICK_D / 2]);
+        m = Mat4.translate(m, [b.x + b.w / 2, b.y + b.h / 2, 0]);
         m = Mat4.scale(m, [b.w, b.h, BRICK_D]);
 
         const isGlass = b.type === 'GLASS' ? 1.0 : 0.0;
@@ -1166,13 +1141,13 @@
       // 3) 3D 패들
       const paddleCol = activeEffects.expandTimer > 0 ? [0.22, 1.0, 0.08, 1.0] : [0.9, 0.15, 0.13, 1.0];
       m = Mat4.identity();
-      m = Mat4.translate(m, [paddle.x + paddle.w / 2, -(paddle.y + paddle.h / 2), paddle.d / 2]);
+      m = Mat4.translate(m, [paddle.x + paddle.w / 2, paddle.y + paddle.h / 2, 0]);
       m = Mat4.scale(m, [paddle.w, paddle.h, paddle.d]);
       drawMesh(boxGeo, m, paddleCol, 32.0);
 
       // 패들 내부 메탈 코어
       m = Mat4.identity();
-      m = Mat4.translate(m, [paddle.x + paddle.w / 2, -(paddle.y + paddle.h / 2), paddle.d / 2 + 1]);
+      m = Mat4.translate(m, [paddle.x + paddle.w / 2, paddle.y + paddle.h / 2, 2]);
       m = Mat4.scale(m, [Math.max(4, paddle.w - 18), paddle.h - 4, paddle.d]);
       drawMesh(boxGeo, m, [1.0, 1.0, 1.0, 1.0], 80.0);
 
@@ -1182,7 +1157,7 @@
 
       for (let b of balls) {
         m = Mat4.identity();
-        m = Mat4.translate(m, [b.x, -b.y, currentRadius + 2]);
+        m = Mat4.translate(m, [b.x, b.y, 4]);
         m = Mat4.scale(m, [currentRadius * 2, currentRadius * 2, currentRadius * 2]);
         drawMesh(sphereGeo, m, ballCol, 96.0);
       }
@@ -1190,7 +1165,7 @@
       // 5) 3D 아이템 (자전하는 실린더)
       for (let it of items) {
         m = Mat4.identity();
-        m = Mat4.translate(m, [it.x, -it.y, BRICK_D / 2]);
+        m = Mat4.translate(m, [it.x, it.y, 0]);
         m = Mat4.rotateX(m, it.rotX);
         m = Mat4.rotateY(m, it.rotY);
         m = Mat4.rotateZ(m, Math.PI / 2);
@@ -1201,7 +1176,7 @@
       // 6) 3D 파편
       for (let p of particles3D) {
         m = Mat4.identity();
-        m = Mat4.translate(m, [p.x, -p.y, p.z]);
+        m = Mat4.translate(m, [p.x, p.y, p.z]);
         m = Mat4.rotateX(m, p.rotX);
         m = Mat4.rotateY(m, p.rotY);
         m = Mat4.scale(m, [4.5, 4.5, 4.5]);
@@ -1210,24 +1185,24 @@
       }
     }
 
-    // --- 9. HUD & 터치 조작 영역 가이드 ---
+    // --- 9. HUD & 터치 트랙패드 영역 렌더링 ---
     function drawHUD() {
       hudCtx.clearRect(0, 0, hudCanvas.width, hudCanvas.height);
       const scale = hudCanvas.width / GAME_W;
       hudCtx.save();
       hudCtx.scale(scale, scale);
 
-      // 상단 HUD 바
-      hudCtx.fillStyle = 'rgba(0, 0, 0, 0.85)';
-      hudCtx.fillRect(0, 0, GAME_W, 26);
+      // 상단 점수 바 배경
+      hudCtx.fillStyle = '#000';
+      hudCtx.fillRect(0, 0, GAME_W, 24);
 
       hudCtx.fillStyle = '#fff';
       hudCtx.font = 'bold 13px Courier New';
-      hudCtx.fillText(`SCORE: ${score}`, 18, 18);
+      hudCtx.fillText(`SCORE: ${score}`, 18, 17);
       hudCtx.fillStyle = '#ffd700';
-      hudCtx.fillText(`ROUND ${currentStage}`, 145, 18);
+      hudCtx.fillText(`ROUND ${currentStage}`, 145, 17);
       hudCtx.fillStyle = '#e60012';
-      hudCtx.fillText(`LIVES: ${'● '.repeat(lives)}`, GAME_W - 105, 18);
+      hudCtx.fillText(`LIVES: ${'● '.repeat(lives)}`, GAME_W - 105, 17);
 
       if (activeEffects.giantPierceTimer > 0) {
         hudCtx.fillStyle = '#ff3300';
@@ -1237,11 +1212,11 @@
         hudCtx.fillText(`[EXPAND] ${(activeEffects.expandTimer / 60).toFixed(1)}s`, 18, 48);
       }
 
-      // 하단 터치 조작 트랙패드 영역
+      // 하단 터치 드래그 트랙패드 (패들 바로 밑 안전 영역)
       hudCtx.fillStyle = 'rgba(255, 255, 255, 0.04)';
       hudCtx.fillRect(14, TOUCH_CONTROL_ZONE_Y, GAME_W - 28, GAME_H - TOUCH_CONTROL_ZONE_Y - 14);
 
-      hudCtx.strokeStyle = 'rgba(255, 255, 255, 0.28)';
+      hudCtx.strokeStyle = 'rgba(255, 255, 255, 0.25)';
       hudCtx.setLineDash([5, 5]);
       hudCtx.strokeRect(14, TOUCH_CONTROL_ZONE_Y, GAME_W - 28, GAME_H - TOUCH_CONTROL_ZONE_Y - 14);
       hudCtx.setLineDash([]);
@@ -1255,7 +1230,7 @@
       hudCtx.fillText("(여기를 터치/드래그하여 패들을 이동하세요)", GAME_W / 2, TOUCH_CONTROL_ZONE_Y + 48);
       hudCtx.textAlign = 'left';
 
-      // 스테이지 클리어 연출
+      // 스테이지 클리어
       if (stageClearPause) {
         hudCtx.fillStyle = 'rgba(0, 0, 0, 0.75)';
         hudCtx.fillRect(20, GAME_H / 2 - 45, GAME_W - 40, 70);
@@ -1269,7 +1244,7 @@
       hudCtx.restore();
     }
 
-    // --- 10. 터치 입력 핸들러 ---
+    // --- 10. 모바일 터치 이벤트 핸들러 ---
     function handleTouch(e) {
       if (!isPlaying || stageClearPause) return;
       const rect = hudCanvas.getBoundingClientRect();
@@ -1277,7 +1252,7 @@
       const clientX = e.touches ? e.touches[0].clientX : e.clientX;
       const touchX = (clientX - rect.left) * scaleX;
 
-      paddle.x = Math.max(14, Math.min(GAME_W - paddle.w - 14, touchX - paddle.w / 2));
+      paddle.x = Math.max(12, Math.min(GAME_W - paddle.w - 12, touchX - paddle.w / 2));
     }
 
     ['pointermove', 'touchmove', 'pointerdown', 'touchstart'].forEach(type => {

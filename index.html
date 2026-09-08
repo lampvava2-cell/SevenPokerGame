@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-  <title>알카노이드 FX 3D - Ultra Bright</title>
+  <title>알카노이드 FX 3D - Smooth Round & Comet Trail</title>
   <style>
     * {
       box-sizing: border-box;
@@ -116,8 +116,8 @@
   </div>
 
   <div class="overlay" id="startOverlay">
-    <h1 style="color: #ff3333; margin-bottom: 4px; text-shadow: 0 0 10px #ff0055;">ARKANOID ULTRA 3D</h1>
-    <p style="color: #ccc; font-size: 13px; margin-bottom: 2px;">듀얼 다이내믹 무빙 라이트 & 10 STAGES</p>
+    <h1 style="color: #ff3333; margin-bottom: 4px; text-shadow: 0 0 10px #ff0055;">ARKANOID 3D ULTRA</h1>
+    <p style="color: #ccc; font-size: 13px; margin-bottom: 2px;">완전 둥근 3D 오브젝트 & 혜성 화염 트레일</p>
     <p style="color: #ff0055; font-size: 13px;">[G] 캡슐: 혜성 화염 관통 모드</p>
     <button class="btn" onclick="startGame()">게임 시작</button>
   </div>
@@ -309,7 +309,7 @@
       }
     };
 
-    // --- 4. WebGL 2.0 울트라 브라이트 셰이더 (듀얼 무빙 라이트) ---
+    // --- 4. WebGL 2.0 고휘도 셰이더 ---
     const glCanvas = document.getElementById('glCanvas');
     const gl = glCanvas.getContext('webgl2', { alpha: true, antialias: true });
 
@@ -339,8 +339,8 @@
       in vec3 vWorldPos;
 
       uniform vec4 uColor;
-      uniform vec3 uLight1Dir;         // 주 무빙 라이트
-      uniform vec3 uLight2Dir;         // 보조 무빙 라이트
+      uniform vec3 uLight1Dir;
+      uniform vec3 uLight2Dir;
       uniform vec3 uBallPos;
       uniform vec3 uBallColor;
       uniform float uShininess;
@@ -352,37 +352,36 @@
         vec3 N = normalize(vNormal);
         vec3 V = vec3(0.0, 0.0, 1.0);
 
-        // 1) 고휘도 자체 앰비언트 (어두움 완전 차단)
         vec3 base = uColor.rgb;
         vec3 ambient = base * 0.90;
 
-        // 2) 1번 주 무빙 라이트 (화이트 썬)
+        // 1번 주 무빙 라이트
         vec3 L1 = normalize(uLight1Dir);
         float diff1 = max(dot(N, L1), 0.0);
         vec3 H1 = normalize(L1 + V);
         float spec1 = pow(max(dot(N, H1), 0.0), uShininess);
-        vec3 light1 = (base * diff1 * 0.5) + (vec3(1.0, 1.0, 1.0) * spec1 * 0.85);
+        vec3 light1 = (base * diff1 * 0.52) + (vec3(1.0, 1.0, 1.0) * spec1 * 0.9);
 
-        // 3) 2번 보조 무빙 라이트 (시안/스카이 필 라이트)
+        // 2번 보조 무빙 라이트
         vec3 L2 = normalize(uLight2Dir);
         float diff2 = max(dot(N, L2), 0.0);
         vec3 H2 = normalize(L2 + V);
         float spec2 = pow(max(dot(N, H2), 0.0), uShininess);
-        vec3 light2 = (vec3(0.3, 0.8, 1.0) * diff2 * 0.35) + (vec3(0.6, 0.9, 1.0) * spec2 * 0.5);
+        vec3 light2 = (vec3(0.3, 0.85, 1.0) * diff2 * 0.38) + (vec3(0.6, 0.9, 1.0) * spec2 * 0.55);
 
-        // 4) 테두리 림 라이트 (3D 둥근 모서리 강조)
+        // 둥근 엣지 림 라이트
         float rim = 1.0 - max(dot(N, V), 0.0);
-        vec3 rimLight = vec3(1.0) * pow(rim, 2.5) * 0.45;
+        vec3 rimLight = vec3(1.0) * pow(rim, 2.2) * 0.45;
 
-        // 5) 공 발광 효과
+        // 볼 발광 반사
         vec3 toBall = uBallPos - vWorldPos;
         float dist = length(toBall);
         float ballAtten = clamp(1.0 - dist / 160.0, 0.0, 1.0);
-        vec3 ballGlow = uBallColor * (ballAtten * 0.4);
+        vec3 ballGlow = uBallColor * (ballAtten * 0.45);
 
         vec3 finalColor = ambient + light1 + light2 + rimLight + ballGlow;
-
         float alpha = uColor.a;
+
         if (uIsGlass > 0.5) {
           finalColor += vec3(0.2, 0.4, 0.5);
           alpha = 0.85;
@@ -422,8 +421,8 @@
       glass: gl.getUniformLocation(program, "uIsGlass")
     };
 
-    // --- 5. 완벽한 +Z 노멀을 가진 라운드 3D 메쉬 (Top-View 최적화) ---
-    function createRoundedBoxGeometry(bevel = 0.22) {
+    // --- 5. 모서리를 둥글게 굴린 하이폴리 3D 메쉬 (Super Round Box) ---
+    function createSuperRoundBoxGeometry(bevel = 0.32) {
       const p = 0.5, n = -0.5;
       const bp = 0.5 - bevel, bn = -0.5 + bevel;
       const bz = 0.5 - bevel * 0.5;
@@ -441,41 +440,31 @@
         addTri(p0, p2, p3, n0, n2, n3);
       }
 
-      // 1) 윗면 평면 (+Z 정면 노멀)
+      // 1) 상단 평면 (+Z 정면 노멀)
       addQuad(
         [bn, bn, p], [bp, bn, p], [bp, bp, p], [bn, bp, p],
         [0,0,1], [0,0,1], [0,0,1], [0,0,1]
       );
 
-      // 2) 둥근 4개 모서리 베벨 (사선 노멀로 빛 반사 유도)
-      // Top
-      addQuad(
-        [bn, bp, p], [bp, bp, p], [bp, p, bz], [bn, p, bz],
-        [0, 0.4, 0.9], [0, 0.4, 0.9], [0, 0.8, 0.5], [0, 0.8, 0.5]
-      );
-      // Bottom
-      addQuad(
-        [bp, bn, p], [bn, bn, p], [bn, -p, bz], [bp, -p, bz],
-        [0, -0.4, 0.9], [0, -0.4, 0.9], [0, -0.8, 0.5], [0, -0.8, 0.5]
-      );
-      // Right
-      addQuad(
-        [bp, bn, p], [bp, -p, bz], [p, bp, bz], [bp, bp, p],
-        [0.4, 0, 0.9], [0.8, 0, 0.5], [0.8, 0, 0.5], [0.4, 0, 0.9]
-      );
-      // Left
-      addQuad(
-        [bn, bp, p], [-p, bp, bz], [-p, bn, bz], [bn, bn, p],
-        [-0.4, 0, 0.9], [-0.8, 0, 0.5], [-0.8, 0, 0.5], [-0.4, 0, 0.9]
-      );
+      // 2) 4방향 둥근 모서리 (원통형 곡면 보간 노멀)
+      addQuad([bn, bp, p], [bp, bp, p], [bp, p, bz], [bn, p, bz], [0, 0.45, 0.89], [0, 0.45, 0.89], [0, 0.89, 0.45], [0, 0.89, 0.45]);
+      addQuad([bp, bn, p], [bn, bn, p], [bn, -p, bz], [bp, -p, bz], [0, -0.45, 0.89], [0, -0.45, 0.89], [0, -0.89, 0.45], [0, -0.89, 0.45]);
+      addQuad([bp, bn, p], [bp, -p, bz], [p, bp, bz], [bp, bp, p], [0.45, 0, 0.89], [0.89, 0, 0.45], [0.89, 0, 0.45], [0.45, 0, 0.89]);
+      addQuad([bn, bp, p], [-p, bp, bz], [-p, bn, bz], [bn, bn, p], [-0.45, 0, 0.89], [-0.89, 0, 0.45], [-0.89, 0, 0.45], [-0.45, 0, 0.89]);
 
-      // 3) 수직 측면들
+      // 3) 4개 코너 구형 필렛 (Corner Spherical Fillets)
+      addTri([bp, bp, p], [p, bp, bz], [bp, p, bz], [0.4, 0.4, 0.8], [0.8, 0.4, 0.4], [0.4, 0.8, 0.4]);
+      addTri([bn, bp, p], [bn, p, bz], [-p, bp, bz], [-0.4, 0.4, 0.8], [-0.4, 0.8, 0.4], [-0.8, 0.4, 0.4]);
+      addTri([bn, bn, p], [-p, bn, bz], [bn, -p, bz], [-0.4, -0.4, 0.8], [-0.8, -0.4, 0.4], [-0.4, -0.8, 0.4]);
+      addTri([bp, bn, p], [bp, -p, bz], [p, bn, bz], [0.4, -0.4, 0.8], [0.4, -0.8, 0.4], [0.8, -0.4, 0.4]);
+
+      // 4) 4측면 (Sides)
       addQuad([p, -p, bz], [p, -p, n], [p, p, n], [p, p, bz], [1,0,0], [1,0,0], [1,0,0], [1,0,0]);
       addQuad([-p, p, bz], [-p, p, n], [-p, -p, n], [-p, -p, bz], [-1,0,0], [-1,0,0], [-1,0,0], [-1,0,0]);
       addQuad([-p, p, bz], [p, p, bz], [p, p, n], [-p, p, n], [0,1,0], [0,1,0], [0,1,0], [0,1,0]);
       addQuad([p, -p, bz], [-p, -p, bz], [-p, -p, n], [p, -p, n], [0,-1,0], [0,-1,0], [0,-1,0], [0,-1,0]);
 
-      // 4) 바닥면
+      // 5) 바닥면
       addQuad([-p, -p, n], [p, -p, n], [p, p, n], [-p, p, n], [0,0,-1], [0,0,-1], [0,0,-1], [0,0,-1]);
 
       const vao = gl.createVertexArray();
@@ -592,7 +581,7 @@
       return { vao, count: positions.length / 3 };
     }
 
-    const roundedBoxGeo = createRoundedBoxGeometry(0.25);
+    const roundBoxGeo = createSuperRoundBoxGeometry(0.32);
     const sphereGeo = createSphereGeometry(20, 20);
     const cylinderGeo = createCylinderGeometry(20);
 
@@ -910,7 +899,8 @@
         dx: dx,
         dy: dy,
         speed: spd,
-        hitCooldown: 0
+        hitCooldown: 0,
+        trail: [] // 혜성 잔상 위치 큐
       };
     }
 
@@ -997,6 +987,15 @@
 
       for (let i = balls.length - 1; i >= 0; i--) {
         const ball = balls[i];
+
+        // 혜성 잔상 큐 업데이트
+        if (isGiant) {
+          ball.trail.unshift({ x: ball.x, y: ball.y });
+          if (ball.trail.length > 16) ball.trail.pop();
+        } else {
+          ball.trail = [];
+        }
+
         ball.x += ball.dx;
         ball.y += ball.dy;
         if (ball.hitCooldown > 0) ball.hitCooldown--;
@@ -1113,12 +1112,10 @@
       }
     }
 
-    // --- 8. OpenGL 3D 렌더 파이프라인 (듀얼 무빙 라이트 적용) ---
+    // --- 8. OpenGL 3D 렌더 파이프라인 (완전 둥근 메쉬 & 혜성 잔상 렌더링) ---
     function render3D() {
       gl.enable(gl.DEPTH_TEST);
       gl.depthFunc(gl.LEQUAL);
-
-      // 면 누락 방지
       gl.disable(gl.CULL_FACE);
 
       gl.enable(gl.BLEND);
@@ -1132,20 +1129,10 @@
       const projMat = Mat4.ortho2D(0, GAME_W, GAME_H, 0, -500, 500);
       gl.uniformMatrix4fv(loc.proj, false, projMat);
 
-      // [핵심] 상공을 가로지르는 듀얼 무빙 라이트
+      // 듀얼 무빙 라이트
       const t = frameCount * 0.035;
-
-      // 1번 라이트 (화이트 썬 궤도 회전)
-      const l1x = Math.cos(t) * 0.55;
-      const l1y = Math.sin(t * 0.8) * 0.55;
-      const l1z = 0.85;
-      gl.uniform3f(loc.light1Dir, l1x, l1y, l1z);
-
-      // 2번 보조 라이트 (역방향 반사 궤도)
-      const l2x = Math.cos(-t * 1.2) * 0.7;
-      const l2y = Math.sin(-t * 0.9) * 0.7;
-      const l2z = 0.75;
-      gl.uniform3f(loc.light2Dir, l2x, l2y, l2z);
+      gl.uniform3f(loc.light1Dir, Math.cos(t) * 0.55, Math.sin(t * 0.8) * 0.55, 0.85);
+      gl.uniform3f(loc.light2Dir, Math.cos(-t * 1.2) * 0.7, Math.sin(-t * 0.9) * 0.7, 0.75);
 
       const isGiant = activeEffects.giantPierceTimer > 0;
       if (balls.length > 0) {
@@ -1176,25 +1163,22 @@
       const wallColor = [0.72, 0.75, 0.82, 1.0];
       const wallD = 24;
 
-      // 좌측 벽
       let m = Mat4.identity();
       m = Mat4.translate(m, [6, (24 + GAME_H) / 2, 0]);
       m = Mat4.scale(m, [12, GAME_H - 24, wallD]);
-      drawMesh(roundedBoxGeo, m, wallColor, 50.0);
+      drawMesh(roundBoxGeo, m, wallColor, 50.0);
 
-      // 우측 벽
       m = Mat4.identity();
       m = Mat4.translate(m, [GAME_W - 6, (24 + GAME_H) / 2, 0]);
       m = Mat4.scale(m, [12, GAME_H - 24, wallD]);
-      drawMesh(roundedBoxGeo, m, wallColor, 50.0);
+      drawMesh(roundBoxGeo, m, wallColor, 50.0);
 
-      // 상단 벽
       m = Mat4.identity();
       m = Mat4.translate(m, [GAME_W / 2, 30, 0]);
       m = Mat4.scale(m, [GAME_W, 12, wallD]);
-      drawMesh(roundedBoxGeo, m, wallColor, 50.0);
+      drawMesh(roundBoxGeo, m, wallColor, 50.0);
 
-      // 2) 3D 라운드 벽돌 렌더링
+      // 2) 3D 라운드 벽돌
       for (let b of bricks) {
         if (b.hp <= 0) continue;
         m = Mat4.identity();
@@ -1203,7 +1187,7 @@
 
         const isGlass = b.type === 'GLASS' ? 1.0 : 0.0;
         const shine = (b.type === 'GOLD' || b.type === 'SILVER') ? 80.0 : 35.0;
-        drawMesh(roundedBoxGeo, m, b.currentColor, shine, isGlass);
+        drawMesh(roundBoxGeo, m, b.currentColor, shine, isGlass);
       }
 
       // 3) 3D 라운드 패들
@@ -1211,26 +1195,44 @@
       m = Mat4.identity();
       m = Mat4.translate(m, [paddle.x + paddle.w / 2, paddle.y + paddle.h / 2, 0]);
       m = Mat4.scale(m, [paddle.w, paddle.h, paddle.d]);
-      drawMesh(roundedBoxGeo, m, paddleCol, 45.0);
+      drawMesh(roundBoxGeo, m, paddleCol, 45.0);
 
-      // 패들 내부 크롬 코어 라인
       m = Mat4.identity();
       m = Mat4.translate(m, [paddle.x + paddle.w / 2, paddle.y + paddle.h / 2, 3]);
       m = Mat4.scale(m, [Math.max(4, paddle.w - 18), paddle.h - 4, paddle.d]);
-      drawMesh(roundedBoxGeo, m, [1.0, 1.0, 1.0, 1.0], 90.0);
+      drawMesh(roundBoxGeo, m, [1.0, 1.0, 1.0, 1.0], 90.0);
 
-      // 4) 3D 공
+      // 4) 3D 공 및 혜성 잔상 트레일 (Comet Fire Trail)
       const currentRadius = isGiant ? BASE_BALL_R * 2.8 : BASE_BALL_R;
-      const ballCol = isGiant ? [1.0, 0.3, 0.1, 1.0] : [1.0, 1.0, 1.0, 1.0];
 
       for (let b of balls) {
+        // 거대 화염 관통 모드 시 화염 잔상 꼬리 렌더링
+        if (isGiant && b.trail.length > 0) {
+          for (let idx = 0; idx < b.trail.length; idx++) {
+            const pt = b.trail[idx];
+            const progress = (idx + 1) / b.trail.length; // 0 ~ 1 (뒤로 갈수록 작고 투명해짐)
+            const trailR = currentRadius * (1.0 - progress * 0.65);
+            const alpha = (1.0 - progress) * 0.75;
+
+            // 오렌지-레드 화염 그라데이션 컬러
+            const trailCol = [1.0, 0.15 + (1.0 - progress) * 0.55, 0.0, alpha];
+
+            m = Mat4.identity();
+            m = Mat4.translate(m, [pt.x, pt.y, 3 - idx * 0.1]);
+            m = Mat4.scale(m, [trailR * 2, trailR * 2, trailR * 2]);
+            drawMesh(sphereGeo, m, trailCol, 80.0);
+          }
+        }
+
+        // 메인 볼 렌더링
+        const ballCol = isGiant ? [1.0, 0.35, 0.05, 1.0] : [1.0, 1.0, 1.0, 1.0];
         m = Mat4.identity();
         m = Mat4.translate(m, [b.x, b.y, 6]);
         m = Mat4.scale(m, [currentRadius * 2, currentRadius * 2, currentRadius * 2]);
         drawMesh(sphereGeo, m, ballCol, 100.0);
       }
 
-      // 5) 3D 아이템 (자전 실린더)
+      // 5) 3D 라운드 캡슐 아이템
       for (let it of items) {
         m = Mat4.identity();
         m = Mat4.translate(m, [it.x, it.y, 0]);
@@ -1249,7 +1251,7 @@
         m = Mat4.rotateY(m, p.rotY);
         m = Mat4.scale(m, [4.5, 4.5, 4.5]);
         const pCol = [p.color[0], p.color[1], p.color[2], p.alpha];
-        drawMesh(roundedBoxGeo, m, pCol, 30.0);
+        drawMesh(roundBoxGeo, m, pCol, 30.0);
       }
     }
 

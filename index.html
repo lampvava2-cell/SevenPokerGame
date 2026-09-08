@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-  <title>알카노이드 FX 3D - Smooth Round & Comet Trail</title>
+  <title>알카노이드 FX 3D - Bling & Rounded</title>
   <style>
     * {
       box-sizing: border-box;
@@ -17,7 +17,7 @@
       width: 100vw;
       height: 100vh;
       overflow: hidden;
-      background-color: #000;
+      background-color: #0b0914;
       display: flex;
       justify-content: center;
       align-items: center;
@@ -25,8 +25,9 @@
     }
     #gameContainer {
       position: relative;
-      background-color: #000;
-      box-shadow: 0 0 30px rgba(0, 0, 0, 0.95);
+      background-color: #0b0914;
+      box-shadow: 0 0 35px rgba(255, 105, 180, 0.25);
+      border-radius: 12px;
       overflow: hidden;
     }
     #ytPlayerWrapper {
@@ -57,7 +58,7 @@
       width: 100%;
       height: 100%;
       pointer-events: none;
-      filter: brightness(0.5) contrast(1.05);
+      filter: brightness(0.55) contrast(1.1);
     }
     #glCanvas {
       position: absolute;
@@ -80,7 +81,8 @@
     .overlay {
       position: absolute;
       inset: 0;
-      background: rgba(0, 0, 0, 0.82);
+      background: rgba(15, 10, 25, 0.85);
+      backdrop-filter: blur(4px);
       display: flex;
       flex-direction: column;
       justify-content: center;
@@ -89,16 +91,18 @@
       z-index: 10;
     }
     .btn {
-      margin-top: 20px;
-      padding: 14px 34px;
+      margin-top: 22px;
+      padding: 14px 36px;
       font-size: 18px;
-      font-weight: bold;
-      background: linear-gradient(45deg, #e60012, #ff4500);
+      font-weight: 900;
+      background: linear-gradient(135deg, #ff4081, #ff80ab, #ffd54f);
       color: #fff;
       border: none;
-      border-radius: 8px;
+      border-radius: 25px;
       cursor: pointer;
-      box-shadow: 0 0 15px rgba(230, 0, 18, 0.6);
+      box-shadow: 0 0 20px rgba(255, 64, 129, 0.7);
+      text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+      letter-spacing: 1px;
     }
   </style>
   <script src="https://www.youtube.com/iframe_api"></script>
@@ -116,15 +120,15 @@
   </div>
 
   <div class="overlay" id="startOverlay">
-    <h1 style="color: #ff3333; margin-bottom: 4px; text-shadow: 0 0 10px #ff0055;">ARKANOID 3D ULTRA</h1>
-    <p style="color: #ccc; font-size: 13px; margin-bottom: 2px;">완전 둥근 3D 오브젝트 & 혜성 화염 트레일</p>
-    <p style="color: #ff0055; font-size: 13px;">[G] 캡슐: 혜성 화염 관통 모드</p>
-    <button class="btn" onclick="startGame()">게임 시작</button>
+    <h1 style="color: #ff4081; margin-bottom: 6px; text-shadow: 0 0 14px #ff80ab; font-size: 28px;">★ ARKANOID POP ★</h1>
+    <p style="color: #ffd54f; font-size: 13px; margin-bottom: 3px; font-weight: bold;">블링블링 젤리 3D & 10 STAGES</p>
+    <p style="color: #ff80ab; font-size: 13px;">[G] 캡슐: 혜성 스파클 관통 모드</p>
+    <button class="btn" onclick="startGame()">START GAME</button>
   </div>
 
   <div class="overlay" id="gameOverOverlay" style="display: none;">
-    <h1 id="overTitle" style="color: #ff3333;">GAME OVER</h1>
-    <p id="finalScore" style="font-size: 16px;">점수: 0</p>
+    <h1 id="overTitle" style="color: #ff4081; text-shadow: 0 0 12px #ff80ab;">GAME OVER</h1>
+    <p id="finalScore" style="font-size: 16px; color: #ffd54f;">점수: 0</p>
     <button class="btn" id="overBtn" onclick="restartGame()">다시하기</button>
   </div>
 
@@ -213,31 +217,32 @@
 
     const sound = {
       hitBrickByType: (type, isDestroyed) => {
-        if (type === 'GOLD') playTone(220, 'square', 0.12, isDestroyed ? 90 : 160, 0.25);
-        else if (type === 'SILVER') playTone(340, 'triangle', 0.1, isDestroyed ? 140 : 260, 0.22);
+        if (type === 'GOLD') playTone(587, 'sine', 0.12, isDestroyed ? 880 : 700, 0.25);
+        else if (type === 'SILVER') playTone(523, 'triangle', 0.1, isDestroyed ? 784 : 650, 0.22);
         else if (type === 'GLASS') {
           playTone(1050, 'sine', 0.18, 1400, 0.28);
           setTimeout(() => playTone(1580, 'sine', 0.12, 1900, 0.2), 30);
-        } else if (type === 'RED') playTone(440, 'square', 0.08, 520, 0.18);
-        else if (type === 'ORANGE') playTone(494, 'square', 0.08, 580, 0.18);
-        else if (type === 'YELLOW') playTone(554, 'square', 0.08, 660, 0.18);
-        else if (type === 'GREEN') playTone(659, 'square', 0.08, 780, 0.18);
-        else playTone(740, 'square', 0.08, 880, 0.18);
+        } else if (type === 'RED') playTone(440, 'triangle', 0.08, 550, 0.2);
+        else if (type === 'ORANGE') playTone(494, 'triangle', 0.08, 620, 0.2);
+        else if (type === 'YELLOW') playTone(554, 'triangle', 0.08, 690, 0.2);
+        else if (type === 'GREEN') playTone(659, 'triangle', 0.08, 830, 0.2);
+        else playTone(740, 'triangle', 0.08, 920, 0.2);
       },
-      hitPaddle: () => playTone(220, 'triangle', 0.12, 110, 0.25),
-      hitWall: () => playTone(440, 'sine', 0.04, null, 0.1),
+      hitPaddle: () => playTone(330, 'triangle', 0.1, 220, 0.25),
+      hitWall: () => playTone(660, 'sine', 0.03, null, 0.12),
       powerUp: () => {
-        playTone(400, 'square', 0.08, null, 0.25);
-        setTimeout(() => playTone(600, 'square', 0.08, null, 0.25), 70);
-        setTimeout(() => playTone(800, 'square', 0.14, null, 0.25), 140);
+        playTone(523, 'sine', 0.08, null, 0.25);
+        setTimeout(() => playTone(659, 'sine', 0.08, null, 0.25), 60);
+        setTimeout(() => playTone(784, 'sine', 0.08, null, 0.25), 120);
+        setTimeout(() => playTone(1046, 'sine', 0.15, null, 0.25), 180);
       },
       stageClear: () => {
-        playTone(523, 'triangle', 0.1, null, 0.25);
-        setTimeout(() => playTone(659, 'triangle', 0.1, null, 0.25), 100);
-        setTimeout(() => playTone(784, 'triangle', 0.15, null, 0.25), 200);
-        setTimeout(() => playTone(1046, 'triangle', 0.3, null, 0.3), 300);
+        playTone(523, 'sine', 0.1, null, 0.25);
+        setTimeout(() => playTone(659, 'sine', 0.1, null, 0.25), 100);
+        setTimeout(() => playTone(784, 'sine', 0.15, null, 0.25), 200);
+        setTimeout(() => playTone(1046, 'sine', 0.3, null, 0.3), 300);
       },
-      loseLife: () => playTone(250, 'sawtooth', 0.35, 40, 0.3)
+      loseLife: () => playTone(220, 'sawtooth', 0.35, 60, 0.3)
     };
 
     // --- 3. 행렬 연산 유틸 ---
@@ -309,7 +314,7 @@
       }
     };
 
-    // --- 4. WebGL 2.0 고휘도 셰이더 ---
+    // --- 4. WebGL 2.0 블링블링 젤리 광택 셰이더 ---
     const glCanvas = document.getElementById('glCanvas');
     const gl = glCanvas.getContext('webgl2', { alpha: true, antialias: true });
 
@@ -339,8 +344,8 @@
       in vec3 vWorldPos;
 
       uniform vec4 uColor;
-      uniform vec3 uLight1Dir;
-      uniform vec3 uLight2Dir;
+      uniform vec3 uLight1Dir;         // 무빙 라이트 1
+      uniform vec3 uLight2Dir;         // 무빙 라이트 2
       uniform vec3 uBallPos;
       uniform vec3 uBallColor;
       uniform float uShininess;
@@ -352,38 +357,38 @@
         vec3 N = normalize(vNormal);
         vec3 V = vec3(0.0, 0.0, 1.0);
 
+        // 1) 블링블링 화사한 베이스 앰비언트 (캔디 젤리 룩)
         vec3 base = uColor.rgb;
-        vec3 ambient = base * 0.90;
+        vec3 ambient = base * 0.92;
 
-        // 1번 주 무빙 라이트
+        // 2) 듀얼 무빙 라이트 스펙큘러 (반짝거리는 펄 광택)
         vec3 L1 = normalize(uLight1Dir);
         float diff1 = max(dot(N, L1), 0.0);
         vec3 H1 = normalize(L1 + V);
         float spec1 = pow(max(dot(N, H1), 0.0), uShininess);
-        vec3 light1 = (base * diff1 * 0.52) + (vec3(1.0, 1.0, 1.0) * spec1 * 0.9);
+        vec3 light1 = (base * diff1 * 0.45) + (vec3(1.0, 0.95, 1.0) * spec1 * 1.25);
 
-        // 2번 보조 무빙 라이트
         vec3 L2 = normalize(uLight2Dir);
         float diff2 = max(dot(N, L2), 0.0);
         vec3 H2 = normalize(L2 + V);
         float spec2 = pow(max(dot(N, H2), 0.0), uShininess);
-        vec3 light2 = (vec3(0.3, 0.85, 1.0) * diff2 * 0.38) + (vec3(0.6, 0.9, 1.0) * spec2 * 0.55);
+        vec3 light2 = (vec3(0.5, 0.9, 1.0) * diff2 * 0.35) + (vec3(1.0, 0.8, 1.0) * spec2 * 0.75);
 
-        // 둥근 엣지 림 라이트
+        // 3) 부드러운 젤리 림 글로우 (프레넬 테두리 발광)
         float rim = 1.0 - max(dot(N, V), 0.0);
-        vec3 rimLight = vec3(1.0) * pow(rim, 2.2) * 0.45;
+        vec3 rimGlow = vec3(1.0, 0.85, 0.95) * pow(rim, 2.0) * 0.55;
 
-        // 볼 발광 반사
+        // 4) 다이내믹 볼 스파클
         vec3 toBall = uBallPos - vWorldPos;
         float dist = length(toBall);
-        float ballAtten = clamp(1.0 - dist / 160.0, 0.0, 1.0);
+        float ballAtten = clamp(1.0 - dist / 170.0, 0.0, 1.0);
         vec3 ballGlow = uBallColor * (ballAtten * 0.45);
 
-        vec3 finalColor = ambient + light1 + light2 + rimLight + ballGlow;
+        vec3 finalColor = ambient + light1 + light2 + rimGlow + ballGlow;
         float alpha = uColor.a;
 
         if (uIsGlass > 0.5) {
-          finalColor += vec3(0.2, 0.4, 0.5);
+          finalColor += vec3(0.25, 0.45, 0.6);
           alpha = 0.85;
         }
 
@@ -421,11 +426,11 @@
       glass: gl.getUniformLocation(program, "uIsGlass")
     };
 
-    // --- 5. 모서리를 둥글게 굴린 하이폴리 3D 메쉬 (Super Round Box) ---
-    function createSuperRoundBoxGeometry(bevel = 0.32) {
+    // --- 5. 날카로운 엣지를 완전히 없앤 동글동글 필렛 메쉬 ---
+    function createCuteRoundBoxGeometry(bevel = 0.42) {
       const p = 0.5, n = -0.5;
       const bp = 0.5 - bevel, bn = -0.5 + bevel;
-      const bz = 0.5 - bevel * 0.5;
+      const bz = 0.5 - bevel * 0.55;
 
       const positions = [];
       const normals = [];
@@ -440,25 +445,25 @@
         addTri(p0, p2, p3, n0, n2, n3);
       }
 
-      // 1) 상단 평면 (+Z 정면 노멀)
+      // 1) 상단 메인 윗면
       addQuad(
         [bn, bn, p], [bp, bn, p], [bp, bp, p], [bn, bp, p],
         [0,0,1], [0,0,1], [0,0,1], [0,0,1]
       );
 
-      // 2) 4방향 둥근 모서리 (원통형 곡면 보간 노멀)
+      // 2) 4방향 모서리를 도톰하게 굴린 캡슐 경사면
       addQuad([bn, bp, p], [bp, bp, p], [bp, p, bz], [bn, p, bz], [0, 0.45, 0.89], [0, 0.45, 0.89], [0, 0.89, 0.45], [0, 0.89, 0.45]);
       addQuad([bp, bn, p], [bn, bn, p], [bn, -p, bz], [bp, -p, bz], [0, -0.45, 0.89], [0, -0.45, 0.89], [0, -0.89, 0.45], [0, -0.89, 0.45]);
       addQuad([bp, bn, p], [bp, -p, bz], [p, bp, bz], [bp, bp, p], [0.45, 0, 0.89], [0.89, 0, 0.45], [0.89, 0, 0.45], [0.45, 0, 0.89]);
       addQuad([bn, bp, p], [-p, bp, bz], [-p, bn, bz], [bn, bn, p], [-0.45, 0, 0.89], [-0.89, 0, 0.45], [-0.89, 0, 0.45], [-0.45, 0, 0.89]);
 
-      // 3) 4개 코너 구형 필렛 (Corner Spherical Fillets)
-      addTri([bp, bp, p], [p, bp, bz], [bp, p, bz], [0.4, 0.4, 0.8], [0.8, 0.4, 0.4], [0.4, 0.8, 0.4]);
-      addTri([bn, bp, p], [bn, p, bz], [-p, bp, bz], [-0.4, 0.4, 0.8], [-0.4, 0.8, 0.4], [-0.8, 0.4, 0.4]);
-      addTri([bn, bn, p], [-p, bn, bz], [bn, -p, bz], [-0.4, -0.4, 0.8], [-0.8, -0.4, 0.4], [-0.4, -0.8, 0.4]);
-      addTri([bp, bn, p], [bp, -p, bz], [p, bn, bz], [0.4, -0.4, 0.8], [0.4, -0.8, 0.4], [0.8, -0.4, 0.4]);
+      // 3) 4개 꼭짓점의 둥근 구형 코너 (완전 둥근 조약돌 효과)
+      addTri([bp, bp, p], [p, bp, bz], [bp, p, bz], [0.35, 0.35, 0.86], [0.86, 0.35, 0.35], [0.35, 0.86, 0.35]);
+      addTri([bn, bp, p], [bn, p, bz], [-p, bp, bz], [-0.35, 0.35, 0.86], [-0.35, 0.86, 0.35], [-0.86, 0.35, 0.35]);
+      addTri([bn, bn, p], [-p, bn, bz], [bn, -p, bz], [-0.35, -0.35, 0.86], [-0.86, -0.35, 0.35], [-0.35, -0.86, 0.35]);
+      addTri([bp, bn, p], [bp, -p, bz], [p, bn, bz], [0.35, -0.35, 0.86], [0.35, -0.86, 0.35], [0.86, -0.35, 0.35]);
 
-      // 4) 4측면 (Sides)
+      // 4) 부드러운 측면
       addQuad([p, -p, bz], [p, -p, n], [p, p, n], [p, p, bz], [1,0,0], [1,0,0], [1,0,0], [1,0,0]);
       addQuad([-p, p, bz], [-p, p, n], [-p, -p, n], [-p, -p, bz], [-1,0,0], [-1,0,0], [-1,0,0], [-1,0,0]);
       addQuad([-p, p, bz], [p, p, bz], [p, p, n], [-p, p, n], [0,1,0], [0,1,0], [0,1,0], [0,1,0]);
@@ -486,7 +491,7 @@
       return { vao, count: positions.length / 3 };
     }
 
-    function createSphereGeometry(latBands = 20, lonBands = 20) {
+    function createSphereGeometry(latBands = 22, lonBands = 22) {
       const positions = [];
       const normals = [];
       const indices = [];
@@ -539,7 +544,8 @@
       return { vao, count: indices.length, isIndexed: true };
     }
 
-    function createCylinderGeometry(segments = 20) {
+    function createCapsuleGeometry(segments = 20) {
+      // 둥글둥글한 3D 캡슐 아이템
       const positions = [];
       const normals = [];
 
@@ -550,16 +556,17 @@
         const x0 = Math.cos(a0), y0 = Math.sin(a0);
         const x1 = Math.cos(a1), y1 = Math.sin(a1);
 
-        positions.push(x0, y0, -0.5,  x1, y1, -0.5,  x1, y1, 0.5);
-        positions.push(x0, y0, -0.5,  x1, y1, 0.5,   x0, y0, 0.5);
+        positions.push(x0, y0, -0.35,  x1, y1, -0.35,  x1, y1, 0.35);
+        positions.push(x0, y0, -0.35,  x1, y1, 0.35,   x0, y0, 0.35);
         normals.push(x0, y0, 0,  x1, y1, 0,  x1, y1, 0);
         normals.push(x0, y0, 0,  x1, y1, 0,  x0, y0, 0);
 
-        positions.push(0, 0, 0.5,  x0, y0, 0.5,  x1, y1, 0.5);
-        normals.push(0, 0, 1,  0, 0, 1,  0, 0, 1);
+        // 둥근 반구형 캡 (Caps)
+        positions.push(0, 0, 0.5,  x0 * 0.8, y0 * 0.8, 0.35,  x1 * 0.8, y1 * 0.8, 0.35);
+        normals.push(0, 0, 1,  x0 * 0.5, y0 * 0.5, 0.8,  x1 * 0.5, y1 * 0.5, 0.8);
 
-        positions.push(0, 0, -0.5,  x1, y1, -0.5,  x0, y0, -0.5);
-        normals.push(0, 0, -1,  0, 0, -1,  0, 0, -1);
+        positions.push(0, 0, -0.5,  x1 * 0.8, y1 * 0.8, -0.35,  x0 * 0.8, y0 * 0.8, -0.35);
+        normals.push(0, 0, -1,  x1 * 0.5, y1 * 0.5, -0.8,  x0 * 0.5, y0 * 0.5, -0.8);
       }
 
       const vao = gl.createVertexArray();
@@ -581,9 +588,9 @@
       return { vao, count: positions.length / 3 };
     }
 
-    const roundBoxGeo = createSuperRoundBoxGeometry(0.32);
-    const sphereGeo = createSphereGeometry(20, 20);
-    const cylinderGeo = createCylinderGeometry(20);
+    const cuteRoundBoxGeo = createCuteRoundBoxGeometry(0.42);
+    const sphereGeo = createSphereGeometry(22, 22);
+    const capsuleGeo = createCapsuleGeometry(20);
 
     function getNormalMatrix(modelMat) {
       const a00 = modelMat[0], a01 = modelMat[1], a02 = modelMat[2];
@@ -605,7 +612,7 @@
       ]);
     }
 
-    // --- 6. 모바일 해상도 및 스테이지 맵 데이터 (1~10 STAGES) ---
+    // --- 6. 모바일 화면 및 10개 스테이지 데이터 ---
     const GAME_W = 360;
     const GAME_H = 640;
 
@@ -651,8 +658,8 @@
     const PADDLE_DEFAULT_W = 68;
     const paddle = {
       w: PADDLE_DEFAULT_W,
-      h: 14,
-      d: 14,
+      h: 15,
+      d: 15,
       x: GAME_W / 2 - 34,
       y: PADDLE_DEFAULT_Y
     };
@@ -667,9 +674,9 @@
 
     let items = [];
     const ITEM_TYPES = [
-      { type: 'MULTI', label: 'M', color: [0.1, 1.0, 1.0, 1.0] },
-      { type: 'GIANT_PIERCE', label: 'G', color: [1.0, 0.05, 0.35, 1.0] },
-      { type: 'EXPAND', label: 'E', color: [0.25, 1.0, 0.1, 1.0] }
+      { type: 'MULTI', label: 'M', color: [0.3, 0.95, 1.0, 1.0] },
+      { type: 'GIANT_PIERCE', label: 'G', color: [1.0, 0.25, 0.65, 1.0] },
+      { type: 'EXPAND', label: 'E', color: [0.45, 1.0, 0.35, 1.0] }
     ];
     let activeEffects = {
       giantPierceTimer: 0,
@@ -819,35 +826,36 @@
           if (char === '0') continue;
 
           let maxHp = 1;
-          let color = [1.0, 0.25, 0.25, 1.0];
+          // 아기자기한 캔디 파스텔 컬러 팔레트
+          let color = [1.0, 0.35, 0.45, 1.0]; // 캔디 로즈
           let type = 'RED';
 
           if (char === 'G') {
             maxHp = 3;
-            color = [1.0, 0.88, 0.15, 1.0];
+            color = [1.0, 0.85, 0.25, 1.0]; // 허니 골드
             type = 'GOLD';
           } else if (char === 'S') {
             maxHp = 2;
-            color = [0.92, 0.94, 0.98, 1.0];
+            color = [0.92, 0.95, 1.0, 1.0];  // 펄 화이트
             type = 'SILVER';
           } else if (char === 'C') {
             maxHp = 1;
-            color = [0.55, 0.98, 1.0, 0.78];
+            color = [0.45, 0.95, 1.0, 0.85]; // 민트 크리스탈
             type = 'GLASS';
           } else if (char === '1') {
-            color = [1.0, 0.25, 0.25, 1.0];
+            color = [1.0, 0.35, 0.45, 1.0]; // 스트로베리
             type = 'RED';
           } else if (char === '2') {
-            color = [1.0, 0.55, 0.1, 1.0];
+            color = [1.0, 0.60, 0.20, 1.0]; // 탠저린 오렌지
             type = 'ORANGE';
           } else if (char === '3') {
-            color = [1.0, 0.92, 0.1, 1.0];
+            color = [1.0, 0.90, 0.25, 1.0]; // 레몬 마카롱
             type = 'YELLOW';
           } else if (char === '4') {
-            color = [0.15, 0.92, 0.4, 1.0];
+            color = [0.35, 0.92, 0.55, 1.0]; // 애플 민트
             type = 'GREEN';
           } else if (char === '5') {
-            color = [0.15, 0.65, 1.0, 1.0];
+            color = [0.35, 0.70, 1.0, 1.0]; // 소다 블루
             type = 'BLUE';
           }
 
@@ -872,7 +880,7 @@
     }
 
     function spawnExplosion3D(x, y, w, h, color, isGlass) {
-      const count = isGlass ? 18 : 12;
+      const count = isGlass ? 20 : 14;
       for (let i = 0; i < count; i++) {
         particles3D.push({
           x: x + w / 2,
@@ -900,7 +908,7 @@
         dy: dy,
         speed: spd,
         hitCooldown: 0,
-        trail: [] // 혜성 잔상 위치 큐
+        trail: []
       };
     }
 
@@ -948,12 +956,12 @@
 
     function updateBrickColor(b) {
       if (b.type === 'GOLD') {
-        if (b.hp === 3) b.currentColor = [1.0, 0.88, 0.15, 1.0];
-        else if (b.hp === 2) b.currentColor = [0.88, 0.58, 0.2, 1.0];
-        else b.currentColor = [0.48, 0.3, 0.16, 1.0];
+        if (b.hp === 3) b.currentColor = [1.0, 0.85, 0.25, 1.0];
+        else if (b.hp === 2) b.currentColor = [0.95, 0.65, 0.25, 1.0];
+        else b.currentColor = [0.65, 0.45, 0.25, 1.0];
       } else if (b.type === 'SILVER') {
-        if (b.hp === 2) b.currentColor = [0.92, 0.94, 0.98, 1.0];
-        else b.currentColor = [0.58, 0.64, 0.72, 1.0];
+        if (b.hp === 2) b.currentColor = [0.92, 0.95, 1.0, 1.0];
+        else b.currentColor = [0.70, 0.75, 0.85, 1.0];
       }
     }
 
@@ -988,10 +996,10 @@
       for (let i = balls.length - 1; i >= 0; i--) {
         const ball = balls[i];
 
-        // 혜성 잔상 큐 업데이트
+        // 혜성 화염 잔상 큐 업데이트
         if (isGiant) {
           ball.trail.unshift({ x: ball.x, y: ball.y });
-          if (ball.trail.length > 16) ball.trail.pop();
+          if (ball.trail.length > 18) ball.trail.pop();
         } else {
           ball.trail = [];
         }
@@ -1112,7 +1120,7 @@
       }
     }
 
-    // --- 8. OpenGL 3D 렌더 파이프라인 (완전 둥근 메쉬 & 혜성 잔상 렌더링) ---
+    // --- 8. OpenGL 3D 렌더 파이프라인 ---
     function render3D() {
       gl.enable(gl.DEPTH_TEST);
       gl.depthFunc(gl.LEQUAL);
@@ -1129,15 +1137,15 @@
       const projMat = Mat4.ortho2D(0, GAME_W, GAME_H, 0, -500, 500);
       gl.uniformMatrix4fv(loc.proj, false, projMat);
 
-      // 듀얼 무빙 라이트
+      // 다이내믹 무빙 라이트 (블링블링 궤도 공전)
       const t = frameCount * 0.035;
-      gl.uniform3f(loc.light1Dir, Math.cos(t) * 0.55, Math.sin(t * 0.8) * 0.55, 0.85);
-      gl.uniform3f(loc.light2Dir, Math.cos(-t * 1.2) * 0.7, Math.sin(-t * 0.9) * 0.7, 0.75);
+      gl.uniform3f(loc.light1Dir, Math.cos(t) * 0.65, Math.sin(t * 0.8) * 0.65, 0.85);
+      gl.uniform3f(loc.light2Dir, Math.cos(-t * 1.3) * 0.7, Math.sin(-t * 0.9) * 0.7, 0.75);
 
       const isGiant = activeEffects.giantPierceTimer > 0;
       if (balls.length > 0) {
         gl.uniform3f(loc.ballPos, balls[0].x, balls[0].y, 10.0);
-        gl.uniform3f(loc.ballColor, isGiant ? 1.0 : 0.2, isGiant ? 0.2 : 0.8, isGiant ? 0.05 : 1.0);
+        gl.uniform3f(loc.ballColor, isGiant ? 1.0 : 0.4, isGiant ? 0.3 : 0.85, isGiant ? 0.8 : 1.0);
       } else {
         gl.uniform3f(loc.ballPos, -999, -999, 0);
         gl.uniform3f(loc.ballColor, 0, 0, 0);
@@ -1159,26 +1167,26 @@
         gl.bindVertexArray(null);
       }
 
-      // 1) 3D 라운드 프레임 월
-      const wallColor = [0.72, 0.75, 0.82, 1.0];
+      // 1) 둥글둥글 파스텔 테두리 프레임 월
+      const wallColor = [0.85, 0.80, 0.95, 1.0]; // 라벤더 펄
       const wallD = 24;
 
       let m = Mat4.identity();
       m = Mat4.translate(m, [6, (24 + GAME_H) / 2, 0]);
       m = Mat4.scale(m, [12, GAME_H - 24, wallD]);
-      drawMesh(roundBoxGeo, m, wallColor, 50.0);
+      drawMesh(cuteRoundBoxGeo, m, wallColor, 50.0);
 
       m = Mat4.identity();
       m = Mat4.translate(m, [GAME_W - 6, (24 + GAME_H) / 2, 0]);
       m = Mat4.scale(m, [12, GAME_H - 24, wallD]);
-      drawMesh(roundBoxGeo, m, wallColor, 50.0);
+      drawMesh(cuteRoundBoxGeo, m, wallColor, 50.0);
 
       m = Mat4.identity();
       m = Mat4.translate(m, [GAME_W / 2, 30, 0]);
       m = Mat4.scale(m, [GAME_W, 12, wallD]);
-      drawMesh(roundBoxGeo, m, wallColor, 50.0);
+      drawMesh(cuteRoundBoxGeo, m, wallColor, 50.0);
 
-      // 2) 3D 라운드 벽돌
+      // 2) 동글동글 젤리 벽돌 렌더링
       for (let b of bricks) {
         if (b.hp <= 0) continue;
         m = Mat4.identity();
@@ -1186,72 +1194,71 @@
         m = Mat4.scale(m, [b.w, b.h, BRICK_D]);
 
         const isGlass = b.type === 'GLASS' ? 1.0 : 0.0;
-        const shine = (b.type === 'GOLD' || b.type === 'SILVER') ? 80.0 : 35.0;
-        drawMesh(roundBoxGeo, m, b.currentColor, shine, isGlass);
+        const shine = (b.type === 'GOLD' || b.type === 'SILVER') ? 90.0 : 45.0;
+        drawMesh(cuteRoundBoxGeo, m, b.currentColor, shine, isGlass);
       }
 
-      // 3) 3D 라운드 패들
-      const paddleCol = activeEffects.expandTimer > 0 ? [0.25, 1.0, 0.15, 1.0] : [1.0, 0.25, 0.22, 1.0];
+      // 3) 둥근 캡슐형 젤리 패들
+      const paddleCol = activeEffects.expandTimer > 0 ? [0.45, 1.0, 0.35, 1.0] : [1.0, 0.35, 0.65, 1.0]; // 팝 핑크
       m = Mat4.identity();
       m = Mat4.translate(m, [paddle.x + paddle.w / 2, paddle.y + paddle.h / 2, 0]);
       m = Mat4.scale(m, [paddle.w, paddle.h, paddle.d]);
-      drawMesh(roundBoxGeo, m, paddleCol, 45.0);
+      drawMesh(cuteRoundBoxGeo, m, paddleCol, 55.0);
 
+      // 패들 중앙 블링블링 하이라이트 코어
       m = Mat4.identity();
       m = Mat4.translate(m, [paddle.x + paddle.w / 2, paddle.y + paddle.h / 2, 3]);
       m = Mat4.scale(m, [Math.max(4, paddle.w - 18), paddle.h - 4, paddle.d]);
-      drawMesh(roundBoxGeo, m, [1.0, 1.0, 1.0, 1.0], 90.0);
+      drawMesh(cuteRoundBoxGeo, m, [1.0, 0.95, 1.0, 1.0], 95.0);
 
-      // 4) 3D 공 및 혜성 잔상 트레일 (Comet Fire Trail)
+      // 4) 3D 공 및 혜성 스파클 잔상 트레일
       const currentRadius = isGiant ? BASE_BALL_R * 2.8 : BASE_BALL_R;
 
       for (let b of balls) {
-        // 거대 화염 관통 모드 시 화염 잔상 꼬리 렌더링
         if (isGiant && b.trail.length > 0) {
           for (let idx = 0; idx < b.trail.length; idx++) {
             const pt = b.trail[idx];
-            const progress = (idx + 1) / b.trail.length; // 0 ~ 1 (뒤로 갈수록 작고 투명해짐)
-            const trailR = currentRadius * (1.0 - progress * 0.65);
-            const alpha = (1.0 - progress) * 0.75;
+            const progress = (idx + 1) / b.trail.length;
+            const trailR = currentRadius * (1.0 - progress * 0.62);
+            const alpha = (1.0 - progress) * 0.85;
 
-            // 오렌지-레드 화염 그라데이션 컬러
-            const trailCol = [1.0, 0.15 + (1.0 - progress) * 0.55, 0.0, alpha];
+            // 핑크-골드-바이올렛 혜성 스파클 그라데이션
+            const trailCol = [1.0, 0.3 + (1.0 - progress) * 0.65, 0.85, alpha];
 
             m = Mat4.identity();
             m = Mat4.translate(m, [pt.x, pt.y, 3 - idx * 0.1]);
             m = Mat4.scale(m, [trailR * 2, trailR * 2, trailR * 2]);
-            drawMesh(sphereGeo, m, trailCol, 80.0);
+            drawMesh(sphereGeo, m, trailCol, 85.0);
           }
         }
 
-        // 메인 볼 렌더링
-        const ballCol = isGiant ? [1.0, 0.35, 0.05, 1.0] : [1.0, 1.0, 1.0, 1.0];
+        const ballCol = isGiant ? [1.0, 0.4, 0.85, 1.0] : [1.0, 1.0, 1.0, 1.0];
         m = Mat4.identity();
         m = Mat4.translate(m, [b.x, b.y, 6]);
         m = Mat4.scale(m, [currentRadius * 2, currentRadius * 2, currentRadius * 2]);
         drawMesh(sphereGeo, m, ballCol, 100.0);
       }
 
-      // 5) 3D 라운드 캡슐 아이템
+      // 5) 아기자기한 3D 캡슐 아이템
       for (let it of items) {
         m = Mat4.identity();
         m = Mat4.translate(m, [it.x, it.y, 0]);
         m = Mat4.rotateX(m, it.rotX);
         m = Mat4.rotateY(m, it.rotY);
         m = Mat4.rotateZ(m, Math.PI / 2);
-        m = Mat4.scale(m, [9.0, 9.0, 18.0]);
-        drawMesh(cylinderGeo, m, it.color, 60.0);
+        m = Mat4.scale(m, [10.0, 10.0, 20.0]);
+        drawMesh(capsuleGeo, m, it.color, 75.0);
       }
 
-      // 6) 3D 파편
+      // 6) 3D 조약돌 파편
       for (let p of particles3D) {
         m = Mat4.identity();
         m = Mat4.translate(m, [p.x, p.y, p.z]);
         m = Mat4.rotateX(m, p.rotX);
         m = Mat4.rotateY(m, p.rotY);
-        m = Mat4.scale(m, [4.5, 4.5, 4.5]);
+        m = Mat4.scale(m, [5.0, 5.0, 5.0]);
         const pCol = [p.color[0], p.color[1], p.color[2], p.alpha];
-        drawMesh(roundBoxGeo, m, pCol, 30.0);
+        drawMesh(cuteRoundBoxGeo, m, pCol, 35.0);
       }
     }
 
@@ -1262,49 +1269,56 @@
       hudCtx.save();
       hudCtx.scale(scale, scale);
 
-      hudCtx.fillStyle = '#000';
+      // 상단 HUD 바
+      hudCtx.fillStyle = 'rgba(15, 10, 25, 0.9)';
       hudCtx.fillRect(0, 0, GAME_W, 24);
 
       hudCtx.fillStyle = '#fff';
       hudCtx.font = 'bold 13px Courier New';
       hudCtx.fillText(`SCORE: ${score}`, 18, 17);
-      hudCtx.fillStyle = '#ffd700';
+      hudCtx.fillStyle = '#ffd54f';
       hudCtx.fillText(`ROUND ${currentStage}`, 145, 17);
-      hudCtx.fillStyle = '#e60012';
-      hudCtx.fillText(`LIVES: ${'● '.repeat(lives)}`, GAME_W - 105, 17);
+      hudCtx.fillStyle = '#ff4081';
+      hudCtx.fillText(`LIVES: ${'♥ '.repeat(lives)}`, GAME_W - 105, 17);
 
       if (activeEffects.giantPierceTimer > 0) {
-        hudCtx.fillStyle = '#ff3300';
-        hudCtx.fillText(`[COMET FIRE] ${(activeEffects.giantPierceTimer / 60).toFixed(1)}s`, 18, 48);
+        hudCtx.fillStyle = '#ff4081';
+        hudCtx.fillText(`[SPARKLE COMET] ${(activeEffects.giantPierceTimer / 60).toFixed(1)}s`, 18, 48);
       } else if (activeEffects.expandTimer > 0) {
-        hudCtx.fillStyle = '#39ff14';
+        hudCtx.fillStyle = '#69f0ae';
         hudCtx.fillText(`[EXPAND] ${(activeEffects.expandTimer / 60).toFixed(1)}s`, 18, 48);
       }
 
-      hudCtx.fillStyle = 'rgba(255, 255, 255, 0.05)';
-      hudCtx.fillRect(14, TOUCH_CONTROL_ZONE_Y, GAME_W - 28, GAME_H - TOUCH_CONTROL_ZONE_Y - 14);
+      // 하단 터치 트랙패드 영역 (아기자기한 라운드 박스)
+      hudCtx.fillStyle = 'rgba(255, 128, 171, 0.06)';
+      hudCtx.beginPath();
+      hudCtx.roundRect(14, TOUCH_CONTROL_ZONE_Y, GAME_W - 28, GAME_H - TOUCH_CONTROL_ZONE_Y - 14, 18);
+      hudCtx.fill();
 
-      hudCtx.strokeStyle = 'rgba(255, 255, 255, 0.28)';
-      hudCtx.setLineDash([5, 5]);
-      hudCtx.strokeRect(14, TOUCH_CONTROL_ZONE_Y, GAME_W - 28, GAME_H - TOUCH_CONTROL_ZONE_Y - 14);
+      hudCtx.strokeStyle = 'rgba(255, 128, 171, 0.35)';
+      hudCtx.lineWidth = 1.5;
+      hudCtx.setLineDash([6, 6]);
+      hudCtx.stroke();
       hudCtx.setLineDash([]);
 
-      hudCtx.fillStyle = 'rgba(255, 255, 255, 0.45)';
+      hudCtx.fillStyle = 'rgba(255, 213, 79, 0.85)';
       hudCtx.font = 'bold 11px Courier New';
       hudCtx.textAlign = 'center';
-      hudCtx.fillText("◀ TOUCH & DRAG ZONE ▶", GAME_W / 2, TOUCH_CONTROL_ZONE_Y + 28);
+      hudCtx.fillText("★ TOUCH & DRAG ZONE ★", GAME_W / 2, TOUCH_CONTROL_ZONE_Y + 28);
       hudCtx.font = '10px Courier New';
-      hudCtx.fillStyle = 'rgba(255, 255, 255, 0.3)';
-      hudCtx.fillText("(여기를 터치/드래그하여 패들을 이동하세요)", GAME_W / 2, TOUCH_CONTROL_ZONE_Y + 48);
+      hudCtx.fillStyle = 'rgba(255, 255, 255, 0.45)';
+      hudCtx.fillText("(여기를 스와이프하여 패들을 이동하세요)", GAME_W / 2, TOUCH_CONTROL_ZONE_Y + 48);
       hudCtx.textAlign = 'left';
 
       if (stageClearPause) {
-        hudCtx.fillStyle = 'rgba(0, 0, 0, 0.75)';
-        hudCtx.fillRect(20, GAME_H / 2 - 45, GAME_W - 40, 70);
-        hudCtx.fillStyle = '#4cd964';
+        hudCtx.fillStyle = 'rgba(15, 10, 25, 0.85)';
+        hudCtx.beginPath();
+        hudCtx.roundRect(20, GAME_H / 2 - 45, GAME_W - 40, 70, 16);
+        hudCtx.fill();
+        hudCtx.fillStyle = '#ffd54f';
         hudCtx.font = 'bold 20px Courier New';
         hudCtx.textAlign = 'center';
-        hudCtx.fillText(`STAGE ${currentStage} CLEAR!`, GAME_W / 2, GAME_H / 2 - 4);
+        hudCtx.fillText(`★ STAGE ${currentStage} CLEAR! ★`, GAME_W / 2, GAME_H / 2 - 4);
         hudCtx.textAlign = 'left';
       }
 
@@ -1388,8 +1402,8 @@
 
     function gameEndVictory() {
       isPlaying = false;
-      overTitle.textContent = "ALL CLEAR! CHAMPION";
-      overTitle.style.color = "#ffd700";
+      overTitle.textContent = "★ ALL CLEAR! CHAMPION ★";
+      overTitle.style.color = "#ffd54f";
       finalScore.textContent = `축하합니다! 10개 전 스테이지 클리어 | 점수: ${score}`;
       overBtn.textContent = "처음부터 다시하기";
       gameOverOverlay.style.display = 'flex';
@@ -1398,7 +1412,7 @@
     function gameOver() {
       isPlaying = false;
       overTitle.textContent = "GAME OVER";
-      overTitle.style.color = "#ff3333";
+      overTitle.style.color = "#ff4081";
       finalScore.textContent = `도달 스테이지: ${currentStage} / 10 | 최종 점수: ${score}`;
       overBtn.textContent = "다시하기";
       gameOverOverlay.style.display = 'flex';

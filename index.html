@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-  <title>알카노이드 FX 3D - OpenGL (WebGL 2.0)</title>
+  <title>알카노이드 FX 3D - OpenGL (Mobile Optimized)</title>
   <style>
     * {
       box-sizing: border-box;
@@ -74,7 +74,7 @@
       width: 100%;
       height: 100%;
       z-index: 3;
-      pointer-events: none;
+      touch-action: none;
       background: transparent;
     }
     .overlay {
@@ -111,15 +111,15 @@
         <div id="ytPlayer"></div>
       </div>
     </div>
-    <!-- 순수 OpenGL ES / WebGL 2.0 렌더 타겟 -->
+    <!-- OpenGL (WebGL 2.0) 캔버스 -->
     <canvas id="glCanvas"></canvas>
-    <!-- HUD 오버레이 -->
+    <!-- HUD 및 터치 입력 오버레이 -->
     <canvas id="hudCanvas"></canvas>
   </div>
 
   <div class="overlay" id="startOverlay">
     <h1 style="color: #ff3333; margin-bottom: 4px; text-shadow: 0 0 10px #ff0055;">ARKANOID OPENGL 3D</h1>
-    <p style="color: #aaa; font-size: 13px; margin-bottom: 2px;">하드웨어 가속 GLSL 셰이더 & 10 STAGES</p>
+    <p style="color: #aaa; font-size: 13px; margin-bottom: 2px;">모바일 핸드 가림 방지 최적화 뷰</p>
     <p style="color: #ff0055; font-size: 13px;">[G] 캡슐: 혜성 화염 관통 모드</p>
     <button class="btn" onclick="startGame()">게임 시작</button>
   </div>
@@ -286,19 +286,6 @@
           1
         ]);
       },
-      multiply: (a, b) => {
-        const out = new Float32Array(16);
-        for (let r = 0; r < 4; ++r) {
-          for (let c = 0; c < 4; ++c) {
-            out[c * 4 + r] =
-              a[r] * b[c * 4] +
-              a[4 + r] * b[c * 4 + 1] +
-              a[8 + r] * b[c * 4 + 2] +
-              a[12 + r] * b[c * 4 + 3];
-          }
-        }
-        return out;
-      },
       identity: () => Mat4.create(),
       translate: (m, v) => {
         const out = new Float32Array(m);
@@ -350,13 +337,9 @@
       }
     };
 
-    // --- 4. WebGL 2.0 (OpenGL ES 3.0) 셰이더 및 파이프라인 구축 ---
+    // --- 4. WebGL 2.0 (OpenGL ES 3.0) 셰이더 ---
     const glCanvas = document.getElementById('glCanvas');
     const gl = glCanvas.getContext('webgl2', { alpha: true, antialias: true });
-
-    if (!gl) {
-      alert("이 브라우저/디바이스는 WebGL 2.0(OpenGL ES 3.0)을 지원하지 않습니다.");
-    }
 
     const vsSource = `#version 300 es
       layout(location = 0) in vec3 aPosition;
@@ -396,7 +379,7 @@
 
       void main() {
         vec3 N = normalize(vNormal);
-        vec3 V = normalize(vec3(180.0, -355.0, 520.0) - vWorldPos);
+        vec3 V = normalize(vec3(180.0, -320.0, 520.0) - vWorldPos);
 
         // 1) 씬 메인 조명
         vec3 L = normalize(uLightPos - vWorldPos);
@@ -404,7 +387,7 @@
         vec3 H = normalize(L + V);
         float spec = pow(max(dot(N, H), 0.0), uShininess);
 
-        // 2) 공 다이내믹 포인트 조명 (점광원 감쇠)
+        // 2) 볼 포인트 조명
         vec3 ballToFrag = uBallLightPos - vWorldPos;
         float dist = length(ballToFrag);
         vec3 Lball = normalize(ballToFrag);
@@ -460,20 +443,13 @@
 
     // --- 5. 3D 메쉬 버퍼 생성 (Cube, Sphere, Cylinder) ---
     function createBoxGeometry() {
-      // 1x1x1 중심 큐브
       const p = 0.5, n = -0.5;
       const positions = new Float32Array([
-        // Front
         n,n,p,  p,n,p,  p,p,p,  n,n,p,  p,p,p,  n,p,p,
-        // Back
         p,n,n,  n,n,n,  n,p,n,  p,n,n,  n,p,n,  p,p,n,
-        // Top
         n,p,p,  p,p,p,  p,p,n,  n,p,p,  p,p,n,  n,p,n,
-        // Bottom
         n,n,n,  p,n,n,  p,n,p,  n,n,n,  p,n,p,  n,n,p,
-        // Right
         p,n,p,  p,n,n,  p,p,n,  p,n,p,  p,p,n,  p,p,p,
-        // Left
         n,n,n,  n,n,p,  n,p,p,  n,n,n,  n,p,p,  n,p,n
       ]);
       const normals = new Float32Array([
@@ -568,17 +544,14 @@
         const x0 = Math.cos(a0), y0 = Math.sin(a0);
         const x1 = Math.cos(a1), y1 = Math.sin(a1);
 
-        // Side Quad (2 Tris)
         positions.push(x0, y0, -0.5,  x1, y1, -0.5,  x1, y1, 0.5);
         positions.push(x0, y0, -0.5,  x1, y1, 0.5,   x0, y0, 0.5);
         normals.push(x0, y0, 0,  x1, y1, 0,  x1, y1, 0);
         normals.push(x0, y0, 0,  x1, y1, 0,  x0, y0, 0);
 
-        // Top Cap
         positions.push(0, 0, 0.5,  x0, y0, 0.5,  x1, y1, 0.5);
         normals.push(0, 0, 1,  0, 0, 1,  0, 0, 1);
 
-        // Bottom Cap
         positions.push(0, 0, -0.5,  x1, y1, -0.5,  x0, y0, -0.5);
         normals.push(0, 0, -1,  0, 0, -1,  0, 0, -1);
       }
@@ -607,7 +580,6 @@
     const cylinderGeo = createCylinderGeometry(18);
 
     function getNormalMatrix(modelMat) {
-      // 3x3 normal matrix calculation
       const a00 = modelMat[0], a01 = modelMat[1], a02 = modelMat[2];
       const a10 = modelMat[4], a11 = modelMat[5], a12 = modelMat[6];
       const a20 = modelMat[8], a21 = modelMat[9], a22 = modelMat[10];
@@ -627,9 +599,15 @@
       ]);
     }
 
-    // --- 6. 게임 좌표 & 상태 데이터 ---
+    // --- 6. 모바일 해상도 및 패들 위치 최적화 ---
     const GAME_W = 360;
     const GAME_H = 640;
+
+    // 패들 위치를 기존 GAME_H - 135 에서 GAME_H - 200 으로 크게 상향하여
+    // 손가락에 가려지지 않도록 전진 배치함
+    const PADDLE_DEFAULT_Y = GAME_H - 200;
+    const TOUCH_CONTROL_ZONE_Y = GAME_H - 150; // 아래쪽 터치 조작 영역
+
     const container = document.getElementById('gameContainer');
     const hudCanvas = document.getElementById('hudCanvas');
     const hudCtx = hudCanvas.getContext('2d');
@@ -672,7 +650,7 @@
       h: 14,
       d: 14,
       x: GAME_W / 2 - 34,
-      y: GAME_H - 135
+      y: PADDLE_DEFAULT_Y
     };
 
     let balls = [];
@@ -945,7 +923,7 @@
       }
     }
 
-    // --- 7. 물리 시뮬레이션 루프 ---
+    // --- 7. 물리 시뮬레이션 ---
     function update() {
       if (stageClearPause) return;
       frameCount++;
@@ -959,7 +937,6 @@
       const isGiant = activeEffects.giantPierceTimer > 0;
       const currentRadius = isGiant ? BASE_BALL_R * 2.8 : BASE_BALL_R;
 
-      // 3D 파티클 업데이트
       for (let i = particles3D.length - 1; i >= 0; i--) {
         const p = particles3D[i];
         p.x += p.vx;
@@ -974,7 +951,6 @@
         }
       }
 
-      // 공 업데이트
       for (let i = balls.length - 1; i >= 0; i--) {
         const ball = balls[i];
         ball.x += ball.dx;
@@ -1047,12 +1023,12 @@
           }
         }
 
-        if (ball.y - currentRadius > GAME_H) {
+        // 패들 아래로 통과 시 낙하 판정
+        if (ball.y - currentRadius > paddle.y + 60) {
           balls.splice(i, 1);
         }
       }
 
-      // 볼 소실 판정
       if (balls.length === 0) {
         lives--;
         sound.loseLife();
@@ -1067,7 +1043,6 @@
         }
       }
 
-      // 아이템 업데이트
       for (let i = items.length - 1; i >= 0; i--) {
         const it = items[i];
         it.y += it.speed;
@@ -1086,7 +1061,7 @@
           continue;
         }
 
-        if (it.y > GAME_H) {
+        if (it.y > paddle.y + 70) {
           items.splice(i, 1);
         }
       }
@@ -1109,19 +1084,18 @@
 
       gl.useProgram(program);
 
-      // 카메라 행렬 설정
+      // 패들이 위로 이동함에 따라 카메라 중심점을 맞춤
       const aspect = glCanvas.width / glCanvas.height;
-      const projMat = Mat4.perspective((52 * Math.PI) / 180, aspect, 1.0, 2000.0);
-      const eye = [GAME_W / 2, -GAME_H / 2 - 35, 520];
-      const target = [GAME_W / 2, -GAME_H / 2 + 30, 0];
+      const projMat = Mat4.perspective((50 * Math.PI) / 180, aspect, 1.0, 2000.0);
+      const eye = [GAME_W / 2, -GAME_H / 2 - 10, 520];
+      const target = [GAME_W / 2, -GAME_H / 2 + 35, 0];
       const up = [0, 1, 0];
       const viewMat = Mat4.lookAt(eye, target, up);
 
       gl.uniformMatrix4fv(loc.proj, false, projMat);
       gl.uniformMatrix4fv(loc.view, false, viewMat);
-      gl.uniform3f(loc.lightPos, GAME_W / 2, -100, 300);
+      gl.uniform3f(loc.lightPos, GAME_W / 2, -100, 320);
 
-      // 공 위치 다이내믹 라이트
       const isGiant = activeEffects.giantPierceTimer > 0;
       if (balls.length > 0) {
         gl.uniform3f(loc.ballLightPos, balls[0].x, -balls[0].y, 35);
@@ -1152,29 +1126,26 @@
         gl.bindVertexArray(null);
       }
 
-      // 1) 3D 테두리 월 (좌, 우, 상)
+      // 3D 프레임 월
       const wallColor = [0.35, 0.35, 0.4, 1.0];
       const wallD = 24;
 
-      // 좌측 벽
       let m = Mat4.identity();
       m = Mat4.translate(m, [6, -(36 + (GAME_H - 36) / 2), wallD / 2]);
       m = Mat4.scale(m, [12, GAME_H - 36, wallD]);
       drawMesh(boxGeo, m, wallColor, 40.0);
 
-      // 우측 벽
       m = Mat4.identity();
       m = Mat4.translate(m, [GAME_W - 6, -(36 + (GAME_H - 36) / 2), wallD / 2]);
       m = Mat4.scale(m, [12, GAME_H - 36, wallD]);
       drawMesh(boxGeo, m, wallColor, 40.0);
 
-      // 상단 벽
       m = Mat4.identity();
       m = Mat4.translate(m, [GAME_W / 2, -(24 + 6), wallD / 2]);
       m = Mat4.scale(m, [GAME_W, 12, wallD]);
       drawMesh(boxGeo, m, wallColor, 40.0);
 
-      // 2) 3D 벽돌 렌더링
+      // 벽돌
       for (let b of bricks) {
         if (b.hp <= 0) continue;
         m = Mat4.identity();
@@ -1186,20 +1157,19 @@
         drawMesh(boxGeo, m, b.currentColor, shine, isGlass);
       }
 
-      // 3) 3D 패들 렌더링
+      // 3D 패들 (상향 배치된 위치)
       const paddleCol = activeEffects.expandTimer > 0 ? [0.22, 1.0, 0.08, 1.0] : [0.9, 0.15, 0.13, 1.0];
       m = Mat4.identity();
       m = Mat4.translate(m, [paddle.x + paddle.w / 2, -(paddle.y + paddle.h / 2), paddle.d / 2]);
       m = Mat4.scale(m, [paddle.w, paddle.h, paddle.d]);
       drawMesh(boxGeo, m, paddleCol, 32.0);
 
-      // 패들 내부 메탈 코어 라인
       m = Mat4.identity();
       m = Mat4.translate(m, [paddle.x + paddle.w / 2, -(paddle.y + paddle.h / 2), paddle.d / 2 + 1]);
       m = Mat4.scale(m, [Math.max(4, paddle.w - 18), paddle.h - 4, paddle.d]);
       drawMesh(boxGeo, m, [1.0, 1.0, 1.0, 1.0], 80.0);
 
-      // 4) 3D 공 (Sphere)
+      // 3D 공
       const currentRadius = isGiant ? BASE_BALL_R * 2.8 : BASE_BALL_R;
       const ballCol = isGiant ? [1.0, 0.2, 0.0, 1.0] : [1.0, 1.0, 1.0, 1.0];
 
@@ -1210,7 +1180,7 @@
         drawMesh(sphereGeo, m, ballCol, 96.0);
       }
 
-      // 5) 3D 아이템 (자전하는 실린더 캡슐)
+      // 3D 아이템
       for (let it of items) {
         m = Mat4.identity();
         m = Mat4.translate(m, [it.x, -it.y, BRICK_D / 2]);
@@ -1221,7 +1191,7 @@
         drawMesh(cylinderGeo, m, it.color, 48.0);
       }
 
-      // 6) 3D 파편 파티클
+      // 3D 파편
       for (let p of particles3D) {
         m = Mat4.identity();
         m = Mat4.translate(m, [p.x, -p.y, p.z]);
@@ -1233,15 +1203,15 @@
       }
     }
 
-    // --- 9. HUD 렌더링 (2D Overlay Canvas) ---
+    // --- 9. HUD & 스마트폰 터치 영역 가이드라인 ---
     function drawHUD() {
       hudCtx.clearRect(0, 0, hudCanvas.width, hudCanvas.height);
       const scale = hudCanvas.width / GAME_W;
       hudCtx.save();
       hudCtx.scale(scale, scale);
 
-      // 상단 바
-      hudCtx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+      // 상단 HUD 바
+      hudCtx.fillStyle = 'rgba(0, 0, 0, 0.82)';
       hudCtx.fillRect(0, 0, GAME_W, 26);
 
       hudCtx.fillStyle = '#fff';
@@ -1260,40 +1230,49 @@
         hudCtx.fillText(`[EXPAND] ${(activeEffects.expandTimer / 60).toFixed(1)}s`, 18, 48);
       }
 
+      // 하단 모바일 터치 패드 존 시각화 (패들 밑 영역)
+      hudCtx.fillStyle = 'rgba(255, 255, 255, 0.04)';
+      hudCtx.fillRect(14, TOUCH_CONTROL_ZONE_Y, GAME_W - 28, GAME_H - TOUCH_CONTROL_ZONE_Y - 14);
+
+      hudCtx.strokeStyle = 'rgba(255, 255, 255, 0.25)';
+      hudCtx.setLineDash([6, 6]);
+      hudCtx.strokeRect(14, TOUCH_CONTROL_ZONE_Y, GAME_W - 28, GAME_H - TOUCH_CONTROL_ZONE_Y - 14);
+      hudCtx.setLineDash([]);
+
+      hudCtx.fillStyle = 'rgba(255, 255, 255, 0.35)';
+      hudCtx.font = '11px Courier New';
+      hudCtx.textAlign = 'center';
+      hudCtx.fillText("◀ TOUCH & DRAG ZONE ▶", GAME_W / 2, TOUCH_CONTROL_ZONE_Y + 28);
+      hudCtx.textAlign = 'left';
+
+      // 스테이지 클리어
       if (stageClearPause) {
         hudCtx.fillStyle = 'rgba(0, 0, 0, 0.75)';
-        hudCtx.fillRect(20, GAME_H / 2 - 35, GAME_W - 40, 70);
+        hudCtx.fillRect(20, GAME_H / 2 - 45, GAME_W - 40, 70);
         hudCtx.fillStyle = '#4cd964';
         hudCtx.font = 'bold 20px Courier New';
         hudCtx.textAlign = 'center';
-        hudCtx.fillText(`STAGE ${currentStage} CLEAR!`, GAME_W / 2, GAME_H / 2 + 6);
+        hudCtx.fillText(`STAGE ${currentStage} CLEAR!`, GAME_W / 2, GAME_H / 2 - 4);
         hudCtx.textAlign = 'left';
       }
-
-      // 하단 터치 가이드 라인
-      hudCtx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
-      hudCtx.setLineDash([4, 4]);
-      hudCtx.beginPath();
-      hudCtx.moveTo(14, GAME_H - 105);
-      hudCtx.lineTo(GAME_W - 14, GAME_H - 105);
-      hudCtx.stroke();
-      hudCtx.setLineDash([]);
 
       hudCtx.restore();
     }
 
-    // --- 10. 터치 입력 및 제어 루프 ---
+    // --- 10. 스마트폰 터치 입력 핸들러 (손가락 위치 비종속 패들 트래킹) ---
     function handleTouch(e) {
       if (!isPlaying || stageClearPause) return;
       const rect = hudCanvas.getBoundingClientRect();
       const scaleX = GAME_W / rect.width;
       const clientX = e.touches ? e.touches[0].clientX : e.clientX;
       const touchX = (clientX - rect.left) * scaleX;
+
+      // 손가락이 하단 어디를 터치/슬라이드해도 패들의 X축만 정확하게 추적
       paddle.x = Math.max(14, Math.min(GAME_W - paddle.w - 14, touchX - paddle.w / 2));
     }
 
     ['pointermove', 'touchmove', 'pointerdown', 'touchstart'].forEach(type => {
-      window.addEventListener(type, handleTouch, { passive: true });
+      hudCanvas.addEventListener(type, handleTouch, { passive: true });
     });
 
     function loop() {
@@ -1316,6 +1295,7 @@
       activeEffects.giantPierceTimer = 0;
       activeEffects.expandTimer = 0;
       paddle.w = PADDLE_DEFAULT_W;
+      paddle.y = PADDLE_DEFAULT_Y;
       paddle.x = GAME_W / 2 - paddle.w / 2;
 
       loadStage(currentStage);
@@ -1346,6 +1326,7 @@
         activeEffects.giantPierceTimer = 0;
         activeEffects.expandTimer = 0;
         paddle.w = PADDLE_DEFAULT_W;
+        paddle.y = PADDLE_DEFAULT_Y;
         paddle.x = GAME_W / 2 - paddle.w / 2;
 
         loadStage(currentStage);
@@ -1372,7 +1353,6 @@
       gameOverOverlay.style.display = 'flex';
     }
 
-    // 초기 화면 렌더링
     render3D();
     drawHUD();
   </script>

@@ -18,7 +18,7 @@
             height: 100%;
             overflow: hidden;
             background-color: #2b170e;
-            font-family: 'Arial Rounded MT Bold', 'Fredoka One', 'Comic Sans MS', sans-serif;
+            font-family: 'Arial Rounded MT Bold', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
         }
         #canvas-container {
             width: 100%;
@@ -28,28 +28,26 @@
         /* 우드 테이블 상단 초콜릿 스타일 UI */
         #ui-layer {
             position: absolute;
-            top: 15px;
+            top: 12px;
             left: 0;
             width: 100%;
             display: flex;
-            justify-content: space-around;
+            justify-content: space-between;
+            padding: 0 16px;
             pointer-events: none;
             z-index: 10;
         }
         .hud-text {
-            color: #4a2711;
-            font-size: clamp(18px, 4.5vw, 32px);
+            color: #3d1c08;
+            font-size: clamp(15px, 4vw, 22px);
             font-weight: 900;
-            letter-spacing: 2px;
-            text-shadow: 
-                -1px -1px 0 #7b421e,
-                1px 1px 2px #fff3d6,
-                2px 3px 4px rgba(0,0,0,0.6);
-            background: rgba(235, 215, 185, 0.7);
-            padding: 6px 18px;
-            border-radius: 20px;
+            letter-spacing: 1px;
+            text-shadow: 1px 1px 0 rgba(255,255,255,0.4);
+            background: rgba(240, 220, 190, 0.85);
+            padding: 6px 14px;
+            border-radius: 16px;
             border: 2px solid #5a3118;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.35);
         }
         /* 시작/게임오버 오버레이 */
         #msg-overlay {
@@ -69,36 +67,35 @@
             padding: 20px;
         }
         #msg-title {
-            font-size: clamp(26px, 7vw, 44px);
+            font-size: clamp(26px, 7vw, 42px);
             color: #ffd89b;
             text-shadow: 2px 3px 0 #a34e00;
-            margin-bottom: 15px;
+            margin-bottom: 12px;
         }
         #msg-sub {
-            font-size: clamp(15px, 4vw, 20px);
+            font-size: clamp(14px, 4vw, 18px);
             color: #ffe6cf;
-            margin-bottom: 30px;
+            margin-bottom: 26px;
             line-height: 1.5;
         }
         .cookie-btn {
             background: linear-gradient(145deg, #f0a354, #b8621d);
             border: 3px solid #6b3305;
             color: #381a03;
-            font-size: clamp(18px, 4.5vw, 24px);
+            font-size: clamp(18px, 4.5vw, 22px);
             font-weight: bold;
-            padding: 14px 34px;
-            border-radius: 35px;
+            padding: 12px 32px;
+            border-radius: 30px;
             cursor: pointer;
-            box-shadow: 0 6px 0 #4a2100, 0 10px 15px rgba(0,0,0,0.4);
+            box-shadow: 0 5px 0 #4a2100, 0 8px 12px rgba(0,0,0,0.4);
             pointer-events: auto;
             transition: transform 0.1s;
         }
         .cookie-btn:active {
-            transform: translateY(4px);
+            transform: translateY(3px);
             box-shadow: 0 2px 0 #4a2100;
         }
     </style>
-    <!-- Three.js CDN -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 </head>
 <body>
@@ -108,87 +105,94 @@
     </div>
 
     <div id="msg-overlay">
-        <div id="msg-title">SWEET ARユーザー NOID 3D</div>
-        <div id="msg-sub">화면을 좌우로 터치/드래그하여<br>패들을 조작하세요!</div>
+        <div id="msg-title">SWEET ARKANOID 3D</div>
+        <div id="msg-sub">화면 하단을 좌우로 터치/드래그하여<br>패들을 조작하세요!</div>
         <button class="cookie-btn" id="start-btn">TAP TO PLAY</button>
     </div>
 
     <div id="canvas-container"></div>
 
     <script>
-        // --- 게임 기본 파라미터 ---
-        const ARENA_WIDTH = 26;
-        const ARENA_HEIGHT = 38;
-        const WALL_THICK = 1.4;
-        const WALL_HEIGHT = 1.8;
+        // --- 보드 파라미터 (세로 화면 비율에 맞춤) ---
+        const ARENA_WIDTH = 22;
+        const ARENA_HEIGHT = 42;
+        const WALL_THICK = 1.3;
+        const WALL_HEIGHT = 1.6;
 
         let score = 0;
         let lives = 3;
         let isRunning = false;
         let isBallAttached = true;
 
-        // Three.js 인스턴스
         let scene, camera, renderer;
         let paddle, ball;
         let blocks = [];
         let particles = [];
         let ballVel = new THREE.Vector3(0, 0, 0);
-        const BALL_SPEED = 24.0;
+        const BALL_SPEED = 27.0;
 
-        // 색상 팔레트 (원작 이미지 기반 초콜릿/디저트 색감)
         const COLOR_PALETTE = [
-            0xaf3a41, // 딸기/레드벨벳
-            0xd9824c, // 카라멜
-            0xf2b568, // 바닐라 크림
-            0x60341e, // 다크 초콜릿
-            0x98572b, // 밀크 초콜릿
-            0xedd087, // 커스터드 옐로우
-            0x7c9b68, // 말차 그린
-            0x53779e, // 블루베리 밀크
-            0xf7f4e9  // 화이트 초콜릿
+            0xaf3a41, 0xd9824c, 0xf2b568, 
+            0x60341e, 0x98572b, 0xedd087, 
+            0x7c9b68, 0x53779e, 0xf7f4e9
         ];
 
-        // --- 재질 사전 ---
         let matCookieCrust, matBiscuitBase, matBall, matFloor;
 
         function initMaterials() {
-            // 타르트 크러스트 외벽
             matCookieCrust = new THREE.MeshStandardMaterial({
-                color: 0xd6995c,
-                roughness: 0.85,
+                color: 0xdca263,
+                roughness: 0.8,
                 metalness: 0.05
             });
 
-            // 블록 및 패들의 비스킷 베이스
             matBiscuitBase = new THREE.MeshStandardMaterial({
-                color: 0xdfa56b,
-                roughness: 0.9,
+                color: 0xe0ab75,
+                roughness: 0.85,
                 metalness: 0.0
             });
 
-            // 메탈릭 실버 트러플 구슬 공
             matBall = new THREE.MeshStandardMaterial({
-                color: 0xeaeaea,
-                metalness: 0.85,
+                color: 0x222222, // 흑진주/다크 메탈 볼
+                metalness: 0.9,
                 roughness: 0.15
             });
 
-            // 플레이그라운드 베이킹 매트 바닥
             matFloor = new THREE.MeshStandardMaterial({
-                color: 0xf5eedc,
-                roughness: 0.95,
+                color: 0xfffcf7,
+                roughness: 0.9,
                 metalness: 0.0
             });
+        }
+
+        // 모바일 세로 비율에 꼭 맞추는 카메라 자동 핏팅
+        function fitCameraToBoard() {
+            const aspect = window.innerWidth / window.innerHeight;
+            const targetHeight = ARENA_HEIGHT + 4.5;
+            const targetWidth = ARENA_WIDTH + WALL_THICK * 2 + 1.0;
+
+            // 시야각(FOV) 기반 세로/가로 요구 거리 계산
+            const fovRad = (camera.fov * Math.PI) / 180;
+            const distV = (targetHeight / 2) / Math.tan(fovRad / 2);
+            const distH = (targetWidth / 2) / (Math.tan(fovRad / 2) * aspect);
+
+            // 화면에 꽉 차도록 여백 최소화
+            const camDistance = Math.max(distV, distH) * 1.02;
+
+            // 살짝 비스듬한 3D 입체감을 유지하며 줌인
+            const tiltAngle = 0.28; // 약 16도 틸트
+            camera.position.set(0, camDistance * Math.cos(tiltAngle), camDistance * Math.sin(tiltAngle) * 0.45);
+            camera.lookAt(0, 0, -1.0);
         }
 
         function initScene() {
             const container = document.getElementById('canvas-container');
 
             scene = new THREE.Scene();
-            scene.background = new THREE.Color(0x381e13); // 원목 테이블 색상
+            scene.background = new THREE.Color(0x381e13);
 
-            camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 1000);
-            updateCamera();
+            camera = new THREE.PerspectiveCamera(48, window.innerWidth / window.innerHeight, 0.1, 1000);
+            fitCameraToBoard();
 
             renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
             renderer.setSize(window.innerWidth, window.innerHeight);
@@ -199,27 +203,23 @@
 
             initMaterials();
 
-            // --- 조명 설정 ---
-            const ambLight = new THREE.AmbientLight(0xfff4e6, 0.7);
+            // 조명
+            const ambLight = new THREE.AmbientLight(0xfff6ea, 0.75);
             scene.add(ambLight);
 
-            const dirLight = new THREE.DirectionalLight(0xfffaed, 1.2);
-            dirLight.position.set(10, 30, 25);
+            const dirLight = new THREE.DirectionalLight(0xffeedd, 1.25);
+            dirLight.position.set(12, 35, 20);
             dirLight.castShadow = true;
             dirLight.shadow.mapSize.width = 1024;
             dirLight.shadow.mapSize.height = 1024;
             dirLight.shadow.camera.near = 5;
-            dirLight.shadow.camera.far = 80;
-            dirLight.shadow.camera.left = -20;
-            dirLight.shadow.camera.right = 20;
+            dirLight.shadow.camera.far = 70;
+            dirLight.shadow.camera.left = -15;
+            dirLight.shadow.camera.right = 15;
             dirLight.shadow.camera.top = 25;
             dirLight.shadow.camera.bottom = -25;
             dirLight.shadow.bias = -0.001;
             scene.add(dirLight);
-
-            const pointLight = new THREE.PointLight(0xffb870, 0.6, 40);
-            pointLight.position.set(0, 15, -10);
-            scene.add(pointLight);
 
             buildBoard();
             buildPaddle();
@@ -230,27 +230,13 @@
             setupInput();
         }
 
-        // 모바일 비율에 맞춰 카메라 거리 자동 산출
-        function updateCamera() {
-            const aspect = window.innerWidth / window.innerHeight;
-            let targetDist;
-            if (aspect < 1) {
-                targetDist = 48 / aspect; // 세로 화면
-            } else {
-                targetDist = 45; // 가로 화면
-            }
-            camera.position.set(0, targetDist * 0.95, targetDist * 0.65);
-            camera.lookAt(0, 0, 1.5);
-        }
-
         function onWindowResize() {
             camera.aspect = window.innerWidth / window.innerHeight;
-            updateCamera();
+            fitCameraToBoard();
             camera.updateProjectionMatrix();
             renderer.setSize(window.innerWidth, window.innerHeight);
         }
 
-        // --- 경기장 (바닥 + 타르트 테두리 벽) ---
         function buildBoard() {
             // 바닥
             const floorGeo = new THREE.BoxGeometry(ARENA_WIDTH, 0.4, ARENA_HEIGHT);
@@ -259,12 +245,12 @@
             floorMesh.receiveShadow = true;
             scene.add(floorMesh);
 
-            // 타르트 크러스트 외벽 (좌, 우, 상단)
+            // 타르트 비스킷 테두리 벽
             const wallMat = matCookieCrust;
             const wallH = WALL_HEIGHT;
             const wallT = WALL_THICK;
 
-            // 상단 벽
+            // 상단
             const topGeo = new THREE.BoxGeometry(ARENA_WIDTH + wallT * 2, wallH, wallT);
             const topWall = new THREE.Mesh(topGeo, wallMat);
             topWall.position.set(0, wallH / 2, -ARENA_HEIGHT / 2 - wallT / 2);
@@ -272,7 +258,7 @@
             topWall.receiveShadow = true;
             scene.add(topWall);
 
-            // 좌측 벽
+            // 좌측
             const sideGeo = new THREE.BoxGeometry(wallT, wallH, ARENA_HEIGHT);
             const leftWall = new THREE.Mesh(sideGeo, wallMat);
             leftWall.position.set(-ARENA_WIDTH / 2 - wallT / 2, wallH / 2, 0);
@@ -280,7 +266,7 @@
             leftWall.receiveShadow = true;
             scene.add(leftWall);
 
-            // 우측 벽
+            // 우측
             const rightWall = new THREE.Mesh(sideGeo, wallMat);
             rightWall.position.set(ARENA_WIDTH / 2 + wallT / 2, wallH / 2, 0);
             rightWall.castShadow = true;
@@ -288,45 +274,42 @@
             scene.add(rightWall);
         }
 
-        // --- 웨이퍼 & 초콜릿 블록 패들 ---
         function buildPaddle() {
             paddle = new THREE.Group();
 
-            const pW = 6.2;
-            const pH = 1.0;
-            const pD = 1.6;
+            const pW = 5.6;
+            const pH = 0.9;
+            const pD = 1.5;
 
-            // 하단 웨이퍼 비스킷
-            const baseGeo = new THREE.BoxGeometry(pW, pH * 0.4, pD);
+            // 웨이퍼 비스킷 베이스
+            const baseGeo = new THREE.BoxGeometry(pW, pH * 0.45, pD);
             const baseMesh = new THREE.Mesh(baseGeo, matBiscuitBase);
-            baseMesh.position.y = pH * 0.2;
+            baseMesh.position.y = pH * 0.225;
             baseMesh.castShadow = true;
             baseMesh.receiveShadow = true;
             paddle.add(baseMesh);
 
-            // 상단 분할 초콜릿 세그먼트 (킨더 초콜릿 스타일)
-            const segCount = 7;
-            const segW = (pW - 0.4) / segCount;
+            // 초콜릿 세그먼트
+            const segCount = 6;
+            const segW = (pW - 0.3) / segCount;
             for (let i = 0; i < segCount; i++) {
-                const segGeo = new THREE.BoxGeometry(segW * 0.88, pH * 0.6, pD * 0.85);
+                const segGeo = new THREE.BoxGeometry(segW * 0.88, pH * 0.55, pD * 0.85);
                 const segMat = new THREE.MeshStandardMaterial({
-                    color: (i % 2 === 0) ? 0xf4eee4 : 0x733e1e, // 화이트 / 밀크 초콜릿 교차
-                    roughness: 0.35,
-                    metalness: 0.1
+                    color: (i % 2 === 0) ? 0xf5ebd7 : 0x733f20,
+                    roughness: 0.35
                 });
                 const segMesh = new THREE.Mesh(segGeo, segMat);
-                segMesh.position.set(-pW / 2 + 0.2 + segW * (i + 0.5), pH * 0.7, 0);
+                segMesh.position.set(-pW / 2 + 0.15 + segW * (i + 0.5), pH * 0.7, 0);
                 segMesh.castShadow = true;
                 paddle.add(segMesh);
             }
 
-            paddle.position.set(0, 0, ARENA_HEIGHT / 2 - 3.5);
+            paddle.position.set(0, 0, ARENA_HEIGHT / 2 - 4.5);
             paddle.width = pW;
             paddle.depth = pD;
             scene.add(paddle);
         }
 
-        // --- 메탈릭 실버 트러플 구슬 볼 ---
         function buildBall() {
             const radius = 0.65;
             const ballGeo = new THREE.SphereGeometry(radius, 32, 32);
@@ -348,23 +331,20 @@
         function launchBall() {
             if (!isBallAttached) return;
             isBallAttached = false;
-            // 살짝 랜덤한 각도로 상향 발사
-            const angle = (Math.random() * 0.5 - 0.25) * Math.PI; // -45도 ~ +45도
+            const angle = (Math.random() * 0.4 - 0.2) * Math.PI;
             ballVel.set(Math.sin(angle) * BALL_SPEED, 0, -Math.cos(angle) * BALL_SPEED);
         }
 
-        // --- 2단 초콜릿-비스킷 블록 생성 ---
         function spawnBlocks() {
-            // 이전 블록 제거
             blocks.forEach(b => scene.remove(b.group));
             blocks = [];
 
-            const cols = 9;
+            const cols = 8;
             const rows = 5;
-            const bWidth = 2.45;
-            const bDepth = 1.9;
-            const bHeight = 0.9;
-            const gap = 0.28;
+            const bWidth = 2.3;
+            const bDepth = 1.7;
+            const bHeight = 0.85;
+            const gap = 0.25;
 
             const startX = -((cols * (bWidth + gap) - gap) / 2) + bWidth / 2;
             const startZ = -ARENA_HEIGHT / 2 + 3.8;
@@ -373,7 +353,7 @@
                 for (let c = 0; c < cols; c++) {
                     const blockGroup = new THREE.Group();
 
-                    // 1단: 비스킷 베이스
+                    // 비스킷 베이스
                     const baseGeo = new THREE.BoxGeometry(bWidth, bHeight * 0.45, bDepth);
                     const baseMesh = new THREE.Mesh(baseGeo, matBiscuitBase);
                     baseMesh.position.y = bHeight * 0.225;
@@ -381,13 +361,13 @@
                     baseMesh.receiveShadow = true;
                     blockGroup.add(baseMesh);
 
-                    // 2단: 둥근 광택 초콜릿 토핑
+                    // 초콜릿 토핑
                     const chocMat = new THREE.MeshStandardMaterial({
                         color: COLOR_PALETTE[(r * 2 + c) % COLOR_PALETTE.length],
                         roughness: 0.28,
-                        metalness: 0.12
+                        metalness: 0.1
                     });
-                    const topGeo = new THREE.BoxGeometry(bWidth * 0.85, bHeight * 0.55, bDepth * 0.85);
+                    const topGeo = new THREE.BoxGeometry(bWidth * 0.86, bHeight * 0.55, bDepth * 0.86);
                     const topMesh = new THREE.Mesh(topGeo, chocMat);
                     topMesh.position.y = bHeight * 0.725;
                     topMesh.castShadow = true;
@@ -412,27 +392,23 @@
             }
         }
 
-        // --- 부스러기(파티클) 폭발 이펙트 ---
         function createCrumbExplosion(x, z, color) {
-            const count = 12;
-            const crumbMat = new THREE.MeshStandardMaterial({
-                color: color,
-                roughness: 0.8
-            });
+            const count = 10;
+            const crumbMat = new THREE.MeshStandardMaterial({ color: color, roughness: 0.8 });
 
             for (let i = 0; i < count; i++) {
-                const size = 0.15 + Math.random() * 0.25;
+                const size = 0.15 + Math.random() * 0.2;
                 const mesh = new THREE.Mesh(new THREE.BoxGeometry(size, size, size), crumbMat);
                 mesh.position.set(x, 0.5, z);
                 mesh.castShadow = true;
                 scene.add(mesh);
 
                 const angle = Math.random() * Math.PI * 2;
-                const speed = 4 + Math.random() * 8;
+                const speed = 3 + Math.random() * 7;
                 particles.push({
                     mesh: mesh,
                     vx: Math.cos(angle) * speed,
-                    vy: 4 + Math.random() * 6,
+                    vy: 3 + Math.random() * 5,
                     vz: Math.sin(angle) * speed,
                     life: 1.0
                 });
@@ -443,7 +419,7 @@
             for (let i = particles.length - 1; i >= 0; i--) {
                 const p = particles[i];
                 p.life -= dt * 2.2;
-                p.vy -= 22 * dt; // 중력
+                p.vy -= 22 * dt;
                 p.mesh.position.x += p.vx * dt;
                 p.mesh.position.y += p.vy * dt;
                 p.mesh.position.z += p.vz * dt;
@@ -453,7 +429,7 @@
 
                 if (p.mesh.position.y <= 0.1) {
                     p.mesh.position.y = 0.1;
-                    p.vy = -p.vy * 0.4;
+                    p.vy = -p.vy * 0.35;
                 }
 
                 if (p.life <= 0) {
@@ -463,39 +439,38 @@
             }
         }
 
-        // --- 터치 및 마우스 입력 제어 ---
+        // 터치 입력 (패들 X위치와 1:1 매핑)
         let targetPaddleX = 0;
+        const raycaster = new THREE.Raycaster();
+        const touchPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0); // y=0 평면
+        const rayPos = new THREE.Vector3();
 
         function setupInput() {
-            const canvas = renderer.domElement;
+            function handlePointer(e) {
+                const ndcX = (e.clientX / window.innerWidth) * 2 - 1;
+                const ndcY = -(e.clientY / window.innerHeight) * 2 + 1;
 
-            function processScreenCoord(clientX) {
-                const normX = (clientX / window.innerWidth) * 2 - 1;
-                // 카메라 투영 기반 평면 변환 근사치
-                const xLimit = ARENA_WIDTH / 2 - paddle.width / 2;
-                targetPaddleX = normX * (ARENA_WIDTH * 0.58);
-                targetPaddleX = Math.max(-xLimit, Math.min(xLimit, targetPaddleX));
+                raycaster.setFromCamera({ x: ndcX, y: ndcY }, camera);
+                if (raycaster.ray.intersectPlane(touchPlane, rayPos)) {
+                    const xLimit = ARENA_WIDTH / 2 - paddle.width / 2;
+                    targetPaddleX = Math.max(-xLimit, Math.min(xLimit, rayPos.x));
+                }
 
                 if (isBallAttached && isRunning) {
                     launchBall();
                 }
             }
 
-            window.addEventListener('pointerdown', (e) => {
-                processScreenCoord(e.clientX);
-            });
-
+            window.addEventListener('pointerdown', handlePointer);
             window.addEventListener('pointermove', (e) => {
                 if (e.buttons > 0 || e.pointerType === 'touch') {
-                    processScreenCoord(e.clientX);
+                    handlePointer(e);
                 }
             });
         }
 
-        // --- 물리 및 충돌 루프 ---
         function updatePhysics(dt) {
-            // 패들 보간 이동 (부드러운 조작감)
-            paddle.position.x += (targetPaddleX - paddle.position.x) * 18 * dt;
+            paddle.position.x += (targetPaddleX - paddle.position.x) * 22 * dt;
 
             if (isBallAttached) {
                 ball.position.x = paddle.position.x;
@@ -503,11 +478,10 @@
                 return;
             }
 
-            // 구슬 위치 갱신
             ball.position.x += ballVel.x * dt;
             ball.position.z += ballVel.z * dt;
 
-            // 1. 경기장 좌/우 벽 충돌
+            // 좌우 벽 충돌
             const xLimit = ARENA_WIDTH / 2 - ball.radius;
             if (ball.position.x <= -xLimit) {
                 ball.position.x = -xLimit;
@@ -517,14 +491,14 @@
                 ballVel.x *= -1;
             }
 
-            // 2. 상단 벽 충돌
+            // 상단 벽 충돌
             const topLimit = -ARENA_HEIGHT / 2 + ball.radius;
             if (ball.position.z <= topLimit) {
                 ball.position.z = topLimit;
                 ballVel.z *= -1;
             }
 
-            // 3. 패들과의 충돌
+            // 패들 충돌
             const padZ = paddle.position.z;
             const padHalfW = paddle.width / 2;
             const padHalfD = paddle.depth / 2;
@@ -536,27 +510,23 @@
                 ballVel.z > 0) {
 
                 ball.position.z = padZ - padHalfD - ball.radius;
-
-                // 패들의 맞은 위치에 따라 반사 각도 조절 (-60도 ~ +60도)
                 const hitOffset = (ball.position.x - paddle.position.x) / padHalfW;
-                const bounceAngle = hitOffset * (Math.PI / 3);
+                const bounceAngle = hitOffset * (Math.PI / 3.2);
 
                 const currentSpeed = ballVel.length();
                 ballVel.x = Math.sin(bounceAngle) * currentSpeed;
                 ballVel.z = -Math.cos(bounceAngle) * currentSpeed;
             }
 
-            // 4. 블록과의 충돌
+            // 블록 충돌
             for (let i = blocks.length - 1; i >= 0; i--) {
                 const b = blocks[i];
                 const dx = ball.position.x - b.x;
                 const dz = ball.position.z - b.z;
-
                 const overlapX = (b.halfW + ball.radius) - Math.abs(dx);
                 const overlapZ = (b.halfD + ball.radius) - Math.abs(dz);
 
                 if (overlapX > 0 && overlapZ > 0) {
-                    // 충돌 축 판별
                     if (overlapX < overlapZ) {
                         ballVel.x *= -1;
                         ball.position.x += (dx > 0 ? overlapX : -overlapX);
@@ -565,7 +535,6 @@
                         ball.position.z += (dz > 0 ? overlapZ : -overlapZ);
                     }
 
-                    // 파티클 생성 및 블록 제거
                     createCrumbExplosion(b.x, b.z, b.color);
                     scene.remove(b.group);
                     blocks.splice(i, 1);
@@ -573,16 +542,15 @@
                     score += 150;
                     document.getElementById('score-val').innerText = score.toString().padStart(6, '0');
 
-                    // 전부 깼을 때 스테이지 클리어
                     if (blocks.length === 0) {
-                        showGameOver("STAGE CLEARED!", "달콤하게 모든 비스킷을 부수었습니다!");
+                        showGameOver("STAGE CLEARED!", "모든 비스킷 블록을 부수었습니다!");
                     }
                     break;
                 }
             }
 
-            // 5. 하단 낙하 (미스)
-            if (ball.position.z > ARENA_HEIGHT / 2 + 2.0) {
+            // 하단 탈락
+            if (ball.position.z > ARENA_HEIGHT / 2 + 1.5) {
                 lives--;
                 document.getElementById('lives-val').innerText = lives;
                 if (lives > 0) {
@@ -616,11 +584,10 @@
             startGame();
         });
 
-        // --- 메인 렌더 루프 ---
         const clock = new THREE.Clock();
         function animate() {
             requestAnimationFrame(animate);
-            const dt = Math.min(clock.getDelta(), 0.033); // 최대 30fps 지연 보정
+            const dt = Math.min(clock.getDelta(), 0.033);
 
             if (isRunning) {
                 updatePhysics(dt);
@@ -630,7 +597,6 @@
             renderer.render(scene, camera);
         }
 
-        // 초기화 실행
         initScene();
         animate();
     </script>

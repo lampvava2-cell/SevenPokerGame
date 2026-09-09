@@ -125,7 +125,7 @@
 
   <div class="overlay" id="startOverlay">
     <h1 style="color: #ffd54f; margin-bottom: 6px; text-shadow: 0 3px 0 #54290d, 0 0 20px rgba(255,213,79,0.5); font-size: 27px;">🍪 SWEET BISCUIT ARKAN 🍉</h1>
-    <p style="color: #ffcc80; font-size: 13px; margin-bottom: 4px; font-weight: bold;">베이크드 쿠키 타일 & 초콜릿 블록 아케이드</p>
+    <p style="color: #ffcc80; font-size: 13px; margin-bottom: 4px; font-weight: bold;">동글동글 베이크드 쿠키 & 멜로우 초콜릿</p>
     <p style="color: #a5d6a7; font-size: 12px; margin: 3px 0;">[G] 자이언트 수박 모드 (에메랄드 궤적 관통!)</p>
     <p style="color: #80deea; font-size: 12px; margin: 3px 0;">[S] 슬로우 | [E] 웨이퍼 확장 | [M] 멀티볼 | [L] 번개</p>
     <button class="btn" id="startBtn">START BAKE!</button>
@@ -233,7 +233,6 @@
     }
 
     const sound = {
-      // 비스킷/초콜릿 톡 터지는 청명한 아케이드 피치 사운드
       hitBrick: (type, isDestroyed) => {
         const now = Date.now();
         if (now - lastHitTime < 450) {
@@ -361,14 +360,14 @@
       }
     };
 
-    // --- 5. WebGL 2.0 셰이더 (구움색 비스킷 & 새틴 초콜릿) ---
+    // --- 5. WebGL 2.0 셰이더 (따뜻한 베이커리 & 부드러운 하이라이트) ---
     const glCanvas = document.getElementById('glCanvas');
     const gl = glCanvas.getContext('webgl2', { alpha: true, antialias: true });
 
     const vsSource = `#version 300 es
       layout(location = 0) in vec3 aPosition;
       layout(location = 1) in vec3 aNormal;
-      layout(location = 2) in float aIsTopCap; // 0.0: 비스킷 베이스, 1.0: 상단 초콜릿 캡
+      layout(location = 2) in float aIsTopCap; // 0.0: 비스킷 베이스, 1.0: 초콜릿 캡
 
       uniform mat4 uModel;
       uniform mat4 uProjection;
@@ -397,7 +396,7 @@
       in vec3 vWorldPos;
       in float vIsTopCap;
 
-      uniform vec4 uColor; // 초콜릿 캡 컬러
+      uniform vec4 uColor;
       uniform vec3 uBallPos;
       uniform vec3 uBallColor;
       uniform float uBallMode; // 0.0: 블록/패들, 1.0: 야구공, 2.0: 수박, 3.0: 잔상
@@ -408,9 +407,9 @@
       void main() {
         vec3 N = normalize(vNormal);
         vec3 V = vec3(0.0, 0.0, 1.0);
-        vec3 L = normalize(vec3(0.2, -0.45, 0.88));
+        vec3 L = normalize(vec3(0.2, -0.42, 0.88));
 
-        // [모드 3] 수박 궤적 에메랄드 젤리 잔상
+        // [모드 3] 수박 궤적 에메랄드 잔상
         if (uBallMode > 2.5) {
           float rim = 1.0 - max(dot(N, V), 0.0);
           vec3 trailGlow = mix(uColor.rgb, vec3(0.55, 1.0, 0.72), rim * 0.6);
@@ -418,7 +417,7 @@
           return;
         }
 
-        // [모드 1] 회전하는 흰색 야구공
+        // [모드 1] 회전하는 야구공
         if (uBallMode > 0.5 && uBallMode < 1.5) {
           vec3 P = normalize(vLocalPos);
           float seam1 = abs(P.z - 0.72 * sin(P.x * 3.14159) * cos(P.y * 3.14159));
@@ -463,40 +462,38 @@
           return;
         }
 
-        // [모드 0] 디저트 비스킷 & 엠보싱 초콜릿 캡
+        // [모드 0] 둥근 모서리 비스킷 & 멜로우 초콜릿 캡
         vec3 base;
         float specPower;
         float specIntensity;
 
         if (vIsTopCap > 0.5) {
-          // 상단: 마카롱 / 초콜릿 엠보싱 캡 (새틴 유광)
           base = uColor.rgb;
-          specPower = 42.0;
-          specIntensity = 0.42;
+          specPower = 36.0;
+          specIntensity = 0.38;
         } else {
-          // 하단 베이스: 노릇노릇 구워진 골든 버터 비스킷 (토스트 브라운)
+          // 노릇노릇 구워진 골든 버터 비스킷 베이스
           base = vec3(0.85, 0.62, 0.38);
-          specPower = 18.0;
-          specIntensity = 0.15;
+          specPower = 16.0;
+          specIntensity = 0.12;
         }
 
-        // 자연스러운 3D 음영
-        float topLight = max(0.0, -N.y) * 0.25;
-        float botDark = max(0.0, N.y) * 0.30;
-        float sideDark = abs(N.x) * 0.14;
-        float frontLight = max(0.0, N.z) * 0.18;
+        // 둥근 엣지를 타고 흐르는 부드러운 3D 음영
+        float topLight = max(0.0, -N.y) * 0.22;
+        float botDark = max(0.0, N.y) * 0.28;
+        float sideDark = abs(N.x) * 0.12;
+        float frontLight = max(0.0, N.z) * 0.16;
         vec3 litColor = base * (0.92 + topLight + frontLight - botDark - sideDark);
 
-        // 엠보싱 솟아오른 면에 맺히는 디저트 스펙큘러
+        // 둥근 곡면에 맺히는 포근한 스펙큘러 하이라이트
         vec3 H = normalize(L + V);
         float spec = pow(max(dot(N, H), 0.0), specPower);
-        vec3 glisten = mix(base, vec3(1.0), 0.6) * (spec * specIntensity);
+        vec3 glisten = mix(base, vec3(1.0), 0.55) * (spec * specIntensity);
 
-        // 부드러운 에지 림
+        // 둥근 엣지 림 라이트
         float rim = 1.0 - max(dot(N, V), 0.0);
-        vec3 rimGlow = mix(base, vec3(1.0), 0.25) * pow(rim, 3.0) * 0.28;
+        vec3 rimGlow = mix(base, vec3(1.0), 0.25) * pow(rim, 2.6) * 0.32;
 
-        // 공 반응
         vec3 toBall = uBallPos - vWorldPos;
         float dist = length(toBall);
         float ballAtten = clamp(1.0 - dist / 110.0, 0.0, 1.0);
@@ -535,52 +532,90 @@
       time: gl.getUniformLocation(program, "uTime")
     };
 
-    // --- 6. 이미지 기반 2단 엠보싱 디저트 블록 지오메트리 ---
-    // (하단 골든 비스킷 베이스 + 상단 도톰한 엠보싱 초콜릿 캡)
-    function createDessertBiscuitBlockGeo() {
+    // --- 6. 엣지와 꼭지점에 둥근 라운드를 적용한 2단 엠보싱 디저트 블록 지오메트리 ---
+    function createRoundDessertBiscuitGeo(cornerR = 0.14, segments = 4) {
       const positions = [];
       const normals = [];
       const isTopCap = [];
 
-      function addQuad(p0, p1, p2, p3, norm, capFlag) {
-        positions.push(...p0, ...p1, ...p2, ...p0, ...p2, ...p3);
-        normals.push(...norm, ...norm, ...norm, ...norm, ...norm, ...norm);
-        isTopCap.push(capFlag, capFlag, capFlag, capFlag, capFlag, capFlag);
+      function addTri(p0, p1, p2, n0, n1, n2, cap) {
+        positions.push(...p0, ...p1, ...p2);
+        normals.push(...n0, ...n1, ...n2);
+        isTopCap.push(cap, cap, cap);
       }
 
-      const p = 0.5;
+      function addQuad(p0, p1, p2, p3, n0, n1, n2, n3, cap) {
+        addTri(p0, p1, p2, n0, n1, n2, cap);
+        addTri(p0, p2, p3, n0, n2, n3, cap);
+      }
+
+      // 2D 라운드 렉트 테두리 점들을 생성하는 헬퍼
+      function buildRoundedLoop(wHalf, hHalf, r, z, zNorm) {
+        const pts = [];
+        const norms = [];
+        const corners = [
+          { cx: wHalf - r, cy: hHalf - r, a0: 0 },
+          { cx: -(wHalf - r), cy: hHalf - r, a0: Math.PI * 0.5 },
+          { cx: -(wHalf - r), cy: -(hHalf - r), a0: Math.PI },
+          { cx: wHalf - r, cy: -(hHalf - r), a0: Math.PI * 1.5 }
+        ];
+
+        corners.forEach(c => {
+          for (let i = 0; i <= segments; i++) {
+            const ang = c.a0 + (i * Math.PI * 0.5) / segments;
+            const cos = Math.cos(ang);
+            const sin = Math.sin(ang);
+            pts.push([c.cx + cos * r, c.cy + sin * r, z]);
+            norms.push([cos * 0.7, sin * 0.7, zNorm]);
+          }
+        });
+        return { pts, norms };
+      }
+
       const zBaseBot = -0.5;
-      const zBaseTop = 0.0;
+      const zBaseTop = 0.02;
       const zCapApex = 0.5;
-      const inset = 0.12; // 상단 초콜릿 캡의 여백 (하단 비스킷 테두리가 액자처럼 드러남)
-      const bevel = 0.08; // 캡 안쪽 솟아오르는 단차
 
-      // 1) 하단 비스킷 베이스 (바닥, 옆면, 윗면 테두리)
-      // 바닥면
-      addQuad([-p,-p,zBaseBot], [p,-p,zBaseBot], [p,p,zBaseBot], [-p,p,zBaseBot], [0,0,-1], 0.0);
-      // 4면 사이드
-      addQuad([-p,-p,zBaseTop], [p,-p,zBaseTop], [p,-p,zBaseBot], [-p,-p,zBaseBot], [0,-1,0], 0.0);
-      addQuad([p,-p,zBaseTop], [p,p,zBaseTop], [p,p,zBaseBot], [p,-p,zBaseBot], [1,0,0], 0.0);
-      addQuad([p,p,zBaseTop], [-p,p,zBaseTop], [-p,p,zBaseBot], [p,p,zBaseBot], [0,1,0], 0.0);
-      addQuad([-p,p,zBaseTop], [-p,-p,zBaseTop], [-p,-p,zBaseBot], [-p,p,zBaseBot], [-1,0,0], 0.0);
+      // 1) 하단 골든 비스킷 베이스 루프
+      const baseOuter = buildRoundedLoop(0.5, 0.5, cornerR, zBaseBot, -0.6);
+      const baseTop   = buildRoundedLoop(0.5, 0.5, cornerR, zBaseTop, 0.2);
 
-      // 상단 비스킷 테두리 턱 (액자처럼 초콜릿 캡을 감쌈)
-      const ci = p - inset;
-      addQuad([-p,-p,zBaseTop], [p,-p,zBaseTop], [ci,-ci,zBaseTop], [-ci,-ci,zBaseTop], [0,0,1], 0.0);
-      addQuad([p,-p,zBaseTop], [p,p,zBaseTop], [ci,ci,zBaseTop], [ci,-ci,zBaseTop], [0,0,1], 0.0);
-      addQuad([p,p,zBaseTop], [-p,p,zBaseTop], [-ci,ci,zBaseTop], [ci,ci,zBaseTop], [0,0,1], 0.0);
-      addQuad([-p,p,zBaseTop], [-p,-p,zBaseTop], [-ci,-ci,zBaseTop], [-ci,ci,zBaseTop], [0,0,1], 0.0);
+      // 하단 바닥면 (부채꼴)
+      for (let i = 0; i < baseOuter.pts.length - 1; i++) {
+        addTri([0, 0, zBaseBot], baseOuter.pts[i], baseOuter.pts[i+1], [0,0,-1], [0,0,-1], [0,0,-1], 0.0);
+      }
+      // 하단 사이드 둥근 측면
+      for (let i = 0; i < baseOuter.pts.length - 1; i++) {
+        const p0 = baseTop.pts[i], p1 = baseTop.pts[i+1];
+        const p2 = baseOuter.pts[i+1], p3 = baseOuter.pts[i];
+        const n0 = baseTop.norms[i], n1 = baseTop.norms[i+1];
+        const n2 = baseOuter.norms[i+1], n3 = baseOuter.norms[i];
+        addQuad(p0, p1, p2, p3, n0, n1, n2, n3, 0.0);
+      }
 
-      // 2) 상단 도톰한 엠보싱 초콜릿/마카롱 캡 (capFlag = 1.0)
-      const cb = ci - bevel;
-      // 엠보싱 4면 경사면 (도톰하게 솟아오름)
-      addQuad([-ci,-ci,zBaseTop], [ci,-ci,zBaseTop], [cb,-cb,zCapApex], [-cb,-cb,zCapApex], [0,-0.6,0.8], 1.0);
-      addQuad([ci,-ci,zBaseTop], [ci,ci,zBaseTop], [cb,cb,zCapApex], [cb,-cb,zCapApex], [0.6,0,0.8], 1.0);
-      addQuad([ci,ci,zBaseTop], [-ci,ci,zBaseTop], [-cb,cb,zCapApex], [cb,cb,zCapApex], [0,0.6,0.8], 1.0);
-      addQuad([-ci,ci,zBaseTop], [-ci,-ci,zBaseTop], [-cb,-cb,zCapApex], [-cb,cb,zCapApex], [-0.6,0,0.8], 1.0);
+      // 2) 상단 도톰한 엠보싱 초콜릿/마카롱 캡 (라운드 적용)
+      const capInsetR = Math.max(0.06, cornerR * 0.85);
+      const capRim = buildRoundedLoop(0.40, 0.40, capInsetR, zBaseTop, 0.6);
+      const capTop = buildRoundedLoop(0.30, 0.30, capInsetR * 0.8, zCapApex, 0.8);
 
-      // 최상단 평평하고 도톰한 초콜릿 면
-      addQuad([-cb,-cb,zCapApex], [cb,-cb,zCapApex], [cb,cb,zCapApex], [-cb,cb,zCapApex], [0,0,1], 1.0);
+      // 하단 비스킷 윗면 테두리 턱
+      for (let i = 0; i < baseTop.pts.length - 1; i++) {
+        addQuad(baseTop.pts[i], baseTop.pts[i+1], capRim.pts[i+1], capRim.pts[i], [0,0,1], [0,0,1], [0,0,1], [0,0,1], 0.0);
+      }
+
+      // 엠보싱 초콜릿 캡 경사면 (도톰하고 둥글게 솟아오름)
+      for (let i = 0; i < capRim.pts.length - 1; i++) {
+        const p0 = capTop.pts[i], p1 = capTop.pts[i+1];
+        const p2 = capRim.pts[i+1], p3 = capRim.pts[i];
+        const n0 = capTop.norms[i], n1 = capTop.norms[i+1];
+        const n2 = capRim.norms[i+1], n3 = capRim.norms[i];
+        addQuad(p0, p1, p2, p3, n0, n1, n2, n3, 1.0);
+      }
+
+      // 엠보싱 초콜릿 캡 최상단면 (부채꼴)
+      for (let i = 0; i < capTop.pts.length - 1; i++) {
+        addTri([0, 0, zCapApex], capTop.pts[i], capTop.pts[i+1], [0,0,1], [0,0,1], [0,0,1], 1.0);
+      }
 
       const vao = gl.createVertexArray();
       gl.bindVertexArray(vao);
@@ -607,25 +642,49 @@
       return { vao, count: positions.length / 3 };
     }
 
-    // 구움색 타르트 크러스트 레일 및 패들용 웨이퍼 베이스 큐브
-    function createCleanBevelBoxGeo(bevel = 0.05) {
-      const p = 0.5, b = bevel;
+    // 둥근 모서리 웨이퍼 및 타르트 레일용 지오메트리
+    function createRoundBevelBoxGeo(cornerR = 0.16, segments = 4) {
       const positions = [];
       const normals = [];
       const isTopCap = [];
 
-      function addQuad(p0, p1, p2, p3, norm, cap) {
-        positions.push(...p0, ...p1, ...p2, ...p0, ...p2, ...p3);
-        normals.push(...norm, ...norm, ...norm, ...norm, ...norm, ...norm);
-        isTopCap.push(cap, cap, cap, cap, cap, cap);
+      function addTri(p0, p1, p2, n0, n1, n2) {
+        positions.push(...p0, ...p1, ...p2);
+        normals.push(...n0, ...n1, ...n2);
+        isTopCap.push(0.0, 0.0, 0.0);
+      }
+      function addQuad(p0, p1, p2, p3, n0, n1, n2, n3) {
+        addTri(p0, p1, p2, n0, n1, n2);
+        addTri(p0, p2, p3, n0, n2, n3);
       }
 
-      addQuad([-p+b,-p+b,p], [p-b,-p+b,p], [p-b,p-b,p], [-p+b,p-b,p], [0,0,1], 0.0);
-      addQuad([p-b,-p+b,-p], [-p+b,-p+b,-p], [-p+b,p-b,-p], [p-b,p-b,-p], [0,0,-1], 0.0);
-      addQuad([-p+b,-p,p-b], [p-b,-p,p-b], [p-b,-p,-p+b], [-p+b,-p,-p+b], [0,-1,0], 0.0);
-      addQuad([-p+b,p,-p+b], [p-b,p,-p+b], [p-b,p,p-b], [-p+b,p,p-b], [0,1,0], 0.0);
-      addQuad([p,-p+b,p-b], [p,-p+b,-p+b], [p,p-b,-p+b], [p,p-b,p-b], [1,0,0], 0.0);
-      addQuad([-p,-p+b,-p+b], [-p,-p+b,p-b], [-p,p-b,p-b], [-p,p-b,-p+b], [-1,0,0], 0.0);
+      function buildLoop(z, zNorm) {
+        const pts = [];
+        const norms = [];
+        const corners = [
+          { cx: 0.5 - cornerR, cy: 0.5 - cornerR, a0: 0 },
+          { cx: -(0.5 - cornerR), cy: 0.5 - cornerR, a0: Math.PI * 0.5 },
+          { cx: -(0.5 - cornerR), cy: -(0.5 - cornerR), a0: Math.PI },
+          { cx: 0.5 - cornerR, cy: -(0.5 - cornerR), a0: Math.PI * 1.5 }
+        ];
+        corners.forEach(c => {
+          for (let i = 0; i <= segments; i++) {
+            const ang = c.a0 + (i * Math.PI * 0.5) / segments;
+            pts.push([c.cx + Math.cos(ang) * cornerR, c.cy + Math.sin(ang) * cornerR, z]);
+            norms.push([Math.cos(ang) * 0.7, Math.sin(ang) * 0.7, zNorm]);
+          }
+        });
+        return { pts, norms };
+      }
+
+      const bot = buildLoop(-0.5, -0.7);
+      const top = buildLoop(0.5, 0.7);
+
+      for (let i = 0; i < bot.pts.length - 1; i++) {
+        addTri([0, 0, -0.5], bot.pts[i], bot.pts[i+1], [0,0,-1], [0,0,-1], [0,0,-1]);
+        addTri([0, 0, 0.5], top.pts[i+1], top.pts[i], [0,0,1], [0,0,1], [0,0,1]);
+        addQuad(top.pts[i], top.pts[i+1], bot.pts[i+1], bot.pts[i], top.norms[i], top.norms[i+1], bot.norms[i+1], bot.norms[i]);
+      }
 
       const vao = gl.createVertexArray();
       gl.bindVertexArray(vao);
@@ -693,7 +752,6 @@
       gl.enableVertexAttribArray(1);
       gl.vertexAttribPointer(1, 3, gl.FLOAT, false, 0, 0);
 
-      // Dummy isTopCap for ball
       const isTopCap = new Float32Array(positions.length / 3);
       const capBuf = gl.createBuffer();
       gl.bindBuffer(gl.ARRAY_BUFFER, capBuf);
@@ -709,8 +767,9 @@
       return { vao, count: indices.length, isIndexed: true };
     }
 
-    const dessertBiscuitBrickGeo = createDessertBiscuitBlockGeo();
-    const waferBoxGeo = createCleanBevelBoxGeo(0.04);
+    // 둥근 엣지 디저트 지오메트리 캐싱
+    const roundDessertBiscuitBrickGeo = createRoundDessertBiscuitGeo(0.14, 4);
+    const roundWaferBoxGeo = createRoundBevelBoxGeo(0.16, 4);
     const ballSphereGeo = createSphereGeometry(24, 24);
 
     function getNormalMatrix(m) {
@@ -794,7 +853,6 @@
       return 4.6 + (currentStage - 1) * 0.22;
     }
 
-    // 디저트 테마 파워업 아이템
     const ITEM_TYPES = [
       { type: 'MULTI', label: 'M', color: [0.35, 0.70, 0.88, 1.0] },
       { type: 'GIANT_PIERCE', label: 'G', color: [0.18, 0.80, 0.32, 1.0] },
@@ -844,30 +902,30 @@
           if (char === '0') continue;
 
           let maxHp = 1;
-          // 이미지 속 실제 마카롱/초콜릿 컬러와 100% 동일하게 조색
-          let color = [0.82, 0.32, 0.36, 1.0]; // 라즈베리 마카롱
+          let color = [0.82, 0.32, 0.36, 1.0]; // 라즈베리 로즈
           let type = 'RED';
 
           if (char === 'G') {
-            maxHp = 3; color = [0.48, 0.28, 0.18, 1.0]; type = 'GOLD';    // 다크 카카오 초콜릿
+            maxHp = 3; color = [0.48, 0.28, 0.18, 1.0]; type = 'GOLD';    // 다크 카카오
           } else if (char === 'S') {
             maxHp = 2; color = [0.65, 0.42, 0.26, 1.0]; type = 'SILVER';  // 밀크 초콜릿
           } else if (char === 'C') {
-            maxHp = 1; color = [0.94, 0.92, 0.85, 1.0]; type = 'GLASS';   // 화이트 바닐라 크림
+            maxHp = 1; color = [0.94, 0.92, 0.85, 1.0]; type = 'GLASS';   // 화이트 바닐라
           } else if (char === '1') {
-            color = [0.82, 0.32, 0.36, 1.0]; type = 'RED';       // 라즈베리 로즈
+            color = [0.82, 0.32, 0.36, 1.0]; type = 'RED';
           } else if (char === '2') {
-            color = [0.88, 0.62, 0.42, 1.0]; type = 'ORANGE';    // 살구 망고 비스킷
+            color = [0.88, 0.62, 0.42, 1.0]; type = 'ORANGE';   // 망고 살구
           } else if (char === '3') {
-            color = [0.95, 0.85, 0.42, 1.0]; type = 'YELLOW';    // 레몬 버터 커스터드
+            color = [0.95, 0.85, 0.42, 1.0]; type = 'YELLOW';   // 레몬 버터
           } else if (char === '4') {
-            color = [0.55, 0.72, 0.45, 1.0]; type = 'GREEN';     // 피스타치오 말차
+            color = [0.55, 0.72, 0.45, 1.0]; type = 'GREEN';    // 피스타치오
           } else if (char === '5') {
-            color = [0.38, 0.58, 0.72, 1.0]; type = 'BLUE';      // 더스티 블루베리 크림
+            color = [0.38, 0.58, 0.72, 1.0]; type = 'BLUE';     // 더스티 블루
           }
 
           const bx = BRICK_LEFT + c * BRICK_W;
           const by = BRICK_TOP + r * BRICK_H;
+          // 둥근 모서리가 도드라지는 여백
           bricks.push({
             row: r,
             col: c,
@@ -890,7 +948,6 @@
     }
 
     function spawnExplosion3D(x, y, w, h, color) {
-      // 바삭한 비스킷 부스러기 & 초콜릿 파편 효과
       const count = 16;
       for (let i = 0; i < count; i++) {
         const isCrumb = Math.random() > 0.5;
@@ -1278,44 +1335,42 @@
         gl.bindVertexArray(null);
       }
 
-      // 1) 이미지 스타일: 구운 타르트 크러스트 레일 (Golden Pastry Crust)
+      // 1) 둥근 골든 타르트 크러스트 레일
       const crustColor = [0.86, 0.65, 0.40, 1.0];
       const wallD = 20;
 
       let m = Mat4.identity();
       m = Mat4.translate(m, [6, (24 + GAME_H) / 2, 0]);
       m = Mat4.scale(m, [12, GAME_H - 24, wallD]);
-      drawMesh(waferBoxGeo, m, crustColor, 0.0);
+      drawMesh(roundWaferBoxGeo, m, crustColor, 0.0);
 
       m = Mat4.identity();
       m = Mat4.translate(m, [GAME_W - 6, (24 + GAME_H) / 2, 0]);
       m = Mat4.scale(m, [12, GAME_H - 24, wallD]);
-      drawMesh(waferBoxGeo, m, crustColor, 0.0);
+      drawMesh(roundWaferBoxGeo, m, crustColor, 0.0);
 
       m = Mat4.identity();
       m = Mat4.translate(m, [GAME_W / 2, 30, 0]);
       m = Mat4.scale(m, [GAME_W, 12, wallD]);
-      drawMesh(waferBoxGeo, m, crustColor, 0.0);
+      drawMesh(roundWaferBoxGeo, m, crustColor, 0.0);
 
-      // 2) 이미지 속 2단 엠보싱 디저트 블록 렌더링
+      // 2) 둥근 모서리 2단 엠보싱 디저트 블록
       for (let b of bricks) {
         if (b.hp <= 0) continue;
         m = Mat4.identity();
         m = Mat4.translate(m, [b.x + b.w / 2, b.y + b.h / 2, 0]);
         m = Mat4.scale(m, [b.w, b.h, BRICK_D]);
-        drawMesh(dessertBiscuitBrickGeo, m, b.currentColor, 0.0);
+        drawMesh(roundDessertBiscuitBrickGeo, m, b.currentColor, 0.0);
       }
 
-      // 3) 이미지 스타일: 웨이퍼 바 위에 초콜릿/크림 블록이 얹어진 듀얼 패들
+      // 3) 둥근 웨이퍼 & 초콜릿/바닐라 크림 듀얼 패들
       const renderPaddleY = paddle.y + paddle.recoilY;
 
-      // 하단 웨이퍼 쿠키 베이스
       m = Mat4.identity();
       m = Mat4.translate(m, [paddle.x + paddle.w / 2, renderPaddleY + paddle.h / 2, -2]);
       m = Mat4.scale(m, [paddle.w, paddle.h, paddle.d]);
-      drawMesh(waferBoxGeo, m, [0.82, 0.58, 0.35, 1.0], 0.0);
+      drawMesh(roundWaferBoxGeo, m, [0.82, 0.58, 0.35, 1.0], 0.0);
 
-      // 상단 초콜릿 & 바닐라 교차 크림 토핑
       const segCount = 6;
       const segW = (paddle.w - 4) / segCount;
       for (let s = 0; s < segCount; s++) {
@@ -1323,7 +1378,7 @@
         m = Mat4.identity();
         m = Mat4.translate(m, [paddle.x + 2 + segW * (s + 0.5), renderPaddleY + paddle.h / 2, 3.5]);
         m = Mat4.scale(m, [segW - 1.2, paddle.h - 3, paddle.d * 0.7]);
-        drawMesh(dessertBiscuitBrickGeo, m, segCol, 0.0);
+        drawMesh(roundDessertBiscuitBrickGeo, m, segCol, 0.0);
       }
 
       // 4) 회전하는 야구공 / 거대 수박 & 에메랄드 잔상
@@ -1359,14 +1414,14 @@
         }
       }
 
-      // 5) 아이템 (미니 디저트 블록)
+      // 5) 아이템
       for (let it of items) {
         m = Mat4.identity();
         m = Mat4.translate(m, [it.x, it.y, 0]);
         m = Mat4.rotateX(m, it.rotX);
         m = Mat4.rotateY(m, it.rotY);
         m = Mat4.scale(m, [it.w, it.h, 12.0]);
-        drawMesh(dessertBiscuitBrickGeo, m, it.color, 0.0);
+        drawMesh(roundDessertBiscuitBrickGeo, m, it.color, 0.0);
       }
 
       // 6) 3D 파편
@@ -1376,7 +1431,7 @@
         m = Mat4.rotateX(m, p.rotX);
         m = Mat4.rotateY(m, p.rotY);
         m = Mat4.scale(m, [4.0, 4.0, 4.0]);
-        drawMesh(waferBoxGeo, m, [p.color[0], p.color[1], p.color[2], p.alpha], 0.0);
+        drawMesh(roundWaferBoxGeo, m, [p.color[0], p.color[1], p.color[2], p.alpha], 0.0);
       }
     }
 
@@ -1387,13 +1442,11 @@
       hudCtx.save();
       hudCtx.scale(scale, scale);
 
-      // 상단 우드 베이커리 바
       hudCtx.fillStyle = '#4a2c17';
       hudCtx.fillRect(0, 0, GAME_W, 28);
       hudCtx.fillStyle = '#361e0e';
       hudCtx.fillRect(0, 26, GAME_W, 2);
 
-      // 폰트 스타일: 이미지처럼 굵은 초콜릿 양각 텍스트
       hudCtx.fillStyle = '#ffecb3';
       hudCtx.font = '900 12px Courier New';
       hudCtx.shadowColor = '#241206';
@@ -1405,7 +1458,6 @@
       hudCtx.fillText(`LIVES:${'🍪'.repeat(lives)}`, 185, 18);
       hudCtx.shadowColor = 'transparent';
 
-      // 상단 우측 음소거 / 일시정지 버튼
       hudCtx.fillStyle = '#361e0e';
       hudCtx.beginPath();
       hudCtx.roundRect(GAME_W - 64, 4, 28, 20, 6);
@@ -1450,7 +1502,6 @@
         hudCtx.restore();
       }
 
-      // 하단 터치 상대 조작 존
       hudCtx.fillStyle = 'rgba(74, 44, 23, 0.05)';
       hudCtx.beginPath();
       hudCtx.roundRect(14, TOUCH_CONTROL_ZONE_Y, GAME_W - 28, GAME_H - TOUCH_CONTROL_ZONE_Y - 14, 16);

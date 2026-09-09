@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-  <title>3알카노이드 FX 3D - Baseball & Watermelon Edition</title>
+  <title>알4카노이드 FX 3D - Baseball & Watermelon Edition</title>
   <style>
     * {
       box-sizing: border-box;
@@ -121,7 +121,7 @@
 
   <div class="overlay" id="startOverlay">
     <h1 style="color: #ff4081; margin-bottom: 6px; text-shadow: 0 0 16px #ff80ab; font-size: 28px;">⚾ BUBBLE ARKAN PRO 🍉</h1>
-    <p style="color: #ffd54f; font-size: 13px; margin-bottom: 4px; font-weight: bold;">볼록볼록 쿠션 젤리 블록 & 워터멜론 아케이드</p>
+    <p style="color: #ffd54f; font-size: 13px; margin-bottom: 4px; font-weight: bold;">직각 쿠션 젤리 블록 & 워터멜론 아케이드</p>
     <p style="color: #69f0ae; font-size: 12px; margin: 3px 0;">[G] 자이언트 수박 모드 (에메랄드 잔상 궤적!)</p>
     <p style="color: #00e5ff; font-size: 12px; margin: 3px 0;">[S] 슬로우 | [E] 패들 확장 | [M] 멀티볼 | [L] 번개</p>
     <button class="btn" id="startBtn">START PLAY!</button>
@@ -458,21 +458,18 @@
           return;
         }
 
-        // [모드 0] 볼록하게 부풀어 오른 6면 쿠션 젤리 블록 & 패들
+        // [모드 0] 직각 큐브 외곽선 + 6면 볼록 쿠션 젤리 블록 & 패들
         vec3 base = uColor.rgb;
         float diff = max(dot(N, L), 0.0);
         vec3 diffuseColor = base * (0.76 + diff * 0.24);
 
-        // 볼록한 표면에 도톰하게 맺히는 광택 하이라이트
         vec3 H = normalize(L + V);
         float spec = pow(max(dot(N, H), 0.0), uShininess);
         vec3 specGlow = mix(base, vec3(1.0, 1.0, 1.0), 0.6) * spec * 0.62;
 
-        // 볼록한 외곽선을 감싸는 림 라이트
         float rim = 1.0 - max(dot(N, V), 0.0);
         vec3 rimGlow = mix(base, vec3(1.0, 1.0, 1.0), 0.35) * pow(rim, 2.4) * 0.45;
 
-        // 공 근접 발광
         vec3 toBall = uBallPos - vWorldPos;
         float dist = length(toBall);
         float ballAtten = clamp(1.0 - dist / 130.0, 0.0, 1.0);
@@ -512,32 +509,35 @@
       time: gl.getUniformLocation(program, "uTime")
     };
 
-    // --- 6. 6면이 볼록하게 부풀어 오른 3D 쿠션 블록 지오메트리 빌더 ---
-    function createPuffyInflatedBoxGeo(bulgeAmount = 0.22, gridSize = 8) {
+    // --- 6. 코너 라운드 없이 직각 모서리를 유지하면서 6개 면만 볼록한 3D 지오메트리 ---
+    function createBulgedCrispBoxGeo(bulgeAmount = 0.22, gridSize = 8) {
       const positions = [];
       const normals = [];
 
       function addFace(normalDir, rightDir, upDir) {
         for (let j = 0; j < gridSize; j++) {
           for (let i = 0; i < gridSize; i++) {
-            // 정규화 좌표 (-0.5 ~ 0.5)
             const u0 = (i / gridSize) - 0.5;
             const u1 = ((i + 1) / gridSize) - 0.5;
             const v0 = (j / gridSize) - 0.5;
             const v1 = ((j + 1) / gridSize) - 0.5;
 
             function getPoint(u, v) {
-              // 중심부가 가장 높게 솟아오르는 포물선 변위 수식
+              // 가장자리(u=±0.5 또는 v=±0.5)에서는 b=0이 되어 완벽한 직각 모서리로 떨어짐
               const b = (1.0 - 4.0 * u * u) * (1.0 - 4.0 * v * v) * bulgeAmount;
               const x = normalDir[0] * (0.5 + b) + rightDir[0] * u + upDir[0] * v;
               const y = normalDir[1] * (0.5 + b) + rightDir[1] * u + upDir[1] * v;
               const z = normalDir[2] * (0.5 + b) + rightDir[2] * u + upDir[2] * v;
-              
-              // 솟아오른 곡률을 반영한 부드러운 노멀
-              const nx = normalDir[0] + rightDir[0] * (u * 1.5) + upDir[0] * (v * 1.5);
-              const ny = normalDir[1] + rightDir[1] * (u * 1.5) + upDir[1] * (v * 1.5);
-              const nz = normalDir[2] + rightDir[2] * (u * 1.5) + upDir[2] * (v * 1.5);
+
+              // 볼록 솟아오른 곡면의 기울기 파생 노멀 계산
+              const dbdu = -8.0 * u * (1.0 - 4.0 * v * v) * bulgeAmount;
+              const dbdv = -8.0 * v * (1.0 - 4.0 * u * u) * bulgeAmount;
+
+              const nx = normalDir[0] - rightDir[0] * dbdu - upDir[0] * dbdv;
+              const ny = normalDir[1] - rightDir[1] * dbdu - upDir[1] * dbdv;
+              const nz = normalDir[2] - rightDir[2] * dbdu - upDir[2] * dbdv;
               const len = Math.hypot(nx, ny, nz) || 1.0;
+
               return { p: [x, y, z], n: [nx / len, ny / len, nz / len] };
             }
 
@@ -546,7 +546,6 @@
             const pt11 = getPoint(u1, v1);
             const pt01 = getPoint(u0, v1);
 
-            // Quad 생성 (2 Triangles)
             positions.push(...pt00.p, ...pt10.p, ...pt11.p);
             normals.push(...pt00.n, ...pt10.n, ...pt11.n);
 
@@ -556,7 +555,6 @@
         }
       }
 
-      // 6면에 대해 볼록한 면 생성
       addFace([0, 0, 1],  [1, 0, 0],  [0, 1, 0]);  // Front
       addFace([0, 0, -1], [-1, 0, 0], [0, 1, 0]);  // Back
       addFace([0, 1, 0],  [1, 0, 0],  [0, 0, -1]); // Top
@@ -632,10 +630,10 @@
       return { vao, count: indices.length, isIndexed: true };
     }
 
-    // 6면 모두 빵빵하게 부풀어 오른 쿠션 젤리 지오메트리
-    const puffyBrickGeo = createPuffyInflatedBoxGeo(0.24, 8);   // 볼록한 블록
-    const puffyPaddleGeo = createPuffyInflatedBoxGeo(0.18, 8);  // 볼록한 패들
-    const puffyRailGeo = createPuffyInflatedBoxGeo(0.20, 8);    // 볼록한 레일
+    // 직각 모서리 + 6면 볼록 지오메트리 캐싱
+    const bulgedCrispBrickGeo = createBulgedCrispBoxGeo(0.24, 8);   // 블록
+    const bulgedCrispPaddleGeo = createBulgedCrispBoxGeo(0.18, 8);  // 패들
+    const bulgedCrispRailGeo = createBulgedCrispBoxGeo(0.16, 8);    // 레일
     const ballSphereGeo = createSphereGeometry(24, 24);
 
     function getNormalMatrix(m) {
@@ -791,14 +789,14 @@
 
           const bx = BRICK_LEFT + c * BRICK_W;
           const by = BRICK_TOP + r * BRICK_H;
-          // 볼록한 볼륨감이 돋보이도록 적절한 여백 설정
+          // 모서리가 직각으로 딱딱 맞물리면서 볼록함이 드러나도록 타일 간격 최적화
           bricks.push({
             row: r,
             col: c,
-            x: bx + 1.4,
-            y: by + 1.2,
-            w: BRICK_W - 2.8,
-            h: BRICK_H - 2.4,
+            x: bx + 1.1,
+            y: by + 1.0,
+            w: BRICK_W - 2.2,
+            h: BRICK_H - 2.0,
             hp: maxHp,
             maxHp: maxHp,
             baseColor: color,
@@ -1201,36 +1199,36 @@
         gl.bindVertexArray(null);
       }
 
-      // 1) 라벤더 캔디 범퍼 레일
+      // 1) 라벤더 직각 볼록 범퍼 레일
       const wallColor = [0.88, 0.82, 0.98, 1.0];
       const wallD = 20;
 
       let m = Mat4.identity();
       m = Mat4.translate(m, [6, (24 + GAME_H) / 2, 0]);
       m = Mat4.scale(m, [12, GAME_H - 24, wallD]);
-      drawMesh(puffyRailGeo, m, wallColor, 35.0, 0.0);
+      drawMesh(bulgedCrispRailGeo, m, wallColor, 35.0, 0.0);
 
       m = Mat4.identity();
       m = Mat4.translate(m, [GAME_W - 6, (24 + GAME_H) / 2, 0]);
       m = Mat4.scale(m, [12, GAME_H - 24, wallD]);
-      drawMesh(puffyRailGeo, m, wallColor, 35.0, 0.0);
+      drawMesh(bulgedCrispRailGeo, m, wallColor, 35.0, 0.0);
 
       m = Mat4.identity();
       m = Mat4.translate(m, [GAME_W / 2, 30, 0]);
       m = Mat4.scale(m, [GAME_W, 12, wallD]);
-      drawMesh(puffyRailGeo, m, wallColor, 35.0, 0.0);
+      drawMesh(bulgedCrispRailGeo, m, wallColor, 35.0, 0.0);
 
-      // 2) 6면이 볼록하게 부풀어 오른 젤리 쿠션 블록
+      // 2) 코너 라운드 없는 6면 볼록 젤리 블록
       for (let b of bricks) {
         if (b.hp <= 0) continue;
         m = Mat4.identity();
         m = Mat4.translate(m, [b.x + b.w / 2, b.y + b.h / 2, 0]);
         m = Mat4.scale(m, [b.w, b.h, BRICK_D]);
         const shine = (b.type === 'GOLD' || b.type === 'SILVER') ? 60.0 : 42.0;
-        drawMesh(puffyBrickGeo, m, b.currentColor, shine, 0.0);
+        drawMesh(bulgedCrispBrickGeo, m, b.currentColor, shine, 0.0);
       }
 
-      // 3) 볼록한 쿠션 패들 (반동 recoilY 반영)
+      // 3) 코너 라운드 없는 6면 볼록 패들 (반동 recoilY 반영)
       let paddleCol = [1.0, 0.28, 0.62, 1.0];
       if (activeEffects.expandTimer > 0) paddleCol = [0.30, 0.98, 0.50, 1.0];
       if (activeEffects.hasLightning) paddleCol = [1.0, 0.88, 0.15, 1.0];
@@ -1240,13 +1238,13 @@
       m = Mat4.identity();
       m = Mat4.translate(m, [paddle.x + paddle.w / 2, renderPaddleY + paddle.h / 2, 0]);
       m = Mat4.scale(m, [paddle.w, paddle.h, paddle.d]);
-      drawMesh(puffyPaddleGeo, m, paddleCol, 45.0, 0.0);
+      drawMesh(bulgedCrispPaddleGeo, m, paddleCol, 45.0, 0.0);
 
-      // 패들 내부 화이트 볼록 코어
+      // 패들 내부 직각 볼록 코어
       m = Mat4.identity();
       m = Mat4.translate(m, [paddle.x + paddle.w / 2, renderPaddleY + paddle.h / 2, 2.5]);
       m = Mat4.scale(m, [Math.max(4, paddle.w - 14), paddle.h - 5, paddle.d]);
-      drawMesh(puffyPaddleGeo, m, [1.0, 0.94, 0.98, 0.92], 55.0, 0.0);
+      drawMesh(bulgedCrispPaddleGeo, m, [1.0, 0.94, 0.98, 0.92], 55.0, 0.0);
 
       // 4) 회전하는 야구공 / 거대 수박 & 자연스러운 수박 궤적 잔상
       const currentRadius = isWatermelon ? BASE_BALL_R * 2.7 : BASE_BALL_R;
@@ -1281,14 +1279,14 @@
         }
       }
 
-      // 5) 아이템 (볼록한 쿠션형)
+      // 5) 아이템 (직각 볼록 큐브)
       for (let it of items) {
         m = Mat4.identity();
         m = Mat4.translate(m, [it.x, it.y, 0]);
         m = Mat4.rotateX(m, it.rotX);
         m = Mat4.rotateY(m, it.rotY);
         m = Mat4.scale(m, [it.w, it.h, 12.0]);
-        drawMesh(puffyBrickGeo, m, it.color, 45.0, 0.0);
+        drawMesh(bulgedCrispBrickGeo, m, it.color, 45.0, 0.0);
       }
 
       // 6) 3D 버블 파편
@@ -1364,7 +1362,6 @@
         hudCtx.restore();
       }
 
-      // 하단 터치 조작 영역
       hudCtx.fillStyle = 'rgba(255, 128, 171, 0.05)';
       hudCtx.beginPath();
       hudCtx.roundRect(14, TOUCH_CONTROL_ZONE_Y, GAME_W - 28, GAME_H - TOUCH_CONTROL_ZONE_Y - 14, 20);

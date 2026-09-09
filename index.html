@@ -121,7 +121,7 @@
 
   <div class="overlay" id="startOverlay">
     <h1 style="color: #ff4081; margin-bottom: 6px; text-shadow: 0 0 16px #ff80ab; font-size: 28px;">⚾ BUBBLE ARKAN PRO 🍉</h1>
-    <p style="color: #ffd54f; font-size: 13px; margin-bottom: 4px; font-weight: bold;">글로시 젤리 블록 & 워터멜론 잔상 아케이드</p>
+    <p style="color: #ffd54f; font-size: 13px; margin-bottom: 4px; font-weight: bold;">볼록볼록 쿠션 젤리 블록 & 워터멜론 아케이드</p>
     <p style="color: #69f0ae; font-size: 12px; margin: 3px 0;">[G] 자이언트 수박 모드 (에메랄드 잔상 궤적!)</p>
     <p style="color: #00e5ff; font-size: 12px; margin: 3px 0;">[S] 슬로우 | [E] 패들 확장 | [M] 멀티볼 | [L] 번개</p>
     <button class="btn" id="startBtn">START PLAY!</button>
@@ -359,7 +359,7 @@
       }
     };
 
-    // --- 5. WebGL 2.0 셰이더 (글로시 캔디 젤리 & 야구공 & 수박) ---
+    // --- 5. WebGL 2.0 셰이더 ---
     const glCanvas = document.getElementById('glCanvas');
     const gl = glCanvas.getContext('webgl2', { alpha: true, antialias: true });
 
@@ -403,7 +403,7 @@
       void main() {
         vec3 N = normalize(vNormal);
         vec3 V = vec3(0.0, 0.0, 1.0);
-        vec3 L = normalize(vec3(0.25, -0.4, 0.88));
+        vec3 L = normalize(vec3(0.22, -0.38, 0.88));
 
         // [모드 3] 수박 궤적 반투명 젤리 잔상
         if (uBallMode > 2.5) {
@@ -435,7 +435,7 @@
           return;
         }
 
-        // [모드 2] 뱅글뱅글 회전하는 초록 수박
+        // [모드 2] 회전하는 초록 수박
         if (uBallMode > 1.5 && uBallMode < 2.5) {
           vec3 P = normalize(vLocalPos);
           float phi = atan(P.z, P.x);
@@ -458,21 +458,21 @@
           return;
         }
 
-        // [모드 0] 트렌디한 캐주얼 둥근 젤리 캔디 블록 & 패들
+        // [모드 0] 볼록하게 부풀어 오른 6면 쿠션 젤리 블록 & 패들
         vec3 base = uColor.rgb;
         float diff = max(dot(N, L), 0.0);
-        vec3 diffuseColor = base * (0.78 + diff * 0.22);
+        vec3 diffuseColor = base * (0.76 + diff * 0.24);
 
-        // 글로시한 상단 하이라이트 (과도하게 하얗게 타지 않는 유광 사탕 광택)
+        // 볼록한 표면에 도톰하게 맺히는 광택 하이라이트
         vec3 H = normalize(L + V);
         float spec = pow(max(dot(N, H), 0.0), uShininess);
-        vec3 specGlow = mix(base, vec3(1.0, 1.0, 1.0), 0.55) * spec * 0.55;
+        vec3 specGlow = mix(base, vec3(1.0, 1.0, 1.0), 0.6) * spec * 0.62;
 
-        // 가장자리를 부드럽게 감싸는 파스텔 젤리 림 라이트
+        // 볼록한 외곽선을 감싸는 림 라이트
         float rim = 1.0 - max(dot(N, V), 0.0);
-        vec3 rimGlow = mix(base, vec3(1.0, 1.0, 1.0), 0.3) * pow(rim, 2.6) * 0.4;
+        vec3 rimGlow = mix(base, vec3(1.0, 1.0, 1.0), 0.35) * pow(rim, 2.4) * 0.45;
 
-        // 공 근접 발광 효과
+        // 공 근접 발광
         vec3 toBall = uBallPos - vWorldPos;
         float dist = length(toBall);
         float ballAtten = clamp(1.0 - dist / 130.0, 0.0, 1.0);
@@ -512,69 +512,57 @@
       time: gl.getUniformLocation(program, "uTime")
     };
 
-    // --- 6. 아기자기한 3D 둥근 젤리 지오메트리 빌더 ---
-    function createChubbyRoundedBlockGeo(cornerRatio = 0.26, segments = 8) {
+    // --- 6. 6면이 볼록하게 부풀어 오른 3D 쿠션 블록 지오메트리 빌더 ---
+    function createPuffyInflatedBoxGeo(bulgeAmount = 0.22, gridSize = 8) {
       const positions = [];
       const normals = [];
 
-      function addTri(p0, p1, p2, n0, n1, n2) {
-        positions.push(...p0, ...p1, ...p2);
-        normals.push(...n0, ...n1, ...n2);
-      }
-      function addQuad(p0, p1, p2, p3, n0, n1, n2, n3) {
-        addTri(p0, p1, p2, n0, n1, n2);
-        addTri(p0, p2, p3, n0, n2, n3);
-      }
+      function addFace(normalDir, rightDir, upDir) {
+        for (let j = 0; j < gridSize; j++) {
+          for (let i = 0; i < gridSize; i++) {
+            // 정규화 좌표 (-0.5 ~ 0.5)
+            const u0 = (i / gridSize) - 0.5;
+            const u1 = ((i + 1) / gridSize) - 0.5;
+            const v0 = (j / gridSize) - 0.5;
+            const v1 = ((j + 1) / gridSize) - 0.5;
 
-      const r = Math.min(0.45, Math.max(0.08, cornerRatio));
-      const wInner = 0.5 - r;
-      const hInner = 0.5 - r;
-      const zTop = 0.5, zBot = -0.5;
+            function getPoint(u, v) {
+              // 중심부가 가장 높게 솟아오르는 포물선 변위 수식
+              const b = (1.0 - 4.0 * u * u) * (1.0 - 4.0 * v * v) * bulgeAmount;
+              const x = normalDir[0] * (0.5 + b) + rightDir[0] * u + upDir[0] * v;
+              const y = normalDir[1] * (0.5 + b) + rightDir[1] * u + upDir[1] * v;
+              const z = normalDir[2] * (0.5 + b) + rightDir[2] * u + upDir[2] * v;
+              
+              // 솟아오른 곡률을 반영한 부드러운 노멀
+              const nx = normalDir[0] + rightDir[0] * (u * 1.5) + upDir[0] * (v * 1.5);
+              const ny = normalDir[1] + rightDir[1] * (u * 1.5) + upDir[1] * (v * 1.5);
+              const nz = normalDir[2] + rightDir[2] * (u * 1.5) + upDir[2] * (v * 1.5);
+              const len = Math.hypot(nx, ny, nz) || 1.0;
+              return { p: [x, y, z], n: [nx / len, ny / len, nz / len] };
+            }
 
-      // 상단면 평면 (중앙 십자형)
-      addQuad([-wInner, -0.5, zTop], [wInner, -0.5, zTop], [wInner, 0.5, zTop], [-wInner, 0.5, zTop], [0,0,1],[0,0,1],[0,0,1],[0,0,1]);
-      addQuad([-0.5, -hInner, zTop], [-wInner, -hInner, zTop], [-wInner, hInner, zTop], [-0.5, hInner, zTop], [0,0,1],[0,0,1],[0,0,1],[0,0,1]);
-      addQuad([wInner, -hInner, zTop], [0.5, -hInner, zTop], [0.5, hInner, zTop], [wInner, hInner, zTop], [0,0,1],[0,0,1],[0,0,1],[0,0,1]);
+            const pt00 = getPoint(u0, v0);
+            const pt10 = getPoint(u1, v0);
+            const pt11 = getPoint(u1, v1);
+            const pt01 = getPoint(u0, v1);
 
-      const corners = [
-        { cx: wInner, cy: hInner, startAngle: 0 },
-        { cx: -wInner, cy: hInner, startAngle: Math.PI * 0.5 },
-        { cx: -wInner, cy: -hInner, startAngle: Math.PI },
-        { cx: wInner, cy: -hInner, startAngle: Math.PI * 1.5 }
-      ];
+            // Quad 생성 (2 Triangles)
+            positions.push(...pt00.p, ...pt10.p, ...pt11.p);
+            normals.push(...pt00.n, ...pt10.n, ...pt11.n);
 
-      // 상단 4개 모서리 부채꼴
-      corners.forEach(c => {
-        for (let i = 0; i < segments; i++) {
-          const a0 = c.startAngle + (i * Math.PI * 0.5) / segments;
-          const a1 = c.startAngle + ((i + 1) * Math.PI * 0.5) / segments;
-          addTri([c.cx, c.cy, zTop], [c.cx + Math.cos(a0) * r, c.cy + Math.sin(a0) * r, zTop], [c.cx + Math.cos(a1) * r, c.cy + Math.sin(a1) * r, zTop], [0,0,1], [0,0,1], [0,0,1]);
+            positions.push(...pt00.p, ...pt11.p, ...pt01.p);
+            normals.push(...pt00.n, ...pt11.n, ...pt01.n);
+          }
         }
-      });
+      }
 
-      // 4방향 직선 측면
-      addQuad([wInner, 0.5, zTop], [-wInner, 0.5, zTop], [-wInner, 0.5, zBot], [wInner, 0.5, zBot], [0,1,0.25],[0,1,0.25],[0,1,-0.25],[0,1,-0.25]);
-      addQuad([-wInner, -0.5, zTop], [wInner, -0.5, zTop], [wInner, -0.5, zBot], [-wInner, -0.5, zBot], [0,-1,0.25],[0,-1,0.25],[0,-1,-0.25],[0,-1,-0.25]);
-      addQuad([-0.5, hInner, zTop], [-0.5, -hInner, zTop], [-0.5, -hInner, zBot], [-0.5, hInner, zBot], [-1,0,0.25],[-1,0,0.25],[-1,0,-0.25],[-1,0,-0.25]);
-      addQuad([0.5, -hInner, zTop], [0.5, hInner, zTop], [0.5, hInner, zBot], [0.5, -hInner, zBot], [1,0,0.25],[1,0,0.25],[1,0,-0.25],[1,0,-0.25]);
-
-      // 4개 모서리 곡면 측면
-      corners.forEach(c => {
-        for (let i = 0; i < segments; i++) {
-          const a0 = c.startAngle + (i * Math.PI * 0.5) / segments;
-          const a1 = c.startAngle + ((i + 1) * Math.PI * 0.5) / segments;
-          const cos0 = Math.cos(a0), sin0 = Math.sin(a0);
-          const cos1 = Math.cos(a1), sin1 = Math.sin(a1);
-          addQuad(
-            [c.cx + cos0 * r, c.cy + sin0 * r, zTop], [c.cx + cos1 * r, c.cy + sin1 * r, zTop],
-            [c.cx + cos1 * r, c.cy + sin1 * r, zBot], [c.cx + cos0 * r, c.cy + sin0 * r, zBot],
-            [cos0, sin0, 0.25], [cos1, sin1, 0.25], [cos1, sin1, -0.25], [cos0, sin0, -0.25]
-          );
-        }
-      });
-
-      // 바닥면
-      addQuad([-wInner, -0.5, zBot], [-wInner, 0.5, zBot], [wInner, 0.5, zBot], [wInner, -0.5, zBot], [0,0,-1],[0,0,-1],[0,0,-1],[0,0,-1]);
+      // 6면에 대해 볼록한 면 생성
+      addFace([0, 0, 1],  [1, 0, 0],  [0, 1, 0]);  // Front
+      addFace([0, 0, -1], [-1, 0, 0], [0, 1, 0]);  // Back
+      addFace([0, 1, 0],  [1, 0, 0],  [0, 0, -1]); // Top
+      addFace([0, -1, 0], [1, 0, 0],  [0, 0, 1]);  // Bottom
+      addFace([1, 0, 0],  [0, 0, -1], [0, 1, 0]);  // Right
+      addFace([-1, 0, 0], [0, 0, 1],  [0, 1, 0]);  // Left
 
       const vao = gl.createVertexArray();
       gl.bindVertexArray(vao);
@@ -644,9 +632,10 @@
       return { vao, count: indices.length, isIndexed: true };
     }
 
-    const chubbyBrickGeo = createChubbyRoundedBlockGeo(0.26, 8); // 귀여운 알약 블록
-    const chubbyPaddleGeo = createChubbyRoundedBlockGeo(0.32, 8); // 둥근 패들
-    const chubbyRailGeo = createChubbyRoundedBlockGeo(0.38, 8);   // 범퍼 레일
+    // 6면 모두 빵빵하게 부풀어 오른 쿠션 젤리 지오메트리
+    const puffyBrickGeo = createPuffyInflatedBoxGeo(0.24, 8);   // 볼록한 블록
+    const puffyPaddleGeo = createPuffyInflatedBoxGeo(0.18, 8);  // 볼록한 패들
+    const puffyRailGeo = createPuffyInflatedBoxGeo(0.20, 8);    // 볼록한 레일
     const ballSphereGeo = createSphereGeometry(24, 24);
 
     function getNormalMatrix(m) {
@@ -779,37 +768,37 @@
           if (char === '0') continue;
 
           let maxHp = 1;
-          // 트렌디하고 화사한 캐주얼 네온 캔디 팔레트
-          let color = [1.0, 0.22, 0.58, 1.0]; // 체리 팝
+          let color = [1.0, 0.22, 0.58, 1.0];
           let type = 'RED';
 
           if (char === 'G') {
-            maxHp = 3; color = [1.0, 0.84, 0.18, 1.0]; type = 'GOLD'; // 골든 허니
+            maxHp = 3; color = [1.0, 0.84, 0.18, 1.0]; type = 'GOLD';
           } else if (char === 'S') {
-            maxHp = 2; color = [0.90, 0.94, 1.0, 1.0]; type = 'SILVER'; // 밀키 화이트
+            maxHp = 2; color = [0.90, 0.94, 1.0, 1.0]; type = 'SILVER';
           } else if (char === 'C') {
-            maxHp = 1; color = [0.18, 0.92, 1.0, 0.92]; type = 'GLASS'; // 소다 팝
+            maxHp = 1; color = [0.18, 0.92, 1.0, 0.92]; type = 'GLASS';
           } else if (char === '1') {
-            color = [1.0, 0.24, 0.56, 1.0]; type = 'RED';       // 네온 체리
+            color = [1.0, 0.24, 0.56, 1.0]; type = 'RED';
           } else if (char === '2') {
-            color = [1.0, 0.58, 0.14, 1.0]; type = 'ORANGE';    // 망고 오렌지
+            color = [1.0, 0.58, 0.14, 1.0]; type = 'ORANGE';
           } else if (char === '3') {
-            color = [1.0, 0.90, 0.20, 1.0]; type = 'YELLOW';    // 레몬 캔디
+            color = [1.0, 0.90, 0.20, 1.0]; type = 'YELLOW';
           } else if (char === '4') {
-            color = [0.24, 0.92, 0.48, 1.0]; type = 'GREEN';    // 라임 민트
+            color = [0.24, 0.92, 0.48, 1.0]; type = 'GREEN';
           } else if (char === '5') {
-            color = [0.16, 0.70, 1.0, 1.0]; type = 'BLUE';      // 캔디 시안
+            color = [0.16, 0.70, 1.0, 1.0]; type = 'BLUE';
           }
 
           const bx = BRICK_LEFT + c * BRICK_W;
           const by = BRICK_TOP + r * BRICK_H;
+          // 볼록한 볼륨감이 돋보이도록 적절한 여백 설정
           bricks.push({
             row: r,
             col: c,
-            x: bx + 1.2,
-            y: by + 1.0,
-            w: BRICK_W - 2.4,
-            h: BRICK_H - 2.0,
+            x: bx + 1.4,
+            y: by + 1.2,
+            w: BRICK_W - 2.8,
+            h: BRICK_H - 2.4,
             hp: maxHp,
             maxHp: maxHp,
             baseColor: color,
@@ -856,7 +845,7 @@
         rotX: Math.random() * Math.PI,
         rotY: Math.random() * Math.PI,
         rotZ: Math.random() * Math.PI,
-        trail: [] // 수박 잔상용 궤적 배열
+        trail: []
       };
     }
 
@@ -1006,7 +995,6 @@
       for (let i = balls.length - 1; i >= 0; i--) {
         const ball = balls[i];
 
-        // 수박 모드일 때만 자연스러운 부드러운 잔상 트레일 추적
         if (isWatermelon) {
           ball.trail.unshift({ x: ball.x, y: ball.y });
           if (ball.trail.length > 14) ball.trail.pop();
@@ -1213,36 +1201,36 @@
         gl.bindVertexArray(null);
       }
 
-      // 1) 라벤더 캔디 범퍼 레일 (둥글고 글로시한 라운드 바)
+      // 1) 라벤더 캔디 범퍼 레일
       const wallColor = [0.88, 0.82, 0.98, 1.0];
       const wallD = 20;
 
       let m = Mat4.identity();
       m = Mat4.translate(m, [6, (24 + GAME_H) / 2, 0]);
       m = Mat4.scale(m, [12, GAME_H - 24, wallD]);
-      drawMesh(chubbyRailGeo, m, wallColor, 35.0, 0.0);
+      drawMesh(puffyRailGeo, m, wallColor, 35.0, 0.0);
 
       m = Mat4.identity();
       m = Mat4.translate(m, [GAME_W - 6, (24 + GAME_H) / 2, 0]);
       m = Mat4.scale(m, [12, GAME_H - 24, wallD]);
-      drawMesh(chubbyRailGeo, m, wallColor, 35.0, 0.0);
+      drawMesh(puffyRailGeo, m, wallColor, 35.0, 0.0);
 
       m = Mat4.identity();
       m = Mat4.translate(m, [GAME_W / 2, 30, 0]);
       m = Mat4.scale(m, [GAME_W, 12, wallD]);
-      drawMesh(chubbyRailGeo, m, wallColor, 35.0, 0.0);
+      drawMesh(puffyRailGeo, m, wallColor, 35.0, 0.0);
 
-      // 2) 둥글고 귀여운 유광 캔디 젤리 블록
+      // 2) 6면이 볼록하게 부풀어 오른 젤리 쿠션 블록
       for (let b of bricks) {
         if (b.hp <= 0) continue;
         m = Mat4.identity();
         m = Mat4.translate(m, [b.x + b.w / 2, b.y + b.h / 2, 0]);
         m = Mat4.scale(m, [b.w, b.h, BRICK_D]);
         const shine = (b.type === 'GOLD' || b.type === 'SILVER') ? 60.0 : 42.0;
-        drawMesh(chubbyBrickGeo, m, b.currentColor, shine, 0.0);
+        drawMesh(puffyBrickGeo, m, b.currentColor, shine, 0.0);
       }
 
-      // 3) 귀엽고 둥근 마시멜로 패들 (반동 recoilY 반영)
+      // 3) 볼록한 쿠션 패들 (반동 recoilY 반영)
       let paddleCol = [1.0, 0.28, 0.62, 1.0];
       if (activeEffects.expandTimer > 0) paddleCol = [0.30, 0.98, 0.50, 1.0];
       if (activeEffects.hasLightning) paddleCol = [1.0, 0.88, 0.15, 1.0];
@@ -1252,27 +1240,24 @@
       m = Mat4.identity();
       m = Mat4.translate(m, [paddle.x + paddle.w / 2, renderPaddleY + paddle.h / 2, 0]);
       m = Mat4.scale(m, [paddle.w, paddle.h, paddle.d]);
-      drawMesh(chubbyPaddleGeo, m, paddleCol, 45.0, 0.0);
+      drawMesh(puffyPaddleGeo, m, paddleCol, 45.0, 0.0);
 
-      // 패들 내부 부드러운 화이트 캔디 코어
+      // 패들 내부 화이트 볼록 코어
       m = Mat4.identity();
       m = Mat4.translate(m, [paddle.x + paddle.w / 2, renderPaddleY + paddle.h / 2, 2.5]);
       m = Mat4.scale(m, [Math.max(4, paddle.w - 14), paddle.h - 5, paddle.d]);
-      drawMesh(chubbyPaddleGeo, m, [1.0, 0.94, 0.98, 0.92], 55.0, 0.0);
+      drawMesh(puffyPaddleGeo, m, [1.0, 0.94, 0.98, 0.92], 55.0, 0.0);
 
       // 4) 회전하는 야구공 / 거대 수박 & 자연스러운 수박 궤적 잔상
       const currentRadius = isWatermelon ? BASE_BALL_R * 2.7 : BASE_BALL_R;
 
       for (let b of balls) {
-        // 수박 모드일 때 에메랄드 그린 빛 잔상 구체 렌더링
         if (isWatermelon && b.trail.length > 0) {
           for (let idx = 0; idx < b.trail.length; idx++) {
             const pt = b.trail[idx];
             const progress = (idx + 1) / b.trail.length;
             const trailR = currentRadius * (1.0 - progress * 0.55);
             const alpha = (1.0 - progress) * 0.45;
-
-            // 민트 그린 수박 잔상
             const trailCol = [0.18, 0.85, 0.45, alpha];
 
             m = Mat4.identity();
@@ -1282,7 +1267,6 @@
           }
         }
 
-        // 메인 공 (야구공 / 수박)
         m = Mat4.identity();
         m = Mat4.translate(m, [b.x, b.y, 6]);
         m = Mat4.rotateX(m, b.rotX);
@@ -1297,14 +1281,14 @@
         }
       }
 
-      // 5) 아이템 (둥근 캡슐형)
+      // 5) 아이템 (볼록한 쿠션형)
       for (let it of items) {
         m = Mat4.identity();
         m = Mat4.translate(m, [it.x, it.y, 0]);
         m = Mat4.rotateX(m, it.rotX);
         m = Mat4.rotateY(m, it.rotY);
         m = Mat4.scale(m, [it.w, it.h, 12.0]);
-        drawMesh(chubbyBrickGeo, m, it.color, 45.0, 0.0);
+        drawMesh(puffyBrickGeo, m, it.color, 45.0, 0.0);
       }
 
       // 6) 3D 버블 파편

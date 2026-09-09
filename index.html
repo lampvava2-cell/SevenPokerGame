@@ -1,17 +1,1566 @@
-// 유튜브 플레이어 생성 시 Video ID 설정
-const player = new YT.Player('bg-player', {
-  videoId: '1zcIUk66HX4',
-  playerVars: {
-    autoplay: 1,
-    loop: 1,
-    playlist: '1zcIUk66HX4', // 무한 반복 재생을 위해 동일 ID 지정
-    controls: 0,
-    showinfo: 0,
-    autohide: 1,
-    modestbranding: 1,
-    mute: 1 // 모바일 및 브라우저 정책상 자동재생 필수
-  },
-  events: {
-    onReady: (e) => e.target.playVideo()
-  }
-});
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <title>알카노이드 FX 3D - Baseball & Watermelon Edition</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: none;
+    }
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden;
+      background-color: #0d0818;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-family: 'Courier New', Courier, monospace;
+    }
+    #gameContainer {
+      position: relative;
+      background-color: #0d0818;
+      box-shadow: 0 0 45px rgba(255, 64, 129, 0.25);
+      border-radius: 18px;
+      overflow: hidden;
+    }
+    #ytPlayerWrapper {
+      position: absolute;
+      top: 5.625%;
+      left: 3.333%;
+      width: 93.334%;
+      height: 94.375%;
+      background-color: #000000;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      overflow: hidden;
+      z-index: 1;
+      pointer-events: none;
+    }
+    #ytBox {
+      position: relative;
+      width: 100%;
+      height: 0;
+      padding-bottom: 56.25%;
+      background: #000000;
+    }
+    #ytBox iframe, #ytPlayer {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      filter: brightness(0.42) contrast(1.15);
+    }
+    #glCanvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 2;
+    }
+    #hudCanvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 3;
+      touch-action: none;
+      background: transparent;
+    }
+    .overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(13, 8, 24, 0.90);
+      backdrop-filter: blur(6px);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      color: #fff;
+      z-index: 100;
+    }
+    .btn {
+      margin-top: 22px;
+      padding: 15px 38px;
+      font-size: 19px;
+      font-weight: 900;
+      background: linear-gradient(135deg, #ff2a7a, #ff758c, #ffbe3b);
+      color: #fff;
+      border: none;
+      border-radius: 30px;
+      cursor: pointer;
+      box-shadow: 0 0 25px rgba(255, 42, 122, 0.65);
+      text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+      letter-spacing: 1.5px;
+    }
+  </style>
+  <script src="https://www.youtube.com/iframe_api"></script>
+</head>
+<body>
+
+  <div id="gameContainer">
+    <div id="ytPlayerWrapper">
+      <div id="ytBox">
+        <div id="ytPlayer"></div>
+      </div>
+    </div>
+    <canvas id="glCanvas"></canvas>
+    <canvas id="hudCanvas"></canvas>
+  </div>
+
+  <div class="overlay" id="startOverlay">
+    <h1 style="color: #ff2a7a; margin-bottom: 6px; text-shadow: 0 0 16px #ff758c; font-size: 28px;">⚾ BUBBLE ARKAN PRO 🍉</h1>
+    <p style="color: #ffd54f; font-size: 13px; margin-bottom: 4px; font-weight: bold;">모던 아케이드 브릭 & 워터멜론 캐주얼</p>
+    <p style="color: #00e676; font-size: 12px; margin: 3px 0;">[G] 자이언트 수박 모드 (에메랄드 잔상 관통!)</p>
+    <p style="color: #00e5ff; font-size: 12px; margin: 3px 0;">[S] 슬로우 | [E] 패들 확장 | [M] 멀티볼 | [L] 번개</p>
+    <button class="btn" id="startBtn">START PLAY!</button>
+  </div>
+
+  <div class="overlay" id="gameOverOverlay" style="display: none;">
+    <h1 id="overTitle" style="color: #ff2a7a; text-shadow: 0 0 14px #ff758c;">GAME OVER</h1>
+    <p id="finalScore" style="font-size: 16px; color: #ffd54f;">점수: 0</p>
+    <button class="btn" id="overBtn">다시하기</button>
+  </div>
+
+  <script>
+    // --- 1. 유튜브 플레이어 컨트롤러 ---
+    let ytPlayer = null;
+    const TARGET_VIDEO_ID = '1zcIUk66HX4'; // 요청하신 신규 해저 캠 영상 ID로 업데이트
+    let isMuted = false;
+
+    function onYouTubeIframeAPIReady() {
+      ytPlayer = new YT.Player('ytPlayer', {
+        videoId: TARGET_VIDEO_ID,
+        playerVars: {
+          autoplay: 1,
+          mute: 1,
+          controls: 0,
+          disablekb: 1,
+          fs: 0,
+          rel: 0,
+          modestbranding: 1,
+          playsinline: 1,
+          loop: 1,
+          playlist: TARGET_VIDEO_ID
+        },
+        events: {
+          onReady: (e) => {
+            e.target.mute();
+            e.target.playVideo();
+          }
+        }
+      });
+    }
+
+    function activateYouTubeAudio() {
+      if (ytPlayer && ytPlayer.playVideo && !isMuted) {
+        ytPlayer.unMute();
+        ytPlayer.setVolume(70);
+        ytPlayer.playVideo();
+      }
+    }
+
+    function toggleMute() {
+      isMuted = !isMuted;
+      if (ytPlayer) {
+        if (isMuted) ytPlayer.mute();
+        else {
+          ytPlayer.unMute();
+          ytPlayer.setVolume(70);
+        }
+      }
+    }
+
+    // --- 2. 햅틱 피드백 ---
+    function vibrate(pattern) {
+      if (typeof navigator !== 'undefined' && navigator.vibrate) {
+        try { navigator.vibrate(pattern); } catch (e) {}
+      }
+    }
+
+    // --- 3. 신스 사운드 엔진 ---
+    let audioCtx = null;
+    let comboCount = 0;
+    let lastHitTime = 0;
+
+    function initAudio() {
+      if (!audioCtx) {
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        audioCtx = new AudioContext();
+      }
+      if (audioCtx.state === 'suspended') {
+        audioCtx.resume();
+      }
+    }
+
+    function playTone(freq, type, duration, endFreq = null, vol = 0.22) {
+      if (!audioCtx || isMuted) return;
+      try {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        const now = audioCtx.currentTime;
+
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq, now);
+        if (endFreq) {
+          osc.frequency.exponentialRampToValueAtTime(Math.max(10, endFreq), now + duration);
+        }
+
+        gain.gain.setValueAtTime(vol, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+
+        osc.start(now);
+        osc.stop(now + duration);
+      } catch (e) {}
+    }
+
+    const sound = {
+      hitBrick: (type, isDestroyed) => {
+        const now = Date.now();
+        if (now - lastHitTime < 450) {
+          comboCount = Math.min(comboCount + 1, 14);
+        } else {
+          comboCount = 0;
+        }
+        lastHitTime = now;
+        const pitch = Math.pow(1.06, comboCount);
+
+        if (type === 'GOLD') {
+          playTone(650 * pitch, 'sine', 0.12, isDestroyed ? 1050 : 850, 0.28);
+          setTimeout(() => playTone(1300, 'triangle', 0.08, null, 0.15), 25);
+        } else if (type === 'SILVER') {
+          playTone(580 * pitch, 'triangle', 0.11, isDestroyed ? 900 : 720, 0.25);
+        } else if (type === 'GLASS') {
+          playTone(1200 * pitch, 'sine', 0.16, 1750, 0.28);
+          setTimeout(() => playTone(1900, 'sine', 0.1, 2400, 0.2), 25);
+        } else {
+          playTone(520 * pitch, 'sine', 0.09, isDestroyed ? 820 : 620, 0.24);
+        }
+      },
+      hitPaddle: (isWatermelon = false) => {
+        comboCount = 0;
+        if (isWatermelon) {
+          playTone(180, 'sine', 0.22, 60, 0.45);
+          setTimeout(() => playTone(120, 'triangle', 0.18, 50, 0.35), 20);
+        } else {
+          playTone(380, 'sine', 0.11, 210, 0.32);
+          setTimeout(() => playTone(290, 'triangle', 0.08, 480, 0.22), 20);
+        }
+      },
+      hitWall: () => {
+        playTone(780, 'sine', 0.04, 950, 0.16);
+      },
+      hitExplosion: () => {
+        playTone(150, 'triangle', 0.26, 40, 0.4);
+        playTone(340, 'sine', 0.18, 80, 0.28);
+      },
+      lightning: () => {
+        playTone(850, 'sawtooth', 0.18, 120, 0.3);
+        setTimeout(() => playTone(1400, 'triangle', 0.12, 300, 0.2), 30);
+      },
+      powerUp: () => {
+        playTone(523, 'sine', 0.08, null, 0.25);
+        setTimeout(() => playTone(659, 'sine', 0.08, null, 0.25), 60);
+        setTimeout(() => playTone(784, 'sine', 0.08, null, 0.25), 120);
+        setTimeout(() => playTone(1046, 'sine', 0.18, 1318, 0.3), 180);
+      },
+      stageClear: () => {
+        playTone(587, 'sine', 0.12, null, 0.28);
+        setTimeout(() => playTone(740, 'sine', 0.12, null, 0.28), 100);
+        setTimeout(() => playTone(880, 'sine', 0.15, null, 0.28), 200);
+        setTimeout(() => playTone(1175, 'sine', 0.35, 1318, 0.35), 320);
+      },
+      loseLife: () => {
+        comboCount = 0;
+        playTone(300, 'sawtooth', 0.32, 60, 0.35);
+      }
+    };
+
+    // --- 4. 4x4 행렬 유틸 ---
+    const Mat4 = {
+      ortho2D: (left, right, bottom, top, near = -500, far = 500) => {
+        const lr = 1 / (left - right);
+        const bt = 1 / (bottom - top);
+        const nf = 1 / (near - far);
+        return new Float32Array([
+          -2 * lr, 0, 0, 0,
+          0, -2 * bt, 0, 0,
+          0, 0, 2 * nf, 0,
+          (left + right) * lr, (top + bottom) * bt, (far + near) * nf, 1
+        ]);
+      },
+      identity: () => new Float32Array([
+        1,0,0,0,
+        0,1,0,0,
+        0,0,1,0,
+        0,0,0,1
+      ]),
+      translate: (m, v) => {
+        const out = new Float32Array(m);
+        out[12] = m[0] * v[0] + m[4] * v[1] + m[8] * v[2] + m[12];
+        out[13] = m[1] * v[0] + m[5] * v[1] + m[9] * v[2] + m[13];
+        out[14] = m[2] * v[0] + m[6] * v[1] + m[10] * v[2] + m[14];
+        out[15] = m[3] * v[0] + m[7] * v[1] + m[11] * v[2] + m[15];
+        return out;
+      },
+      scale: (m, v) => {
+        const out = new Float32Array(m);
+        out[0] *= v[0]; out[1] *= v[0]; out[2] *= v[0]; out[3] *= v[0];
+        out[4] *= v[1]; out[5] *= v[1]; out[6] *= v[1]; out[7] *= v[1];
+        out[8] *= v[2]; out[9] *= v[2]; out[10] *= v[2]; out[11] *= v[2];
+        return out;
+      },
+      rotateX: (m, rad) => {
+        const s = Math.sin(rad), c = Math.cos(rad);
+        const a10 = m[4], a11 = m[5], a12 = m[6], a13 = m[7];
+        const a20 = m[8], a21 = m[9], a22 = m[10], a23 = m[11];
+        const out = new Float32Array(m);
+        out[4] = a10 * c + a20 * s; out[5] = a11 * c + a21 * s;
+        out[6] = a12 * c + a22 * s; out[7] = a13 * c + a23 * s;
+        out[8] = a20 * c - a10 * s; out[9] = a21 * c - a11 * s;
+        out[10] = a22 * c - a12 * s; out[11] = a23 * c - a13 * s;
+        return out;
+      },
+      rotateY: (m, rad) => {
+        const s = Math.sin(rad), c = Math.cos(rad);
+        const a00 = m[0], a01 = m[1], a02 = m[2], a03 = m[3];
+        const a20 = m[8], a21 = m[9], a22 = m[10], a23 = m[11];
+        const out = new Float32Array(m);
+        out[0] = a00 * c - a20 * s; out[1] = a01 * c - a21 * s;
+        out[2] = a02 * c - a22 * s; out[3] = a03 * c - a23 * s;
+        out[8] = a00 * s + a20 * c; out[9] = a01 * s + a21 * c;
+        out[10] = a02 * s + a22 * c; out[11] = a03 * s + a23 * c;
+        return out;
+      },
+      rotateZ: (m, rad) => {
+        const s = Math.sin(rad), c = Math.cos(rad);
+        const a00 = m[0], a01 = m[1], a02 = m[2], a03 = m[3];
+        const a10 = m[4], a11 = m[5], a12 = m[6], a13 = m[7];
+        const out = new Float32Array(m);
+        out[0] = a00 * c + a10 * s; out[1] = a01 * c + a11 * s;
+        out[2] = a02 * c + a12 * s; out[3] = a03 * c + a13 * s;
+        out[4] = a10 * c - a00 * s; out[5] = a11 * c - a01 * s;
+        out[6] = a12 * c - a02 * s; out[7] = a13 * c - a03 * s;
+        return out;
+      }
+    };
+
+    // --- 5. WebGL 2.0 셰이더 ---
+    const glCanvas = document.getElementById('glCanvas');
+    const gl = glCanvas.getContext('webgl2', { alpha: true, antialias: true });
+
+    const vsSource = `#version 300 es
+      layout(location = 0) in vec3 aPosition;
+      layout(location = 1) in vec3 aNormal;
+
+      uniform mat4 uModel;
+      uniform mat4 uProjection;
+      uniform mat3 uNormalMatrix;
+
+      out vec3 vNormal;
+      out vec3 vLocalPos;
+      out vec3 vWorldPos;
+
+      void main() {
+        vLocalPos = aPosition;
+        vec4 worldPos = uModel * vec4(aPosition, 1.0);
+        vWorldPos = worldPos.xyz;
+        vNormal = normalize(uNormalMatrix * aNormal);
+        gl_Position = uProjection * worldPos;
+      }
+    `;
+
+    const fsSource = `#version 300 es
+      precision mediump float;
+
+      in vec3 vNormal;
+      in vec3 vLocalPos;
+      in vec3 vWorldPos;
+
+      uniform vec4 uColor;
+      uniform vec3 uBallPos;
+      uniform vec3 uBallColor;
+      uniform float uBallMode; // 0.0: 블록/패들, 1.0: 야구공, 2.0: 수박, 3.0: 잔상
+      uniform float uTime;
+
+      out vec4 fragColor;
+
+      void main() {
+        vec3 N = normalize(vNormal);
+        vec3 V = vec3(0.0, 0.0, 1.0);
+        vec3 L = normalize(vec3(0.2, -0.4, 0.9));
+
+        // [모드 3] 수박 궤적 반투명 에메랄드 잔상
+        if (uBallMode > 2.5) {
+          float rim = 1.0 - max(dot(N, V), 0.0);
+          vec3 trailGlow = mix(uColor.rgb, vec3(0.5, 1.0, 0.7), rim * 0.6);
+          fragColor = vec4(trailGlow, uColor.a * (0.3 + rim * 0.7));
+          return;
+        }
+
+        // [모드 1] 회전하는 흰색 야구공
+        if (uBallMode > 0.5 && uBallMode < 1.5) {
+          vec3 P = normalize(vLocalPos);
+          float seam1 = abs(P.z - 0.72 * sin(P.x * 3.14159) * cos(P.y * 3.14159));
+          float seam2 = abs(P.x - 0.72 * sin(P.y * 3.14159) * cos(P.z * 3.14159));
+          float seamDist = min(seam1, seam2);
+
+          vec3 baseCol = vec3(0.98, 0.98, 0.99);
+          if (seamDist < 0.09) {
+            float stitch = sin(atan(P.y, P.x) * 48.0);
+            baseCol = mix(vec3(0.95, 0.15, 0.25), vec3(0.75, 0.1, 0.18), step(0.0, stitch));
+          }
+
+          float diff = max(dot(N, L), 0.0);
+          vec3 H = normalize(L + V);
+          float spec = pow(max(dot(N, H), 0.0), 32.0);
+
+          vec3 finalColor = baseCol * (0.8 + diff * 0.2) + vec3(1.0) * spec * 0.3;
+          fragColor = vec4(finalColor, 1.0);
+          return;
+        }
+
+        // [모드 2] 회전하는 수박
+        if (uBallMode > 1.5 && uBallMode < 2.5) {
+          vec3 P = normalize(vLocalPos);
+          float phi = atan(P.z, P.x);
+          float wave = sin(P.y * 14.0) * 0.28;
+          float stripePattern = sin(phi * 8.0 + wave);
+
+          vec3 baseCol;
+          if (stripePattern > 0.18) {
+            baseCol = vec3(0.04, 0.13, 0.05);
+          } else {
+            baseCol = vec3(0.16, 0.82, 0.35);
+          }
+
+          float diff = max(dot(N, L), 0.0);
+          vec3 H = normalize(L + V);
+          float spec = pow(max(dot(N, H), 0.0), 45.0);
+
+          vec3 finalColor = baseCol * (0.75 + diff * 0.25) + vec3(1.0) * spec * 0.35;
+          fragColor = vec4(finalColor, 1.0);
+          return;
+        }
+
+        // [모드 0] 도톰하고 볼록한 6면 쿠션 젤리 블록 & 패들
+        vec3 base = uColor.rgb;
+
+        // 면 방향에 따른 3D 음영 (윗면 하이라이트, 아랫면 쉐도우)
+        float topLight = max(0.0, -N.y) * 0.22;
+        float botDark = max(0.0, N.y) * 0.25;
+        float sideDark = abs(N.x) * 0.12;
+        float frontFace = max(0.0, N.z) * 0.12;
+
+        vec3 litColor = base * (1.0 + topLight + frontFace - botDark - sideDark);
+
+        // 볼록하게 솟아오른 중심면에 맺히는 도톰한 유광 스펙큘러
+        vec3 H = normalize(L + V);
+        float spec = pow(max(dot(N, H), 0.0), 38.0);
+        vec3 specGlow = mix(base, vec3(1.0, 1.0, 1.0), 0.45) * spec * 0.45;
+
+        // 가장자리 림 라이트
+        float edgeGloss = pow(max(0.0, -N.y), 2.0) * 0.25;
+        vec3 finalColor = litColor + specGlow + (vec3(1.0) - base) * edgeGloss;
+
+        // 공 근접 발광
+        vec3 toBall = uBallPos - vWorldPos;
+        float dist = length(toBall);
+        float ballAtten = clamp(1.0 - dist / 110.0, 0.0, 1.0);
+        finalColor += uBallColor * (ballAtten * 0.18);
+
+        fragColor = vec4(clamp(finalColor, 0.0, 1.0), uColor.a);
+      }
+    `;
+
+    function compileShader(type, src) {
+      const s = gl.createShader(type);
+      gl.shaderSource(s, src);
+      gl.compileShader(s);
+      if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) {
+        console.error(gl.getShaderInfoLog(s));
+        gl.deleteShader(s);
+        return null;
+      }
+      return s;
+    }
+
+    const program = gl.createProgram();
+    gl.attachShader(program, compileShader(gl.VERTEX_SHADER, vsSource));
+    gl.attachShader(program, compileShader(gl.FRAGMENT_SHADER, fsSource));
+    gl.linkProgram(program);
+
+    const loc = {
+      model: gl.getUniformLocation(program, "uModel"),
+      proj: gl.getUniformLocation(program, "uProjection"),
+      normMat: gl.getUniformLocation(program, "uNormalMatrix"),
+      color: gl.getUniformLocation(program, "uColor"),
+      ballPos: gl.getUniformLocation(program, "uBallPos"),
+      ballColor: gl.getUniformLocation(program, "uBallColor"),
+      ballMode: gl.getUniformLocation(program, "uBallMode"),
+      time: gl.getUniformLocation(program, "uTime")
+    };
+
+    // --- 6. 6면이 지금보다 훨씬 더 도톰하게 부풀어 오른 3D 직각 쿠션 지오메트리 빌더 ---
+    function createSuperBulgedCrispBoxGeo(bulgeAmount = 0.38, gridSize = 10) {
+      const positions = [];
+      const normals = [];
+
+      function addFace(normalDir, rightDir, upDir) {
+        for (let j = 0; j < gridSize; j++) {
+          for (let i = 0; i < gridSize; i++) {
+            const u0 = (i / gridSize) - 0.5;
+            const u1 = ((i + 1) / gridSize) - 0.5;
+            const v0 = (j / gridSize) - 0.5;
+            const v1 = ((j + 1) / gridSize) - 0.5;
+
+            function getPoint(u, v) {
+              // 가장자리 테두리는 0으로 떨어져 직각 모서리를 유지하고, 중심부는 훨씬 높게(0.38) 솟아오름
+              const b = (1.0 - 4.0 * u * u) * (1.0 - 4.0 * v * v) * bulgeAmount;
+              const x = normalDir[0] * (0.5 + b) + rightDir[0] * u + upDir[0] * v;
+              const y = normalDir[1] * (0.5 + b) + rightDir[1] * u + upDir[1] * v;
+              const z = normalDir[2] * (0.5 + b) + rightDir[2] * u + upDir[2] * v;
+
+              // 부풀어 오른 곡면 기울기를 반영한 정확한 버텍스 노멀
+              const dbdu = -8.0 * u * (1.0 - 4.0 * v * v) * bulgeAmount;
+              const dbdv = -8.0 * v * (1.0 - 4.0 * u * u) * bulgeAmount;
+
+              const nx = normalDir[0] - rightDir[0] * dbdu - upDir[0] * dbdv;
+              const ny = normalDir[1] - rightDir[1] * dbdu - upDir[1] * dbdv;
+              const nz = normalDir[2] - rightDir[2] * dbdu - upDir[2] * dbdv;
+              const len = Math.hypot(nx, ny, nz) || 1.0;
+
+              return { p: [x, y, z], n: [nx / len, ny / len, nz / len] };
+            }
+
+            const pt00 = getPoint(u0, v0);
+            const pt10 = getPoint(u1, v0);
+            const pt11 = getPoint(u1, v1);
+            const pt01 = getPoint(u0, v1);
+
+            positions.push(...pt00.p, ...pt10.p, ...pt11.p);
+            normals.push(...pt00.n, ...pt10.n, ...pt11.n);
+
+            positions.push(...pt00.p, ...pt11.p, ...pt01.p);
+            normals.push(...pt00.n, ...pt11.n, ...pt01.n);
+          }
+        }
+      }
+
+      addFace([0, 0, 1],  [1, 0, 0],  [0, 1, 0]);  // Front
+      addFace([0, 0, -1], [-1, 0, 0], [0, 1, 0]);  // Back
+      addFace([0, 1, 0],  [1, 0, 0],  [0, 0, -1]); // Top
+      addFace([0, -1, 0], [1, 0, 0],  [0, 0, 1]);  // Bottom
+      addFace([1, 0, 0],  [0, 0, -1], [0, 1, 0]);  // Right
+      addFace([-1, 0, 0], [0, 0, 1],  [0, 1, 0]);  // Left
+
+      const vao = gl.createVertexArray();
+      gl.bindVertexArray(vao);
+
+      const posBuf = gl.createBuffer();
+      gl.bindBuffer(gl.ARRAY_BUFFER, posBuf);
+      gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(positions), gl.STATIC_DRAW);
+      gl.enableVertexAttribArray(0);
+      gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 0, 0);
+
+      const normBuf = gl.createBuffer();
+      gl.bindBuffer(gl.ARRAY_BUFFER, normBuf);
+      gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(normals), gl.STATIC_DRAW);
+      gl.enableVertexAttribArray(1);
+      gl.vertexAttribPointer(1, 3, gl.FLOAT, false, 0, 0);
+
+      gl.bindVertexArray(null);
+      return { vao, count: positions.length / 3 };
+    }
+
+    function createSphereGeometry(latBands = 24, lonBands = 24) {
+      const positions = [];
+      const normals = [];
+      const indices = [];
+
+      for (let lat = 0; lat <= latBands; ++lat) {
+        const theta = (lat * Math.PI) / latBands;
+        const sinTheta = Math.sin(theta);
+        const cosTheta = Math.cos(theta);
+
+        for (let lon = 0; lon <= lonBands; ++lon) {
+          const phi = (lon * 2 * Math.PI) / lonBands;
+          positions.push(Math.cos(phi) * sinTheta, sinTheta * Math.sin(phi), cosTheta);
+          normals.push(Math.cos(phi) * sinTheta, sinTheta * Math.sin(phi), cosTheta);
+        }
+      }
+
+      for (let lat = 0; lat < latBands; ++lat) {
+        for (let lon = 0; lon < lonBands; ++lon) {
+          const first = lat * (lonBands + 1) + lon;
+          const second = first + lonBands + 1;
+          indices.push(first, second, first + 1);
+          indices.push(second, second + 1, first + 1);
+        }
+      }
+
+      const vao = gl.createVertexArray();
+      gl.bindVertexArray(vao);
+
+      const posBuf = gl.createBuffer();
+      gl.bindBuffer(gl.ARRAY_BUFFER, posBuf);
+      gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(positions), gl.STATIC_DRAW);
+      gl.enableVertexAttribArray(0);
+      gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 0, 0);
+
+      const normBuf = gl.createBuffer();
+      gl.bindBuffer(gl.ARRAY_BUFFER, normBuf);
+      gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(normals), gl.STATIC_DRAW);
+      gl.enableVertexAttribArray(1);
+      gl.vertexAttribPointer(1, 3, gl.FLOAT, false, 0, 0);
+
+      const idxBuf = gl.createBuffer();
+      gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, idxBuf);
+      gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(indices), gl.STATIC_DRAW);
+
+      gl.bindVertexArray(null);
+      return { vao, count: indices.length, isIndexed: true };
+    }
+
+    // 더욱 도톰해진 볼록 지오메트리 캐싱 (기존 0.22 -> 0.38로 팽창량 대폭 상향)
+    const superBulgedBrickGeo = createSuperBulgedCrispBoxGeo(0.38, 10);
+    const superBulgedPaddleGeo = createSuperBulgedCrispBoxGeo(0.32, 10);
+    const superBulgedRailGeo = createSuperBulgedCrispBoxGeo(0.25, 8);
+    const ballSphereGeo = createSphereGeometry(24, 24);
+
+    function getNormalMatrix(m) {
+      const a00 = m[0], a01 = m[1], a02 = m[2];
+      const a10 = m[4], a11 = m[5], a12 = m[6];
+      const a20 = m[8], a21 = m[9], a22 = m[10];
+      const b01 = a22 * a11 - a12 * a21;
+      const b11 = -a22 * a10 + a12 * a20;
+      const b21 = a21 * a10 - a11 * a20;
+      let d = a00 * b01 + a01 * b11 + a02 * b21;
+      if (!d) return new Float32Array([1,0,0, 0,1,0, 0,0,1]);
+      d = 1.0 / d;
+      return new Float32Array([
+        b01 * d, (-a22 * a01 + a02 * a21) * d, (a12 * a01 - a02 * a11) * d,
+        b11 * d, (a22 * a00 - a02 * a20) * d, (-a12 * a00 + a02 * a10) * d,
+        b21 * d, (-a21 * a00 + a01 * a20) * d, (a11 * a00 - a01 * a10) * d
+      ]);
+    }
+
+    // --- 7. 모바일 뷰포트 & 상태 변수 ---
+    const GAME_W = 360;
+    const GAME_H = 640;
+    const PADDLE_DEFAULT_Y = GAME_H - 180;
+    const TOUCH_CONTROL_ZONE_Y = GAME_H - 145;
+
+    const container = document.getElementById('gameContainer');
+    const hudCanvas = document.getElementById('hudCanvas');
+    const hudCtx = hudCanvas.getContext('2d');
+    const startOverlay = document.getElementById('startOverlay');
+    const gameOverOverlay = document.getElementById('gameOverOverlay');
+    const overTitle = document.getElementById('overTitle');
+    const finalScore = document.getElementById('finalScore');
+    const startBtn = document.getElementById('startBtn');
+    const overBtn = document.getElementById('overBtn');
+
+    function resizeContainer() {
+      const scale = Math.min(window.innerWidth / GAME_W, window.innerHeight / GAME_H);
+      const w = Math.floor(GAME_W * scale);
+      const h = Math.floor(GAME_H * scale);
+
+      container.style.width = `${w}px`;
+      container.style.height = `${h}px`;
+
+      glCanvas.width = GAME_W * scale;
+      glCanvas.height = GAME_H * scale;
+      gl.viewport(0, 0, glCanvas.width, glCanvas.height);
+
+      hudCanvas.width = GAME_W * scale;
+      hudCanvas.height = GAME_H * scale;
+      hudCtx.imageSmoothingEnabled = true;
+    }
+    window.addEventListener('resize', resizeContainer);
+    resizeContainer();
+
+    let score = 0;
+    let lives = 3;
+    let currentStage = 1;
+    const MAX_STAGES = 10;
+    let isPlaying = false;
+    let isPaused = false;
+    let frameCount = 0;
+    let stageClearPause = false;
+
+    const PADDLE_DEFAULT_W = 68;
+    const paddle = {
+      w: PADDLE_DEFAULT_W,
+      h: 15,
+      d: 13,
+      x: GAME_W / 2 - 34,
+      y: PADDLE_DEFAULT_Y,
+      recoilY: 0,
+      recoilVy: 0
+    };
+
+    let balls = [];
+    let particles3D = [];
+    let popTexts = [];
+    const BASE_BALL_R = 5.5;
+
+    function getStageBaseSpeed() {
+      return 4.6 + (currentStage - 1) * 0.22;
+    }
+
+    const ITEM_TYPES = [
+      { type: 'MULTI', label: 'M', color: [0.0, 0.90, 1.0, 1.0] },
+      { type: 'GIANT_PIERCE', label: 'G', color: [0.15, 0.88, 0.38, 1.0] },
+      { type: 'EXPAND', label: 'E', color: [0.25, 1.0, 0.55, 1.0] },
+      { type: 'SLOW', label: 'S', color: [0.0, 0.95, 0.85, 1.0] },
+      { type: 'LIGHTNING', label: 'L', color: [1.0, 0.88, 0.15, 1.0] }
+    ];
+
+    let activeEffects = {
+      giantPierceTimer: 0,
+      expandTimer: 0,
+      slowTimer: 0,
+      hasLightning: false
+    };
+
+    const BRICK_COLS = 11;
+    const BRICK_W = 27.6;
+    const BRICK_H = 12.0;
+    const BRICK_D = 12.0;
+    const BRICK_TOP = 50;
+    const BRICK_LEFT = (GAME_W - (BRICK_COLS * BRICK_W)) / 2;
+
+    let bricks = [];
+
+    const STAGE_MAPS = [
+      ["GGGGGGGGGGG","SSSSSSSSSSS","CCCCCCCCCCC","11111111111","22222222222","33333333333","44444444444","55555555555"],
+      ["00000G00000","0000GGG0000","000SSSSS000","00CCCCCCC00","01111111110","22222222222","33333333333","44444444444","55555555555"],
+      ["00000S00000","0000CSC0000","000S1C1S000","00S12C21S00","0S123C321S0","00S12C21S00","000S1C1S000","0000CSC0000","00000S00000"],
+      ["00100000100","00010001000","00111111100","01101110110","11111111111","10111111101","10100000101","00011011000","00CC000CC00"],
+      ["G0G0G0G0G0G","S0S0S0S0S0S","SSSSSSSSSSS","C0000G0000C","C0111G1110C","C0222G2220C","C0333G3330C","SSSSSSSSSSS","00444444400"],
+      ["00CC000CC00","0CCCC0CCCC0","CCCCCCCCCCC","CCCCCCCCCCC","0CCCCCCCCC0","00CCCCCCC00","000CCCCC000","0000CCC0000","00000C00000"],
+      ["S0S0S0S0S0S","0C0C0C0C0C0","10101010101","02020202020","30303030303","04040404040","50505050505","0S0S0S0S0S0","C0C0C0C0C0C"],
+      ["000SSSSS000","00S11111S00","0S1011101S0","0S1111111S0","00S10101S00","000CCCCC000","000S0S0S000","00010101000","000SSSSS000"],
+      ["GG0000000GG","SS00CCC00SS","SS001C100SS","CC002C200CC","11003C30011","22004C40022","33005C50033","SS00CCC00SS","GG000G000GG"],
+      ["GGGGGGGGGGG","GSSSSSSSSSG","GSCCCCCCCSS","GSC11G11CSG","GSC1GGG1CSG","GSC11G11CSG","GSCCCCCCCSS","GSSSSSSSSSG","GGGGGGGGGGG"]
+    ];
+
+    function loadStage(stageNum) {
+      bricks = [];
+      const map = STAGE_MAPS[stageNum - 1];
+      const rows = map.length;
+
+      for (let r = 0; r < rows; r++) {
+        const rowStr = map[r];
+        for (let c = 0; c < BRICK_COLS; c++) {
+          const char = rowStr[c] || '0';
+          if (char === '0') continue;
+
+          let maxHp = 1;
+          let color = [1.0, 0.20, 0.48, 1.0]; // 네온 마젠타 핑크
+          let type = 'RED';
+
+          if (char === 'G') {
+            maxHp = 3; color = [1.0, 0.82, 0.16, 1.0]; type = 'GOLD';
+          } else if (char === 'S') {
+            maxHp = 2; color = [0.86, 0.92, 1.0, 1.0]; type = 'SILVER';
+          } else if (char === 'C') {
+            maxHp = 1; color = [0.0, 0.92, 1.0, 0.9]; type = 'GLASS';
+          } else if (char === '1') {
+            color = [1.0, 0.20, 0.48, 1.0]; type = 'RED';
+          } else if (char === '2') {
+            color = [1.0, 0.52, 0.12, 1.0]; type = 'ORANGE';
+          } else if (char === '3') {
+            color = [1.0, 0.88, 0.16, 1.0]; type = 'YELLOW';
+          } else if (char === '4') {
+            color = [0.12, 0.90, 0.48, 1.0]; type = 'GREEN';
+          } else if (char === '5') {
+            color = [0.0, 0.72, 1.0, 1.0]; type = 'BLUE';
+          }
+
+          const bx = BRICK_LEFT + c * BRICK_W;
+          const by = BRICK_TOP + r * BRICK_H;
+          // 볼록 솟아오른 면들이 시각적으로 부딪히지 않도록 정돈된 마진
+          bricks.push({
+            row: r,
+            col: c,
+            x: bx + 1.2,
+            y: by + 1.1,
+            w: BRICK_W - 2.4,
+            h: BRICK_H - 2.2,
+            hp: maxHp,
+            maxHp: maxHp,
+            baseColor: color,
+            currentColor: [...color],
+            type: type
+          });
+        }
+      }
+    }
+
+    function addPopText(text, x, y, color = '#ffd54f') {
+      popTexts.push({ text, x, y, vy: -1.2, alpha: 1.0, color });
+    }
+
+    function spawnExplosion3D(x, y, w, h, color, isGlass) {
+      const count = isGlass ? 20 : 14;
+      for (let i = 0; i < count; i++) {
+        particles3D.push({
+          x: x + w / 2,
+          y: y + h / 2,
+          z: BRICK_D / 2,
+          vx: (Math.random() - 0.5) * 8.0,
+          vy: (Math.random() - 0.7) * 7.5,
+          vz: (Math.random() - 0.3) * 5.5,
+          rotX: Math.random() * Math.PI,
+          rotY: Math.random() * Math.PI,
+          vRotX: (Math.random() - 0.5) * 0.4,
+          vRotY: (Math.random() - 0.5) * 0.4,
+          color: [...color],
+          alpha: 1.0
+        });
+      }
+    }
+
+    function createBall(x, y, dx, dy) {
+      const spd = activeEffects.slowTimer > 0 ? getStageBaseSpeed() * 0.65 : getStageBaseSpeed();
+      return {
+        x: x,
+        y: y,
+        dx: dx,
+        dy: dy,
+        speed: spd,
+        hitCooldown: 0,
+        rotX: Math.random() * Math.PI,
+        rotY: Math.random() * Math.PI,
+        rotZ: Math.random() * Math.PI,
+        trail: []
+      };
+    }
+
+    function resetToSingleBall() {
+      const spd = activeEffects.slowTimer > 0 ? getStageBaseSpeed() * 0.65 : getStageBaseSpeed();
+      const dirX = (Math.random() > 0.5 ? 1 : -1) * (spd * 0.6);
+      const dirY = -Math.sqrt(Math.max(4, spd * spd - dirX * dirX));
+      balls = [createBall(paddle.x + paddle.w / 2, paddle.y - 14, dirX, dirY)];
+    }
+
+    let items = [];
+    function maybeSpawnItem(x, y) {
+      if (Math.random() < 0.24) {
+        const itType = ITEM_TYPES[Math.floor(Math.random() * ITEM_TYPES.length)];
+        items.push({
+          x: x + BRICK_W / 2,
+          y: y + BRICK_H / 2,
+          w: 20,
+          h: 12,
+          type: itType.type,
+          label: itType.label,
+          color: itType.color,
+          speed: 2.2,
+          rotX: 0,
+          rotY: 0
+        });
+      }
+    }
+
+    function applyPowerUp(type) {
+      sound.powerUp();
+      vibrate([15, 30, 20]);
+      if (type === 'MULTI') {
+        if (balls.length > 0) {
+          const b = balls[0];
+          const spd = b.speed;
+          balls.push(createBall(b.x, b.y, -spd * 0.7, -spd * 0.7));
+          balls.push(createBall(b.x, b.y, spd * 0.7, -spd * 0.7));
+        }
+        addPopText("MULTI BALL!", paddle.x + paddle.w / 2, paddle.y - 20, '#00e5ff');
+      } else if (type === 'GIANT_PIERCE') {
+        activeEffects.giantPierceTimer = 480;
+        addPopText("GIANT WATERMELON!", paddle.x + paddle.w / 2, paddle.y - 20, '#00e676');
+      } else if (type === 'EXPAND') {
+        activeEffects.expandTimer = 480;
+        paddle.w = PADDLE_DEFAULT_W * 1.5;
+        addPopText("PADDLE EXPAND!", paddle.x + paddle.w / 2, paddle.y - 20, '#69f0ae');
+      } else if (type === 'SLOW') {
+        activeEffects.slowTimer = 420;
+        balls.forEach(b => {
+          b.speed = getStageBaseSpeed() * 0.65;
+          const mag = Math.sqrt(b.dx * b.dx + b.dy * b.dy);
+          b.dx = (b.dx / mag) * b.speed;
+          b.dy = (b.dy / mag) * b.speed;
+        });
+        addPopText("SLOW TIME!", paddle.x + paddle.w / 2, paddle.y - 20, '#00e5ff');
+      } else if (type === 'LIGHTNING') {
+        activeEffects.hasLightning = true;
+        addPopText("LIGHTNING READY!", paddle.x + paddle.w / 2, paddle.y - 20, '#ffd54f');
+      }
+    }
+
+    function triggerLightningRow(targetRow) {
+      sound.lightning();
+      vibrate([40, 20, 60]);
+      let clearedCount = 0;
+      bricks.forEach(b => {
+        if (b.row === targetRow && b.hp > 0) {
+          b.hp = 0;
+          clearedCount++;
+          score += 25;
+          spawnExplosion3D(b.x, b.y, b.w, b.h, [1.0, 0.88, 0.2, 1.0], false);
+        }
+      });
+      if (clearedCount > 0) {
+        addPopText(`⚡ ROW CLEAR +${clearedCount * 25}!`, GAME_W / 2, BRICK_TOP + targetRow * BRICK_H, '#ffd54f');
+      }
+    }
+
+    function updateBrickColor(b) {
+      if (b.type === 'GOLD') {
+        if (b.hp === 3) b.currentColor = [1.0, 0.82, 0.16, 1.0];
+        else if (b.hp === 2) b.currentColor = [0.95, 0.64, 0.18, 1.0];
+        else b.currentColor = [0.75, 0.46, 0.15, 1.0];
+      } else if (b.type === 'SILVER') {
+        if (b.hp === 2) b.currentColor = [0.86, 0.92, 1.0, 1.0];
+        else b.currentColor = [0.65, 0.72, 0.82, 1.0];
+      }
+    }
+
+    // --- 8. 물리 시뮬레이션 ---
+    function update() {
+      if (stageClearPause || isPaused) return;
+      frameCount++;
+
+      if (activeEffects.giantPierceTimer > 0) activeEffects.giantPierceTimer--;
+      if (activeEffects.expandTimer > 0) {
+        activeEffects.expandTimer--;
+        if (activeEffects.expandTimer === 0) paddle.w = PADDLE_DEFAULT_W;
+      }
+      if (activeEffects.slowTimer > 0) {
+        activeEffects.slowTimer--;
+        if (activeEffects.slowTimer === 0) {
+          balls.forEach(b => {
+            b.speed = getStageBaseSpeed();
+            const mag = Math.sqrt(b.dx * b.dx + b.dy * b.dy);
+            b.dx = (b.dx / mag) * b.speed;
+            b.dy = (b.dy / mag) * b.speed;
+          });
+        }
+      }
+
+      if (paddle.recoilY !== 0 || paddle.recoilVy !== 0) {
+        const springK = 0.24;
+        const damping = 0.78;
+        const force = -springK * paddle.recoilY;
+        paddle.recoilVy = (paddle.recoilVy + force) * damping;
+        paddle.recoilY += paddle.recoilVy;
+        if (Math.abs(paddle.recoilY) < 0.1 && Math.abs(paddle.recoilVy) < 0.1) {
+          paddle.recoilY = 0;
+          paddle.recoilVy = 0;
+        }
+      }
+
+      const isWatermelon = activeEffects.giantPierceTimer > 0;
+      const currentRadius = isWatermelon ? BASE_BALL_R * 2.7 : BASE_BALL_R;
+
+      for (let i = popTexts.length - 1; i >= 0; i--) {
+        const pt = popTexts[i];
+        pt.y += pt.vy;
+        pt.alpha -= 0.02;
+        if (pt.alpha <= 0) popTexts.splice(i, 1);
+      }
+
+      for (let i = particles3D.length - 1; i >= 0; i--) {
+        const p = particles3D[i];
+        p.x += p.vx;
+        p.y += p.vy;
+        p.z += p.vz;
+        p.vy += 0.22;
+        p.rotX += p.vRotX;
+        p.rotY += p.vRotY;
+        p.alpha -= 0.024;
+        if (p.alpha <= 0) particles3D.splice(i, 1);
+      }
+
+      for (let i = balls.length - 1; i >= 0; i--) {
+        const ball = balls[i];
+
+        if (isWatermelon) {
+          ball.trail.unshift({ x: ball.x, y: ball.y });
+          if (ball.trail.length > 14) ball.trail.pop();
+        } else {
+          ball.trail = [];
+        }
+
+        ball.rotX += ball.dy * 0.038;
+        ball.rotY += ball.dx * 0.038;
+        ball.rotZ += 0.045;
+
+        ball.x += ball.dx;
+        ball.y += ball.dy;
+        if (ball.hitCooldown > 0) ball.hitCooldown--;
+
+        if (ball.x - currentRadius < 12) {
+          ball.x = 12 + currentRadius;
+          ball.dx = Math.abs(ball.dx);
+          sound.hitWall();
+          vibrate(5);
+        } else if (ball.x + currentRadius > GAME_W - 12) {
+          ball.x = GAME_W - 12 - currentRadius;
+          ball.dx = -Math.abs(ball.dx);
+          sound.hitWall();
+          vibrate(5);
+        }
+
+        if (ball.y - currentRadius < 36) {
+          ball.y = 36 + currentRadius;
+          ball.dy = Math.abs(ball.dy);
+          sound.hitWall();
+          vibrate(5);
+        }
+
+        const effectivePaddleY = paddle.y + paddle.recoilY;
+        if (
+          ball.y + currentRadius >= effectivePaddleY &&
+          ball.y - currentRadius <= effectivePaddleY + paddle.h &&
+          ball.x >= paddle.x &&
+          ball.x <= paddle.x + paddle.w &&
+          ball.dy > 0
+        ) {
+          const hitPos = (ball.x - (paddle.x + paddle.w / 2)) / (paddle.w / 2);
+          const spd = ball.speed;
+          ball.dx = hitPos * (spd * 0.9);
+          ball.dy = -Math.sqrt(Math.max(4, spd * spd - ball.dx * ball.dx));
+          ball.y = effectivePaddleY - currentRadius;
+
+          if (isWatermelon) {
+            paddle.recoilY = 14.0;
+            paddle.recoilVy = 4.0;
+            vibrate(35);
+            sound.hitPaddle(true);
+          } else {
+            paddle.recoilY = 4.5;
+            paddle.recoilVy = 1.8;
+            vibrate(12);
+            sound.hitPaddle(false);
+          }
+        }
+
+        for (let b of bricks) {
+          if (b.hp <= 0) continue;
+          if (
+            ball.x + currentRadius > b.x &&
+            ball.x - currentRadius < b.x + b.w &&
+            ball.y + currentRadius > b.y &&
+            ball.y - currentRadius < b.y + b.h
+          ) {
+            if (activeEffects.hasLightning) {
+              activeEffects.hasLightning = false;
+              triggerLightningRow(b.row);
+            }
+
+            if (isWatermelon) {
+              b.hp = 0;
+              score += 25;
+              sound.hitExplosion();
+              vibrate(28);
+              spawnExplosion3D(b.x, b.y, b.w, b.h, b.baseColor, b.type === 'GLASS');
+              maybeSpawnItem(b.x, b.y);
+              addPopText("WATERMELON SMASH! +25", b.x, b.y, '#00e676');
+            } else {
+              if (ball.hitCooldown === 0) {
+                b.hp--;
+                score += 10;
+                ball.dy = -ball.dy;
+                ball.hitCooldown = 3;
+                const destroyed = b.hp <= 0;
+                sound.hitBrick(b.type, destroyed);
+                vibrate(destroyed ? 18 : 8);
+
+                if (destroyed) {
+                  spawnExplosion3D(b.x, b.y, b.w, b.h, b.baseColor, b.type === 'GLASS');
+                  maybeSpawnItem(b.x, b.y);
+                  if (comboCount > 1) {
+                    addPopText(`HOMERUN x${comboCount}!`, b.x, b.y, '#ff4081');
+                  } else {
+                    addPopText("HIT! +10", b.x, b.y, '#ffffff');
+                  }
+                } else {
+                  updateBrickColor(b);
+                }
+              }
+              break;
+            }
+          }
+        }
+
+        if (ball.y - currentRadius > paddle.y + 60) {
+          balls.splice(i, 1);
+        }
+      }
+
+      if (balls.length === 0) {
+        lives--;
+        sound.loseLife();
+        vibrate([40, 60, 40]);
+        activeEffects.giantPierceTimer = 0;
+        activeEffects.expandTimer = 0;
+        activeEffects.slowTimer = 0;
+        activeEffects.hasLightning = false;
+        paddle.w = PADDLE_DEFAULT_W;
+        paddle.recoilY = 0;
+        paddle.recoilVy = 0;
+        if (lives <= 0) {
+          gameOver();
+          return;
+        } else {
+          resetToSingleBall();
+        }
+      }
+
+      for (let i = items.length - 1; i >= 0; i--) {
+        const it = items[i];
+        it.y += it.speed;
+        it.rotX += 0.05;
+        it.rotY += 0.08;
+
+        const effectivePaddleY = paddle.y + paddle.recoilY;
+        if (
+          it.x + it.w / 2 >= paddle.x &&
+          it.x - it.w / 2 <= paddle.x + paddle.w &&
+          it.y + it.h / 2 >= effectivePaddleY &&
+          it.y - it.h / 2 <= effectivePaddleY + paddle.h
+        ) {
+          applyPowerUp(it.type);
+          score += 50;
+          items.splice(i, 1);
+          continue;
+        }
+
+        if (it.y > paddle.y + 70) {
+          items.splice(i, 1);
+        }
+      }
+
+      if (bricks.every(b => b.hp <= 0)) {
+        nextStageTransition();
+      }
+    }
+
+    // --- 9. OpenGL 3D 렌더 파이프라인 ---
+    function render3D() {
+      gl.enable(gl.DEPTH_TEST);
+      gl.depthFunc(gl.LEQUAL);
+      gl.disable(gl.CULL_FACE);
+      gl.enable(gl.BLEND);
+      gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+
+      gl.clearColor(0.0, 0.0, 0.0, 0.0);
+      gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+
+      gl.useProgram(program);
+
+      const projMat = Mat4.ortho2D(0, GAME_W, GAME_H, 0, -500, 500);
+      gl.uniformMatrix4fv(loc.proj, false, projMat);
+
+      const t = frameCount * 0.035;
+      gl.uniform1f(loc.time, t);
+
+      const isWatermelon = activeEffects.giantPierceTimer > 0;
+      if (balls.length > 0) {
+        gl.uniform3f(loc.ballPos, balls[0].x, balls[0].y, 10.0);
+        gl.uniform3f(loc.ballColor, isWatermelon ? 0.1 : 1.0, isWatermelon ? 0.95 : 0.9, isWatermelon ? 0.4 : 0.9);
+      } else {
+        gl.uniform3f(loc.ballPos, -999, -999, 0);
+        gl.uniform3f(loc.ballColor, 0, 0, 0);
+      }
+
+      function drawMesh(geo, modelMat, color, ballMode = 0.0) {
+        gl.uniformMatrix4fv(loc.model, false, modelMat);
+        gl.uniformMatrix3fv(loc.normMat, false, getNormalMatrix(modelMat));
+        gl.uniform4fv(loc.color, color);
+        gl.uniform1f(loc.ballMode, ballMode);
+
+        gl.bindVertexArray(geo.vao);
+        if (geo.isIndexed) {
+          gl.drawElements(gl.TRIANGLES, geo.count, gl.UNSIGNED_SHORT, 0);
+        } else {
+          gl.drawArrays(gl.TRIANGLES, 0, geo.count);
+        }
+        gl.bindVertexArray(null);
+      }
+
+      // 1) 인디고 볼록 범퍼 레일
+      const wallColor = [0.32, 0.24, 0.48, 1.0];
+      const wallD = 18;
+
+      let m = Mat4.identity();
+      m = Mat4.translate(m, [6, (24 + GAME_H) / 2, 0]);
+      m = Mat4.scale(m, [12, GAME_H - 24, wallD]);
+      drawMesh(superBulgedRailGeo, m, wallColor, 0.0);
+
+      m = Mat4.identity();
+      m = Mat4.translate(m, [GAME_W - 6, (24 + GAME_H) / 2, 0]);
+      m = Mat4.scale(m, [12, GAME_H - 24, wallD]);
+      drawMesh(superBulgedRailGeo, m, wallColor, 0.0);
+
+      m = Mat4.identity();
+      m = Mat4.translate(m, [GAME_W / 2, 30, 0]);
+      m = Mat4.scale(m, [GAME_W, 12, wallD]);
+      drawMesh(superBulgedRailGeo, m, wallColor, 0.0);
+
+      // 2) 6면이 도톰하게 솟아오른 직각 쿠션 젤리 블록
+      for (let b of bricks) {
+        if (b.hp <= 0) continue;
+        m = Mat4.identity();
+        m = Mat4.translate(m, [b.x + b.w / 2, b.y + b.h / 2, 0]);
+        m = Mat4.scale(m, [b.w, b.h, BRICK_D]);
+        drawMesh(superBulgedBrickGeo, m, b.currentColor, 0.0);
+      }
+
+      // 3) 직각 볼록 패들 (반동 recoilY 반영)
+      let paddleCol = [1.0, 0.18, 0.48, 1.0];
+      if (activeEffects.expandTimer > 0) paddleCol = [0.12, 0.92, 0.52, 1.0];
+      if (activeEffects.hasLightning) paddleCol = [1.0, 0.88, 0.16, 1.0];
+
+      const renderPaddleY = paddle.y + paddle.recoilY;
+
+      m = Mat4.identity();
+      m = Mat4.translate(m, [paddle.x + paddle.w / 2, renderPaddleY + paddle.h / 2, 0]);
+      m = Mat4.scale(m, [paddle.w, paddle.h, paddle.d]);
+      drawMesh(superBulgedPaddleGeo, m, paddleCol, 0.0);
+
+      // 패들 내부 직각 코어
+      m = Mat4.identity();
+      m = Mat4.translate(m, [paddle.x + paddle.w / 2, renderPaddleY + paddle.h / 2, 2.0]);
+      m = Mat4.scale(m, [Math.max(4, paddle.w - 12), paddle.h - 4, paddle.d]);
+      drawMesh(superBulgedPaddleGeo, m, [1.0, 0.95, 0.98, 0.95], 0.0);
+
+      // 4) 회전하는 야구공 / 거대 수박 & 에메랄드 잔상
+      const currentRadius = isWatermelon ? BASE_BALL_R * 2.7 : BASE_BALL_R;
+
+      for (let b of balls) {
+        if (isWatermelon && b.trail.length > 0) {
+          for (let idx = 0; idx < b.trail.length; idx++) {
+            const pt = b.trail[idx];
+            const progress = (idx + 1) / b.trail.length;
+            const trailR = currentRadius * (1.0 - progress * 0.55);
+            const alpha = (1.0 - progress) * 0.45;
+            const trailCol = [0.15, 0.88, 0.42, alpha];
+
+            m = Mat4.identity();
+            m = Mat4.translate(m, [pt.x, pt.y, 3 - idx * 0.1]);
+            m = Mat4.scale(m, [trailR * 2, trailR * 2, trailR * 2]);
+            drawMesh(ballSphereGeo, m, trailCol, 3.0);
+          }
+        }
+
+        m = Mat4.identity();
+        m = Mat4.translate(m, [b.x, b.y, 6]);
+        m = Mat4.rotateX(m, b.rotX);
+        m = Mat4.rotateY(m, b.rotY);
+        m = Mat4.rotateZ(m, b.rotZ);
+        m = Mat4.scale(m, [currentRadius * 2, currentRadius * 2, currentRadius * 2]);
+
+        if (isWatermelon) {
+          drawMesh(ballSphereGeo, m, [0.16, 0.82, 0.35, 1.0], 2.0);
+        } else {
+          drawMesh(ballSphereGeo, m, [1.0, 1.0, 1.0, 1.0], 1.0);
+        }
+      }
+
+      // 5) 볼록 아이템 큐브
+      for (let it of items) {
+        m = Mat4.identity();
+        m = Mat4.translate(m, [it.x, it.y, 0]);
+        m = Mat4.rotateX(m, it.rotX);
+        m = Mat4.rotateY(m, it.rotY);
+        m = Mat4.scale(m, [it.w, it.h, 12.0]);
+        drawMesh(superBulgedBrickGeo, m, it.color, 0.0);
+      }
+
+      // 6) 3D 파편
+      for (let p of particles3D) {
+        m = Mat4.identity();
+        m = Mat4.translate(m, [p.x, p.y, p.z]);
+        m = Mat4.rotateX(m, p.rotX);
+        m = Mat4.rotateY(m, p.rotY);
+        m = Mat4.scale(m, [4.5, 4.5, 4.5]);
+        drawMesh(ballSphereGeo, m, [p.color[0], p.color[1], p.color[2], p.alpha], 0.0);
+      }
+    }
+
+    // --- 10. HUD & 텍스트/UI 렌더링 ---
+    function drawHUD() {
+      hudCtx.clearRect(0, 0, hudCanvas.width, hudCanvas.height);
+      const scale = hudCanvas.width / GAME_W;
+      hudCtx.save();
+      hudCtx.scale(scale, scale);
+
+      hudCtx.fillStyle = 'rgba(13, 8, 24, 0.94)';
+      hudCtx.fillRect(0, 0, GAME_W, 28);
+
+      hudCtx.fillStyle = '#fff';
+      hudCtx.font = 'bold 12px Courier New';
+      hudCtx.fillText(`SCORE:${score}`, 14, 18);
+      hudCtx.fillStyle = '#ffd54f';
+      hudCtx.fillText(`R${currentStage}`, 115, 18);
+      hudCtx.fillStyle = '#ff2a7a';
+      hudCtx.fillText(`BALL:${'⚾'.repeat(lives)}`, 155, 18);
+
+      hudCtx.fillStyle = '#24163d';
+      hudCtx.beginPath();
+      hudCtx.roundRect(GAME_W - 68, 4, 30, 20, 6);
+      hudCtx.roundRect(GAME_W - 34, 4, 28, 20, 6);
+      hudCtx.fill();
+
+      hudCtx.fillStyle = '#ffffff';
+      hudCtx.font = 'bold 10px Courier New';
+      hudCtx.textAlign = 'center';
+      hudCtx.fillText(isMuted ? '🔇' : '🔊', GAME_W - 53, 18);
+      hudCtx.fillText(isPaused ? '▶' : '⏸', GAME_W - 20, 18);
+      hudCtx.textAlign = 'left';
+
+      let buffY = 48;
+      if (activeEffects.giantPierceTimer > 0) {
+        hudCtx.fillStyle = '#00e676';
+        hudCtx.fillText(`[🍉 WATERMELON] ${(activeEffects.giantPierceTimer / 60).toFixed(1)}s`, 16, buffY);
+        buffY += 16;
+      }
+      if (activeEffects.expandTimer > 0) {
+        hudCtx.fillStyle = '#69f0ae';
+        hudCtx.fillText(`[EXPAND] ${(activeEffects.expandTimer / 60).toFixed(1)}s`, 16, buffY);
+        buffY += 16;
+      }
+      if (activeEffects.slowTimer > 0) {
+        hudCtx.fillStyle = '#00e5ff';
+        hudCtx.fillText(`[SLOW] ${(activeEffects.slowTimer / 60).toFixed(1)}s`, 16, buffY);
+        buffY += 16;
+      }
+      if (activeEffects.hasLightning) {
+        hudCtx.fillStyle = '#ffd54f';
+        hudCtx.fillText(`[⚡ LIGHTNING ARMED]`, 16, buffY);
+      }
+
+      for (let pt of popTexts) {
+        hudCtx.save();
+        hudCtx.globalAlpha = Math.max(0, pt.alpha);
+        hudCtx.fillStyle = pt.color;
+        hudCtx.font = 'bold 12px Courier New';
+        hudCtx.textAlign = 'center';
+        hudCtx.fillText(pt.text, pt.x, pt.y);
+        hudCtx.restore();
+      }
+
+      hudCtx.fillStyle = 'rgba(255, 42, 122, 0.05)';
+      hudCtx.beginPath();
+      hudCtx.roundRect(14, TOUCH_CONTROL_ZONE_Y, GAME_W - 28, GAME_H - TOUCH_CONTROL_ZONE_Y - 14, 16);
+      hudCtx.fill();
+
+      hudCtx.strokeStyle = 'rgba(255, 42, 122, 0.35)';
+      hudCtx.lineWidth = 1.5;
+      hudCtx.setLineDash([6, 6]);
+      hudCtx.stroke();
+      hudCtx.setLineDash([]);
+
+      hudCtx.fillStyle = 'rgba(255, 213, 79, 0.9)';
+      hudCtx.font = 'bold 11px Courier New';
+      hudCtx.textAlign = 'center';
+      hudCtx.fillText("⚾ RELATIVE SWIPE ZONE 🍉", GAME_W / 2, TOUCH_CONTROL_ZONE_Y + 28);
+      hudCtx.font = '10px Courier New';
+      hudCtx.fillStyle = 'rgba(255, 255, 255, 0.45)';
+      hudCtx.fillText("(어디든 좌우로 밀면 패들이 즉각 이동합니다)", GAME_W / 2, TOUCH_CONTROL_ZONE_Y + 48);
+      hudCtx.textAlign = 'left';
+
+      if (isPaused) {
+        hudCtx.fillStyle = 'rgba(13, 8, 24, 0.85)';
+        hudCtx.fillRect(0, 0, GAME_W, GAME_H);
+        hudCtx.fillStyle = '#ffd54f';
+        hudCtx.font = 'bold 24px Courier New';
+        hudCtx.textAlign = 'center';
+        hudCtx.fillText("PAUSED", GAME_W / 2, GAME_H / 2);
+        hudCtx.textAlign = 'left';
+      }
+
+      if (stageClearPause) {
+        hudCtx.fillStyle = 'rgba(13, 8, 24, 0.88)';
+        hudCtx.beginPath();
+        hudCtx.roundRect(20, GAME_H / 2 - 45, GAME_W - 40, 70, 16);
+        hudCtx.fill();
+        hudCtx.fillStyle = '#ffd54f';
+        hudCtx.font = 'bold 20px Courier New';
+        hudCtx.textAlign = 'center';
+        hudCtx.fillText(`⚾ STAGE ${currentStage} CLEAR! 🍉`, GAME_W / 2, GAME_H / 2 - 4);
+        hudCtx.textAlign = 'left';
+      }
+
+      hudCtx.restore();
+    }
+
+    // --- 11. 상대 좌표(Delta Drag) 터치 핸들러 ---
+    let lastTouchX = null;
+
+    function getTouchGamePos(e) {
+      const rect = hudCanvas.getBoundingClientRect();
+      const scaleX = GAME_W / rect.width;
+      const scaleY = GAME_H / rect.height;
+      const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+      const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+      return {
+        x: (clientX - rect.left) * scaleX,
+        y: (clientY - rect.top) * scaleY
+      };
+    }
+
+    function handleTouchStart(e) {
+      if (!isPlaying) return;
+      const pos = getTouchGamePos(e);
+
+      if (pos.y <= 32) {
+        if (pos.x >= GAME_W - 68 && pos.x <= GAME_W - 38) {
+          toggleMute();
+          vibrate(10);
+          return;
+        } else if (pos.x >= GAME_W - 34 && pos.x <= GAME_W - 6) {
+          isPaused = !isPaused;
+          vibrate(10);
+          return;
+        }
+      }
+
+      lastTouchX = pos.x;
+    }
+
+    function handleTouchMove(e) {
+      if (!isPlaying || stageClearPause || isPaused) return;
+      if (lastTouchX === null) return;
+
+      const pos = getTouchGamePos(e);
+      const deltaX = pos.x - lastTouchX;
+      lastTouchX = pos.x;
+
+      paddle.x = Math.max(12, Math.min(GAME_W - paddle.w - 12, paddle.x + deltaX));
+    }
+
+    function handleTouchEnd() {
+      lastTouchX = null;
+    }
+
+    hudCanvas.addEventListener('touchstart', handleTouchStart, { passive: true });
+    hudCanvas.addEventListener('touchmove', handleTouchMove, { passive: true });
+    hudCanvas.addEventListener('touchend', handleTouchEnd, { passive: true });
+    hudCanvas.addEventListener('touchcancel', handleTouchEnd, { passive: true });
+
+    hudCanvas.addEventListener('mousedown', handleTouchStart);
+    window.addEventListener('mousemove', handleTouchMove);
+    window.addEventListener('mouseup', handleTouchEnd);
+
+    // --- 12. 메인 루프 ---
+    function loop() {
+      if (!isPlaying) return;
+      update();
+      render3D();
+      drawHUD();
+      requestAnimationFrame(loop);
+    }
+
+    function startGame() {
+      initAudio();
+      activateYouTubeAudio();
+
+      score = 0;
+      lives = 3;
+      currentStage = 1;
+      stageClearPause = false;
+      isPaused = false;
+      comboCount = 0;
+      popTexts = [];
+      activeEffects.giantPierceTimer = 0;
+      activeEffects.expandTimer = 0;
+      activeEffects.slowTimer = 0;
+      activeEffects.hasLightning = false;
+      paddle.w = PADDLE_DEFAULT_W;
+      paddle.y = PADDLE_DEFAULT_Y;
+      paddle.x = GAME_W / 2 - paddle.w / 2;
+      paddle.recoilY = 0;
+      paddle.recoilVy = 0;
+
+      loadStage(currentStage);
+      resetToSingleBall();
+
+      startOverlay.style.display = 'none';
+      gameOverOverlay.style.display = 'none';
+      isPlaying = true;
+      requestAnimationFrame(loop);
+    }
+
+    startBtn.addEventListener('click', (e) => { e.stopPropagation(); startGame(); });
+    overBtn.addEventListener('click', (e) => { e.stopPropagation(); startGame(); });
+
+    function nextStageTransition() {
+      stageClearPause = true;
+      sound.stageClear();
+      vibrate([50, 40, 80]);
+      score += currentStage * 500;
+
+      setTimeout(() => {
+        currentStage++;
+        if (currentStage > MAX_STAGES) {
+          gameEndVictory();
+          return;
+        }
+
+        activeEffects.giantPierceTimer = 0;
+        activeEffects.expandTimer = 0;
+        activeEffects.slowTimer = 0;
+        activeEffects.hasLightning = false;
+        paddle.w = PADDLE_DEFAULT_W;
+        paddle.y = PADDLE_DEFAULT_Y;
+        paddle.x = GAME_W / 2 - paddle.w / 2;
+        paddle.recoilY = 0;
+        paddle.recoilVy = 0;
+
+        loadStage(currentStage);
+        resetToSingleBall();
+        stageClearPause = false;
+      }, 1200);
+    }
+
+    function gameEndVictory() {
+      isPlaying = false;
+      overTitle.textContent = "🏆 ALL STAGE SMASH! 🏆";
+      overTitle.style.color = "#ffd54f";
+      finalScore.textContent = `축하합니다! 10개 전 스테이지 클리어 | 점수: ${score}`;
+      overBtn.textContent = "처음부터 다시하기";
+      gameOverOverlay.style.display = 'flex';
+    }
+
+    function gameOver() {
+      isPlaying = false;
+      overTitle.textContent = "GAME OVER";
+      overTitle.style.color = "#ff2a7a";
+      finalScore.textContent = `도달 스테이지: ${currentStage} / 10 | 최종 점수: ${score}`;
+      overBtn.textContent = "다시하기";
+      gameOverOverlay.style.display = 'flex';
+    }
+
+    loadStage(1);
+    render3D();
+    drawHUD();
+  </script>
+</body>
+</html>

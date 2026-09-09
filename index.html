@@ -136,7 +136,7 @@
   <script>
     // --- 1. 유튜브 플레이어 컨트롤러 ---
     let ytPlayer = null;
-    const TARGET_VIDEO_ID = '1zcIUk66HX4'; // 요청하신 신규 해저 캠 영상 ID로 업데이트
+    const TARGET_VIDEO_ID = '1zcIUk66HX4';
     let isMuted = false;
 
     function onYouTubeIframeAPIReady() {
@@ -460,7 +460,6 @@
         // [모드 0] 도톰하고 볼록한 6면 쿠션 젤리 블록 & 패들
         vec3 base = uColor.rgb;
 
-        // 면 방향에 따른 3D 음영 (윗면 하이라이트, 아랫면 쉐도우)
         float topLight = max(0.0, -N.y) * 0.22;
         float botDark = max(0.0, N.y) * 0.25;
         float sideDark = abs(N.x) * 0.12;
@@ -468,16 +467,13 @@
 
         vec3 litColor = base * (1.0 + topLight + frontFace - botDark - sideDark);
 
-        // 볼록하게 솟아오른 중심면에 맺히는 도톰한 유광 스펙큘러
         vec3 H = normalize(L + V);
         float spec = pow(max(dot(N, H), 0.0), 38.0);
         vec3 specGlow = mix(base, vec3(1.0, 1.0, 1.0), 0.45) * spec * 0.45;
 
-        // 가장자리 림 라이트
         float edgeGloss = pow(max(0.0, -N.y), 2.0) * 0.25;
         vec3 finalColor = litColor + specGlow + (vec3(1.0) - base) * edgeGloss;
 
-        // 공 근접 발광
         vec3 toBall = uBallPos - vWorldPos;
         float dist = length(toBall);
         float ballAtten = clamp(1.0 - dist / 110.0, 0.0, 1.0);
@@ -529,13 +525,11 @@
             const v1 = ((j + 1) / gridSize) - 0.5;
 
             function getPoint(u, v) {
-              // 가장자리 테두리는 0으로 떨어져 직각 모서리를 유지하고, 중심부는 훨씬 높게(0.38) 솟아오름
               const b = (1.0 - 4.0 * u * u) * (1.0 - 4.0 * v * v) * bulgeAmount;
               const x = normalDir[0] * (0.5 + b) + rightDir[0] * u + upDir[0] * v;
               const y = normalDir[1] * (0.5 + b) + rightDir[1] * u + upDir[1] * v;
               const z = normalDir[2] * (0.5 + b) + rightDir[2] * u + upDir[2] * v;
 
-              // 부풀어 오른 곡면 기울기를 반영한 정확한 버텍스 노멀
               const dbdu = -8.0 * u * (1.0 - 4.0 * v * v) * bulgeAmount;
               const dbdv = -8.0 * v * (1.0 - 4.0 * u * u) * bulgeAmount;
 
@@ -636,7 +630,6 @@
       return { vao, count: indices.length, isIndexed: true };
     }
 
-    // 더욱 도톰해진 볼록 지오메트리 캐싱 (기존 0.22 -> 0.38로 팽창량 대폭 상향)
     const superBulgedBrickGeo = createSuperBulgedCrispBoxGeo(0.38, 10);
     const superBulgedPaddleGeo = createSuperBulgedCrispBoxGeo(0.32, 10);
     const superBulgedRailGeo = createSuperBulgedCrispBoxGeo(0.25, 8);
@@ -772,7 +765,7 @@
           if (char === '0') continue;
 
           let maxHp = 1;
-          let color = [1.0, 0.20, 0.48, 1.0]; // 네온 마젠타 핑크
+          let color = [1.0, 0.20, 0.48, 1.0];
           let type = 'RED';
 
           if (char === 'G') {
@@ -795,7 +788,6 @@
 
           const bx = BRICK_LEFT + c * BRICK_W;
           const by = BRICK_TOP + r * BRICK_H;
-          // 볼록 솟아오른 면들이 시각적으로 부딪히지 않도록 정돈된 마진
           bricks.push({
             row: r,
             col: c,

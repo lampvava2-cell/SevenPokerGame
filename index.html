@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-  <title>알카노이드 FX 3D - Baseball & Watermelon Edition</title>
+  <title>알카노이드 FX 3D - Sweet Cookie & Bakery Edition</title>
   <style>
     * {
       box-sizing: border-box;
@@ -17,7 +17,7 @@
       width: 100vw;
       height: 100vh;
       overflow: hidden;
-      background-color: #0b0716;
+      background-color: #2b1d14;
       display: flex;
       justify-content: center;
       align-items: center;
@@ -25,9 +25,9 @@
     }
     #gameContainer {
       position: relative;
-      background-color: #0b0716;
-      box-shadow: 0 0 45px rgba(255, 42, 122, 0.25);
-      border-radius: 18px;
+      background-color: #f7eedf;
+      box-shadow: 0 0 50px rgba(43, 29, 20, 0.8), 0 0 30px rgba(220, 160, 90, 0.35);
+      border-radius: 20px;
       overflow: hidden;
     }
     #ytPlayerWrapper {
@@ -58,7 +58,7 @@
       width: 100%;
       height: 100%;
       pointer-events: none;
-      filter: brightness(0.42) contrast(1.15);
+      filter: brightness(0.4) contrast(1.1);
     }
     #glCanvas {
       position: absolute;
@@ -81,8 +81,8 @@
     .overlay {
       position: absolute;
       inset: 0;
-      background: rgba(11, 7, 22, 0.90);
-      backdrop-filter: blur(6px);
+      background: rgba(38, 22, 14, 0.92);
+      backdrop-filter: blur(8px);
       display: flex;
       flex-direction: column;
       justify-content: center;
@@ -92,17 +92,21 @@
     }
     .btn {
       margin-top: 22px;
-      padding: 15px 38px;
+      padding: 15px 42px;
       font-size: 19px;
       font-weight: 900;
-      background: linear-gradient(135deg, #ff2a7a, #ff758c, #ffbe3b);
-      color: #fff;
-      border: none;
+      background: linear-gradient(135deg, #d37a38, #e8a760, #ffd54f);
+      color: #3e2210;
+      border: 3px solid #6b3713;
       border-radius: 30px;
       cursor: pointer;
-      box-shadow: 0 0 25px rgba(255, 42, 122, 0.65);
-      text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+      box-shadow: 0 6px 0 #54290d, 0 10px 25px rgba(0, 0, 0, 0.4);
       letter-spacing: 1.5px;
+      transition: transform 0.08s ease;
+    }
+    .btn:active {
+      transform: translateY(3px);
+      box-shadow: 0 3px 0 #54290d, 0 6px 15px rgba(0, 0, 0, 0.4);
     }
   </style>
   <script src="https://www.youtube.com/iframe_api"></script>
@@ -120,17 +124,17 @@
   </div>
 
   <div class="overlay" id="startOverlay">
-    <h1 style="color: #ff2a7a; margin-bottom: 6px; text-shadow: 0 0 16px #ff758c; font-size: 28px;">⚾ BUBBLE ARKAN PRO 🍉</h1>
-    <p style="color: #ffd54f; font-size: 13px; margin-bottom: 4px; font-weight: bold;">글로시 볼록 큐브 & 워터멜론 캐주얼</p>
-    <p style="color: #00e676; font-size: 12px; margin: 3px 0;">[G] 자이언트 수박 모드 (에메랄드 잔상 관통!)</p>
-    <p style="color: #00e5ff; font-size: 12px; margin: 3px 0;">[S] 슬로우 | [E] 패들 확장 | [M] 멀티볼 | [L] 번개</p>
-    <button class="btn" id="startBtn">START PLAY!</button>
+    <h1 style="color: #ffd54f; margin-bottom: 6px; text-shadow: 0 3px 0 #54290d, 0 0 20px rgba(255,213,79,0.5); font-size: 27px;">🍪 SWEET BISCUIT ARKAN 🍉</h1>
+    <p style="color: #ffcc80; font-size: 13px; margin-bottom: 4px; font-weight: bold;">베이크드 쿠키 타일 & 초콜릿 블록 아케이드</p>
+    <p style="color: #a5d6a7; font-size: 12px; margin: 3px 0;">[G] 자이언트 수박 모드 (에메랄드 궤적 관통!)</p>
+    <p style="color: #80deea; font-size: 12px; margin: 3px 0;">[S] 슬로우 | [E] 웨이퍼 확장 | [M] 멀티볼 | [L] 번개</p>
+    <button class="btn" id="startBtn">START BAKE!</button>
   </div>
 
   <div class="overlay" id="gameOverOverlay" style="display: none;">
-    <h1 id="overTitle" style="color: #ff2a7a; text-shadow: 0 0 14px #ff758c;">GAME OVER</h1>
-    <p id="finalScore" style="font-size: 16px; color: #ffd54f;">점수: 0</p>
-    <button class="btn" id="overBtn">다시하기</button>
+    <h1 id="overTitle" style="color: #ff8a65; text-shadow: 0 3px 0 #54290d; font-size: 28px;">GAME OVER</h1>
+    <p id="finalScore" style="font-size: 16px; color: #ffd54f; font-weight: bold;">점수: 0</p>
+    <button class="btn" id="overBtn">다시 굽기</button>
   </div>
 
   <script>
@@ -229,6 +233,7 @@
     }
 
     const sound = {
+      // 비스킷/초콜릿 톡 터지는 청명한 아케이드 피치 사운드
       hitBrick: (type, isDestroyed) => {
         const now = Date.now();
         if (now - lastHitTime < 450) {
@@ -240,15 +245,12 @@
         const pitch = Math.pow(1.06, comboCount);
 
         if (type === 'GOLD') {
-          playTone(650 * pitch, 'sine', 0.12, isDestroyed ? 1050 : 850, 0.28);
-          setTimeout(() => playTone(1300, 'triangle', 0.08, null, 0.15), 25);
+          playTone(680 * pitch, 'sine', 0.11, isDestroyed ? 1100 : 880, 0.26);
+          setTimeout(() => playTone(1360, 'triangle', 0.08, null, 0.14), 22);
         } else if (type === 'SILVER') {
-          playTone(580 * pitch, 'triangle', 0.11, isDestroyed ? 900 : 720, 0.25);
-        } else if (type === 'GLASS') {
-          playTone(1200 * pitch, 'sine', 0.16, 1750, 0.28);
-          setTimeout(() => playTone(1900, 'sine', 0.1, 2400, 0.2), 25);
+          playTone(600 * pitch, 'triangle', 0.10, isDestroyed ? 950 : 750, 0.24);
         } else {
-          playTone(520 * pitch, 'sine', 0.09, isDestroyed ? 820 : 620, 0.24);
+          playTone(520 * pitch, 'sine', 0.09, isDestroyed ? 840 : 640, 0.22);
         }
       },
       hitPaddle: (isWatermelon = false) => {
@@ -257,8 +259,8 @@
           playTone(180, 'sine', 0.22, 60, 0.45);
           setTimeout(() => playTone(120, 'triangle', 0.18, 50, 0.35), 20);
         } else {
-          playTone(380, 'sine', 0.11, 210, 0.32);
-          setTimeout(() => playTone(290, 'triangle', 0.08, 480, 0.22), 20);
+          playTone(390, 'sine', 0.11, 220, 0.32);
+          setTimeout(() => playTone(300, 'triangle', 0.08, 500, 0.22), 20);
         }
       },
       hitWall: () => {
@@ -286,11 +288,11 @@
       },
       loseLife: () => {
         comboCount = 0;
-        playTone(300, 'sawtooth', 0.32, 60, 0.35);
+        playTone(280, 'sawtooth', 0.32, 55, 0.35);
       }
     };
 
-    // --- 4. 4x4 행렬 유틸 ---
+    // --- 4. 행렬 연산 유틸 ---
     const Mat4 = {
       ortho2D: (left, right, bottom, top, near = -500, far = 500) => {
         const lr = 1 / (left - right);
@@ -359,13 +361,14 @@
       }
     };
 
-    // --- 5. WebGL 2.0 셰이더 (영롱하게 반짝이는 하이글로시 룩) ---
+    // --- 5. WebGL 2.0 셰이더 (구움색 비스킷 & 새틴 초콜릿) ---
     const glCanvas = document.getElementById('glCanvas');
     const gl = glCanvas.getContext('webgl2', { alpha: true, antialias: true });
 
     const vsSource = `#version 300 es
       layout(location = 0) in vec3 aPosition;
       layout(location = 1) in vec3 aNormal;
+      layout(location = 2) in float aIsTopCap; // 0.0: 비스킷 베이스, 1.0: 상단 초콜릿 캡
 
       uniform mat4 uModel;
       uniform mat4 uProjection;
@@ -374,9 +377,11 @@
       out vec3 vNormal;
       out vec3 vLocalPos;
       out vec3 vWorldPos;
+      out float vIsTopCap;
 
       void main() {
         vLocalPos = aPosition;
+        vIsTopCap = aIsTopCap;
         vec4 worldPos = uModel * vec4(aPosition, 1.0);
         vWorldPos = worldPos.xyz;
         vNormal = normalize(uNormalMatrix * aNormal);
@@ -390,8 +395,9 @@
       in vec3 vNormal;
       in vec3 vLocalPos;
       in vec3 vWorldPos;
+      in float vIsTopCap;
 
-      uniform vec4 uColor;
+      uniform vec4 uColor; // 초콜릿 캡 컬러
       uniform vec3 uBallPos;
       uniform vec3 uBallColor;
       uniform float uBallMode; // 0.0: 블록/패들, 1.0: 야구공, 2.0: 수박, 3.0: 잔상
@@ -402,11 +408,12 @@
       void main() {
         vec3 N = normalize(vNormal);
         vec3 V = vec3(0.0, 0.0, 1.0);
+        vec3 L = normalize(vec3(0.2, -0.45, 0.88));
 
-        // [모드 3] 수박 궤적 반투명 에메랄드 잔상
+        // [모드 3] 수박 궤적 에메랄드 젤리 잔상
         if (uBallMode > 2.5) {
           float rim = 1.0 - max(dot(N, V), 0.0);
-          vec3 trailGlow = mix(uColor.rgb, vec3(0.5, 1.0, 0.7), rim * 0.6);
+          vec3 trailGlow = mix(uColor.rgb, vec3(0.55, 1.0, 0.72), rim * 0.6);
           fragColor = vec4(trailGlow, uColor.a * (0.3 + rim * 0.7));
           return;
         }
@@ -418,13 +425,12 @@
           float seam2 = abs(P.x - 0.72 * sin(P.y * 3.14159) * cos(P.z * 3.14159));
           float seamDist = min(seam1, seam2);
 
-          vec3 baseCol = vec3(0.98, 0.98, 0.99);
+          vec3 baseCol = vec3(0.97, 0.96, 0.95);
           if (seamDist < 0.09) {
             float stitch = sin(atan(P.y, P.x) * 48.0);
-            baseCol = mix(vec3(0.95, 0.15, 0.25), vec3(0.75, 0.1, 0.18), step(0.0, stitch));
+            baseCol = mix(vec3(0.92, 0.18, 0.22), vec3(0.72, 0.1, 0.15), step(0.0, stitch));
           }
 
-          vec3 L = normalize(vec3(0.2, -0.4, 0.9));
           float diff = max(dot(N, L), 0.0);
           vec3 H = normalize(L + V);
           float spec = pow(max(dot(N, H), 0.0), 32.0);
@@ -445,10 +451,9 @@
           if (stripePattern > 0.18) {
             baseCol = vec3(0.04, 0.13, 0.05);
           } else {
-            baseCol = vec3(0.16, 0.82, 0.35);
+            baseCol = vec3(0.18, 0.80, 0.32);
           }
 
-          vec3 L = normalize(vec3(0.2, -0.4, 0.9));
           float diff = max(dot(N, L), 0.0);
           vec3 H = normalize(L + V);
           float spec = pow(max(dot(N, H), 0.0), 45.0);
@@ -458,38 +463,44 @@
           return;
         }
 
-        // [모드 0] 직각 엣지 + 6면 볼록 에나멜 광택 블록 & 패들
-        vec3 base = uColor.rgb;
+        // [모드 0] 디저트 비스킷 & 엠보싱 초콜릿 캡
+        vec3 base;
+        float specPower;
+        float specIntensity;
 
-        // 면 방향성 3D 명암 (윗면 강조, 아랫면 깊은 음영)
+        if (vIsTopCap > 0.5) {
+          // 상단: 마카롱 / 초콜릿 엠보싱 캡 (새틴 유광)
+          base = uColor.rgb;
+          specPower = 42.0;
+          specIntensity = 0.42;
+        } else {
+          // 하단 베이스: 노릇노릇 구워진 골든 버터 비스킷 (토스트 브라운)
+          base = vec3(0.85, 0.62, 0.38);
+          specPower = 18.0;
+          specIntensity = 0.15;
+        }
+
+        // 자연스러운 3D 음영
         float topLight = max(0.0, -N.y) * 0.25;
         float botDark = max(0.0, N.y) * 0.30;
         float sideDark = abs(N.x) * 0.14;
-        float frontLight = max(0.0, N.z) * 0.15;
-        vec3 litColor = base * (0.95 + topLight + frontLight - botDark - sideDark);
+        float frontLight = max(0.0, N.z) * 0.18;
+        vec3 litColor = base * (0.92 + topLight + frontLight - botDark - sideDark);
 
-        // 1번 포인트 조명: 정면 좌상단 반사광 (선명한 사탕 알갱이 하이라이트)
-        vec3 L1 = normalize(vec3(-0.35, -0.65, 0.75));
-        vec3 H1 = normalize(L1 + V);
-        float spec1 = pow(max(dot(N, H1), 0.0), 75.0);
+        // 엠보싱 솟아오른 면에 맺히는 디저트 스펙큘러
+        vec3 H = normalize(L + V);
+        float spec = pow(max(dot(N, H), 0.0), specPower);
+        vec3 glisten = mix(base, vec3(1.0), 0.6) * (spec * specIntensity);
 
-        // 2번 포인트 조명: 우하단 소프트 반사광
-        vec3 L2 = normalize(vec3(0.45, 0.35, 0.85));
-        vec3 H2 = normalize(L2 + V);
-        float spec2 = pow(max(dot(N, H2), 0.0), 45.0);
-
-        // 반짝이는 클리어코트 광택 합성 (타지 않는 맑은 하얀 빛)
-        vec3 glisten = vec3(1.0) * (spec1 * 0.75 + spec2 * 0.28);
-
-        // 솟아오른 곡면 가장자리를 맑게 둘러싸는 에나멜 림 글래스
+        // 부드러운 에지 림
         float rim = 1.0 - max(dot(N, V), 0.0);
-        vec3 rimGlow = mix(base, vec3(1.0), 0.45) * pow(rim, 3.2) * 0.45;
+        vec3 rimGlow = mix(base, vec3(1.0), 0.25) * pow(rim, 3.0) * 0.28;
 
-        // 공 근접 발광 반응
+        // 공 반응
         vec3 toBall = uBallPos - vWorldPos;
         float dist = length(toBall);
-        float ballAtten = clamp(1.0 - dist / 120.0, 0.0, 1.0);
-        vec3 glow = uBallColor * (ballAtten * 0.22);
+        float ballAtten = clamp(1.0 - dist / 110.0, 0.0, 1.0);
+        vec3 glow = uBallColor * (ballAtten * 0.15);
 
         vec3 finalColor = litColor + glisten + rimGlow + glow;
         fragColor = vec4(clamp(finalColor, 0.0, 1.0), uColor.a);
@@ -524,60 +535,52 @@
       time: gl.getUniformLocation(program, "uTime")
     };
 
-    // --- 6. 꼭지점/엣지 직각을 완벽히 유지하고 6개 면 중심만 볼록 솟는 정밀 3D 지오메트리 ---
-    function createTrueCrispBulgedBoxGeo(bulgeDist = 0.16, gridSize = 8) {
+    // --- 6. 이미지 기반 2단 엠보싱 디저트 블록 지오메트리 ---
+    // (하단 골든 비스킷 베이스 + 상단 도톰한 엠보싱 초콜릿 캡)
+    function createDessertBiscuitBlockGeo() {
       const positions = [];
       const normals = [];
+      const isTopCap = [];
 
-      function addFace(normDir, rightDir, upDir) {
-        for (let j = 0; j < gridSize; j++) {
-          for (let i = 0; i < gridSize; i++) {
-            const u0 = (i / gridSize) - 0.5;
-            const u1 = ((i + 1) / gridSize) - 0.5;
-            const v0 = (j / gridSize) - 0.5;
-            const v1 = ((j + 1) / gridSize) - 0.5;
-
-            function getPt(u, v) {
-              // 엣지(u=±0.5, v=±0.5)에서는 변위가 0.0이 되어 칼직각 엣지와 꼭지점 완벽 보존
-              const dome = Math.cos(u * Math.PI) * Math.cos(v * Math.PI);
-              const b = Math.max(0.0, dome) * bulgeDist;
-
-              const x = normDir[0] * (0.5 + b) + rightDir[0] * u + upDir[0] * v;
-              const y = normDir[1] * (0.5 + b) + rightDir[1] * u + upDir[1] * v;
-              const z = normDir[2] * (0.5 + b) + rightDir[2] * u + upDir[2] * v;
-
-              // 돔 곡률 기울기 기반 노멀
-              const ddu = -Math.PI * Math.sin(u * Math.PI) * Math.cos(v * Math.PI) * bulgeDist;
-              const ddv = -Math.PI * Math.cos(u * Math.PI) * Math.sin(v * Math.PI) * bulgeDist;
-
-              const nx = normDir[0] - rightDir[0] * ddu - upDir[0] * ddv;
-              const ny = normDir[1] - rightDir[1] * ddu - upDir[1] * ddv;
-              const nz = normDir[2] - rightDir[2] * ddu - upDir[2] * ddv;
-              const len = Math.hypot(nx, ny, nz) || 1.0;
-
-              return { p: [x, y, z], n: [nx / len, ny / len, nz / len] };
-            }
-
-            const p00 = getPt(u0, v0);
-            const p10 = getPt(u1, v0);
-            const p11 = getPt(u1, v1);
-            const p01 = getPt(u0, v1);
-
-            positions.push(...p00.p, ...p10.p, ...p11.p);
-            normals.push(...p00.n, ...p10.n, ...p11.n);
-
-            positions.push(...p00.p, ...p11.p, ...p01.p);
-            normals.push(...p00.n, ...p11.n, ...p01.n);
-          }
-        }
+      function addQuad(p0, p1, p2, p3, norm, capFlag) {
+        positions.push(...p0, ...p1, ...p2, ...p0, ...p2, ...p3);
+        normals.push(...norm, ...norm, ...norm, ...norm, ...norm, ...norm);
+        isTopCap.push(capFlag, capFlag, capFlag, capFlag, capFlag, capFlag);
       }
 
-      addFace([0, 0, 1],  [1, 0, 0],  [0, 1, 0]);  // Front
-      addFace([0, 0, -1], [-1, 0, 0], [0, 1, 0]);  // Back
-      addFace([0, 1, 0],  [1, 0, 0],  [0, 0, -1]); // Top
-      addFace([0, -1, 0], [1, 0, 0],  [0, 0, 1]);  // Bottom
-      addFace([1, 0, 0],  [0, 0, -1], [0, 1, 0]);  // Right
-      addFace([-1, 0, 0], [0, 0, 1],  [0, 1, 0]);  // Left
+      const p = 0.5;
+      const zBaseBot = -0.5;
+      const zBaseTop = 0.0;
+      const zCapApex = 0.5;
+      const inset = 0.12; // 상단 초콜릿 캡의 여백 (하단 비스킷 테두리가 액자처럼 드러남)
+      const bevel = 0.08; // 캡 안쪽 솟아오르는 단차
+
+      // 1) 하단 비스킷 베이스 (바닥, 옆면, 윗면 테두리)
+      // 바닥면
+      addQuad([-p,-p,zBaseBot], [p,-p,zBaseBot], [p,p,zBaseBot], [-p,p,zBaseBot], [0,0,-1], 0.0);
+      // 4면 사이드
+      addQuad([-p,-p,zBaseTop], [p,-p,zBaseTop], [p,-p,zBaseBot], [-p,-p,zBaseBot], [0,-1,0], 0.0);
+      addQuad([p,-p,zBaseTop], [p,p,zBaseTop], [p,p,zBaseBot], [p,-p,zBaseBot], [1,0,0], 0.0);
+      addQuad([p,p,zBaseTop], [-p,p,zBaseTop], [-p,p,zBaseBot], [p,p,zBaseBot], [0,1,0], 0.0);
+      addQuad([-p,p,zBaseTop], [-p,-p,zBaseTop], [-p,-p,zBaseBot], [-p,p,zBaseBot], [-1,0,0], 0.0);
+
+      // 상단 비스킷 테두리 턱 (액자처럼 초콜릿 캡을 감쌈)
+      const ci = p - inset;
+      addQuad([-p,-p,zBaseTop], [p,-p,zBaseTop], [ci,-ci,zBaseTop], [-ci,-ci,zBaseTop], [0,0,1], 0.0);
+      addQuad([p,-p,zBaseTop], [p,p,zBaseTop], [ci,ci,zBaseTop], [ci,-ci,zBaseTop], [0,0,1], 0.0);
+      addQuad([p,p,zBaseTop], [-p,p,zBaseTop], [-ci,ci,zBaseTop], [ci,ci,zBaseTop], [0,0,1], 0.0);
+      addQuad([-p,p,zBaseTop], [-p,-p,zBaseTop], [-ci,-ci,zBaseTop], [-ci,ci,zBaseTop], [0,0,1], 0.0);
+
+      // 2) 상단 도톰한 엠보싱 초콜릿/마카롱 캡 (capFlag = 1.0)
+      const cb = ci - bevel;
+      // 엠보싱 4면 경사면 (도톰하게 솟아오름)
+      addQuad([-ci,-ci,zBaseTop], [ci,-ci,zBaseTop], [cb,-cb,zCapApex], [-cb,-cb,zCapApex], [0,-0.6,0.8], 1.0);
+      addQuad([ci,-ci,zBaseTop], [ci,ci,zBaseTop], [cb,cb,zCapApex], [cb,-cb,zCapApex], [0.6,0,0.8], 1.0);
+      addQuad([ci,ci,zBaseTop], [-ci,ci,zBaseTop], [-cb,cb,zCapApex], [cb,cb,zCapApex], [0,0.6,0.8], 1.0);
+      addQuad([-ci,ci,zBaseTop], [-ci,-ci,zBaseTop], [-cb,-cb,zCapApex], [-cb,cb,zCapApex], [-0.6,0,0.8], 1.0);
+
+      // 최상단 평평하고 도톰한 초콜릿 면
+      addQuad([-cb,-cb,zCapApex], [cb,-cb,zCapApex], [cb,cb,zCapApex], [-cb,cb,zCapApex], [0,0,1], 1.0);
 
       const vao = gl.createVertexArray();
       gl.bindVertexArray(vao);
@@ -593,6 +596,57 @@
       gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(normals), gl.STATIC_DRAW);
       gl.enableVertexAttribArray(1);
       gl.vertexAttribPointer(1, 3, gl.FLOAT, false, 0, 0);
+
+      const capBuf = gl.createBuffer();
+      gl.bindBuffer(gl.ARRAY_BUFFER, capBuf);
+      gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(isTopCap), gl.STATIC_DRAW);
+      gl.enableVertexAttribArray(2);
+      gl.vertexAttribPointer(2, 1, gl.FLOAT, false, 0, 0);
+
+      gl.bindVertexArray(null);
+      return { vao, count: positions.length / 3 };
+    }
+
+    // 구움색 타르트 크러스트 레일 및 패들용 웨이퍼 베이스 큐브
+    function createCleanBevelBoxGeo(bevel = 0.05) {
+      const p = 0.5, b = bevel;
+      const positions = [];
+      const normals = [];
+      const isTopCap = [];
+
+      function addQuad(p0, p1, p2, p3, norm, cap) {
+        positions.push(...p0, ...p1, ...p2, ...p0, ...p2, ...p3);
+        normals.push(...norm, ...norm, ...norm, ...norm, ...norm, ...norm);
+        isTopCap.push(cap, cap, cap, cap, cap, cap);
+      }
+
+      addQuad([-p+b,-p+b,p], [p-b,-p+b,p], [p-b,p-b,p], [-p+b,p-b,p], [0,0,1], 0.0);
+      addQuad([p-b,-p+b,-p], [-p+b,-p+b,-p], [-p+b,p-b,-p], [p-b,p-b,-p], [0,0,-1], 0.0);
+      addQuad([-p+b,-p,p-b], [p-b,-p,p-b], [p-b,-p,-p+b], [-p+b,-p,-p+b], [0,-1,0], 0.0);
+      addQuad([-p+b,p,-p+b], [p-b,p,-p+b], [p-b,p,p-b], [-p+b,p,p-b], [0,1,0], 0.0);
+      addQuad([p,-p+b,p-b], [p,-p+b,-p+b], [p,p-b,-p+b], [p,p-b,p-b], [1,0,0], 0.0);
+      addQuad([-p,-p+b,-p+b], [-p,-p+b,p-b], [-p,p-b,p-b], [-p,p-b,-p+b], [-1,0,0], 0.0);
+
+      const vao = gl.createVertexArray();
+      gl.bindVertexArray(vao);
+
+      const posBuf = gl.createBuffer();
+      gl.bindBuffer(gl.ARRAY_BUFFER, posBuf);
+      gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(positions), gl.STATIC_DRAW);
+      gl.enableVertexAttribArray(0);
+      gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 0, 0);
+
+      const normBuf = gl.createBuffer();
+      gl.bindBuffer(gl.ARRAY_BUFFER, normBuf);
+      gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(normals), gl.STATIC_DRAW);
+      gl.enableVertexAttribArray(1);
+      gl.vertexAttribPointer(1, 3, gl.FLOAT, false, 0, 0);
+
+      const capBuf = gl.createBuffer();
+      gl.bindBuffer(gl.ARRAY_BUFFER, capBuf);
+      gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(isTopCap), gl.STATIC_DRAW);
+      gl.enableVertexAttribArray(2);
+      gl.vertexAttribPointer(2, 1, gl.FLOAT, false, 0, 0);
 
       gl.bindVertexArray(null);
       return { vao, count: positions.length / 3 };
@@ -639,6 +693,14 @@
       gl.enableVertexAttribArray(1);
       gl.vertexAttribPointer(1, 3, gl.FLOAT, false, 0, 0);
 
+      // Dummy isTopCap for ball
+      const isTopCap = new Float32Array(positions.length / 3);
+      const capBuf = gl.createBuffer();
+      gl.bindBuffer(gl.ARRAY_BUFFER, capBuf);
+      gl.bufferData(gl.ARRAY_BUFFER, isTopCap, gl.STATIC_DRAW);
+      gl.enableVertexAttribArray(2);
+      gl.vertexAttribPointer(2, 1, gl.FLOAT, false, 0, 0);
+
       const idxBuf = gl.createBuffer();
       gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, idxBuf);
       gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(indices), gl.STATIC_DRAW);
@@ -647,10 +709,8 @@
       return { vao, count: indices.length, isIndexed: true };
     }
 
-    // 칼직각 엣지 + 6면 볼록 쿠션 지오메트리 캐싱
-    const crispBulgedBrickGeo = createTrueCrispBulgedBoxGeo(0.18, 8);
-    const crispBulgedPaddleGeo = createTrueCrispBulgedBoxGeo(0.14, 8);
-    const crispBulgedRailGeo = createTrueCrispBulgedBoxGeo(0.10, 6);
+    const dessertBiscuitBrickGeo = createDessertBiscuitBlockGeo();
+    const waferBoxGeo = createCleanBevelBoxGeo(0.04);
     const ballSphereGeo = createSphereGeometry(24, 24);
 
     function getNormalMatrix(m) {
@@ -670,7 +730,7 @@
       ]);
     }
 
-    // --- 7. 모바일 뷰포트 & 상태 변수 ---
+    // --- 7. 뷰포트 & 상태 관리 ---
     const GAME_W = 360;
     const GAME_H = 640;
     const PADDLE_DEFAULT_Y = GAME_H - 180;
@@ -714,12 +774,12 @@
     let frameCount = 0;
     let stageClearPause = false;
 
-    const PADDLE_DEFAULT_W = 68;
+    const PADDLE_DEFAULT_W = 72;
     const paddle = {
       w: PADDLE_DEFAULT_W,
-      h: 14,
-      d: 13,
-      x: GAME_W / 2 - 34,
+      h: 15,
+      d: 14,
+      x: GAME_W / 2 - 36,
       y: PADDLE_DEFAULT_Y,
       recoilY: 0,
       recoilVy: 0
@@ -734,12 +794,13 @@
       return 4.6 + (currentStage - 1) * 0.22;
     }
 
+    // 디저트 테마 파워업 아이템
     const ITEM_TYPES = [
-      { type: 'MULTI', label: 'M', color: [0.0, 0.92, 1.0, 1.0] },
-      { type: 'GIANT_PIERCE', label: 'G', color: [0.15, 0.90, 0.40, 1.0] },
-      { type: 'EXPAND', label: 'E', color: [0.25, 1.0, 0.55, 1.0] },
-      { type: 'SLOW', label: 'S', color: [0.0, 0.95, 0.85, 1.0] },
-      { type: 'LIGHTNING', label: 'L', color: [1.0, 0.88, 0.15, 1.0] }
+      { type: 'MULTI', label: 'M', color: [0.35, 0.70, 0.88, 1.0] },
+      { type: 'GIANT_PIERCE', label: 'G', color: [0.18, 0.80, 0.32, 1.0] },
+      { type: 'EXPAND', label: 'E', color: [0.55, 0.75, 0.45, 1.0] },
+      { type: 'SLOW', label: 'S', color: [0.88, 0.82, 0.75, 1.0] },
+      { type: 'LIGHTNING', label: 'L', color: [0.96, 0.82, 0.35, 1.0] }
     ];
 
     let activeEffects = {
@@ -751,8 +812,8 @@
 
     const BRICK_COLS = 11;
     const BRICK_W = 27.6;
-    const BRICK_H = 12.0;
-    const BRICK_D = 12.0;
+    const BRICK_H = 13.5;
+    const BRICK_D = 13.0;
     const BRICK_TOP = 50;
     const BRICK_LEFT = (GAME_W - (BRICK_COLS * BRICK_W)) / 2;
 
@@ -783,37 +844,37 @@
           if (char === '0') continue;
 
           let maxHp = 1;
-          let color = [1.0, 0.18, 0.48, 1.0]; // 선명한 마젠타 핑크
+          // 이미지 속 실제 마카롱/초콜릿 컬러와 100% 동일하게 조색
+          let color = [0.82, 0.32, 0.36, 1.0]; // 라즈베리 마카롱
           let type = 'RED';
 
           if (char === 'G') {
-            maxHp = 3; color = [1.0, 0.82, 0.16, 1.0]; type = 'GOLD';
+            maxHp = 3; color = [0.48, 0.28, 0.18, 1.0]; type = 'GOLD';    // 다크 카카오 초콜릿
           } else if (char === 'S') {
-            maxHp = 2; color = [0.88, 0.94, 1.0, 1.0]; type = 'SILVER';
+            maxHp = 2; color = [0.65, 0.42, 0.26, 1.0]; type = 'SILVER';  // 밀크 초콜릿
           } else if (char === 'C') {
-            maxHp = 1; color = [0.0, 0.92, 1.0, 0.92]; type = 'GLASS';
+            maxHp = 1; color = [0.94, 0.92, 0.85, 1.0]; type = 'GLASS';   // 화이트 바닐라 크림
           } else if (char === '1') {
-            color = [1.0, 0.18, 0.48, 1.0]; type = 'RED';
+            color = [0.82, 0.32, 0.36, 1.0]; type = 'RED';       // 라즈베리 로즈
           } else if (char === '2') {
-            color = [1.0, 0.52, 0.12, 1.0]; type = 'ORANGE';
+            color = [0.88, 0.62, 0.42, 1.0]; type = 'ORANGE';    // 살구 망고 비스킷
           } else if (char === '3') {
-            color = [1.0, 0.88, 0.16, 1.0]; type = 'YELLOW';
+            color = [0.95, 0.85, 0.42, 1.0]; type = 'YELLOW';    // 레몬 버터 커스터드
           } else if (char === '4') {
-            color = [0.12, 0.90, 0.48, 1.0]; type = 'GREEN';
+            color = [0.55, 0.72, 0.45, 1.0]; type = 'GREEN';     // 피스타치오 말차
           } else if (char === '5') {
-            color = [0.0, 0.72, 1.0, 1.0]; type = 'BLUE';
+            color = [0.38, 0.58, 0.72, 1.0]; type = 'BLUE';      // 더스티 블루베리 크림
           }
 
           const bx = BRICK_LEFT + c * BRICK_W;
           const by = BRICK_TOP + r * BRICK_H;
-          // 단정한 직각 타일 배열
           bricks.push({
             row: r,
             col: c,
-            x: bx + 1.0,
-            y: by + 1.0,
-            w: BRICK_W - 2.0,
-            h: BRICK_H - 2.0,
+            x: bx + 0.8,
+            y: by + 0.8,
+            w: BRICK_W - 1.6,
+            h: BRICK_H - 1.6,
             hp: maxHp,
             maxHp: maxHp,
             baseColor: color,
@@ -828,9 +889,11 @@
       popTexts.push({ text, x, y, vy: -1.2, alpha: 1.0, color });
     }
 
-    function spawnExplosion3D(x, y, w, h, color, isGlass) {
-      const count = isGlass ? 20 : 14;
+    function spawnExplosion3D(x, y, w, h, color) {
+      // 바삭한 비스킷 부스러기 & 초콜릿 파편 효과
+      const count = 16;
       for (let i = 0; i < count; i++) {
+        const isCrumb = Math.random() > 0.5;
         particles3D.push({
           x: x + w / 2,
           y: y + h / 2,
@@ -842,7 +905,7 @@
           rotY: Math.random() * Math.PI,
           vRotX: (Math.random() - 0.5) * 0.4,
           vRotY: (Math.random() - 0.5) * 0.4,
-          color: [...color],
+          color: isCrumb ? [0.85, 0.62, 0.38] : [...color],
           alpha: 1.0
         });
       }
@@ -900,14 +963,14 @@
           balls.push(createBall(b.x, b.y, -spd * 0.7, -spd * 0.7));
           balls.push(createBall(b.x, b.y, spd * 0.7, -spd * 0.7));
         }
-        addPopText("MULTI BALL!", paddle.x + paddle.w / 2, paddle.y - 20, '#00e5ff');
+        addPopText("MULTI BALL!", paddle.x + paddle.w / 2, paddle.y - 20, '#80deea');
       } else if (type === 'GIANT_PIERCE') {
         activeEffects.giantPierceTimer = 480;
-        addPopText("GIANT WATERMELON!", paddle.x + paddle.w / 2, paddle.y - 20, '#00e676');
+        addPopText("GIANT WATERMELON!", paddle.x + paddle.w / 2, paddle.y - 20, '#a5d6a7');
       } else if (type === 'EXPAND') {
         activeEffects.expandTimer = 480;
-        paddle.w = PADDLE_DEFAULT_W * 1.5;
-        addPopText("PADDLE EXPAND!", paddle.x + paddle.w / 2, paddle.y - 20, '#69f0ae');
+        paddle.w = PADDLE_DEFAULT_W * 1.4;
+        addPopText("WAFER EXPAND!", paddle.x + paddle.w / 2, paddle.y - 20, '#c5e1a5');
       } else if (type === 'SLOW') {
         activeEffects.slowTimer = 420;
         balls.forEach(b => {
@@ -916,10 +979,10 @@
           b.dx = (b.dx / mag) * b.speed;
           b.dy = (b.dy / mag) * b.speed;
         });
-        addPopText("SLOW TIME!", paddle.x + paddle.w / 2, paddle.y - 20, '#00e5ff');
+        addPopText("SLOW TIME!", paddle.x + paddle.w / 2, paddle.y - 20, '#fff59d');
       } else if (type === 'LIGHTNING') {
         activeEffects.hasLightning = true;
-        addPopText("LIGHTNING READY!", paddle.x + paddle.w / 2, paddle.y - 20, '#ffd54f');
+        addPopText("LIGHTNING BAKE!", paddle.x + paddle.w / 2, paddle.y - 20, '#ffd54f');
       }
     }
 
@@ -932,7 +995,7 @@
           b.hp = 0;
           clearedCount++;
           score += 25;
-          spawnExplosion3D(b.x, b.y, b.w, b.h, [1.0, 0.88, 0.2, 1.0], false);
+          spawnExplosion3D(b.x, b.y, b.w, b.h, [0.95, 0.85, 0.42]);
         }
       });
       if (clearedCount > 0) {
@@ -942,12 +1005,12 @@
 
     function updateBrickColor(b) {
       if (b.type === 'GOLD') {
-        if (b.hp === 3) b.currentColor = [1.0, 0.82, 0.16, 1.0];
-        else if (b.hp === 2) b.currentColor = [0.95, 0.64, 0.18, 1.0];
-        else b.currentColor = [0.75, 0.46, 0.15, 1.0];
+        if (b.hp === 3) b.currentColor = [0.48, 0.28, 0.18, 1.0];
+        else if (b.hp === 2) b.currentColor = [0.60, 0.38, 0.24, 1.0];
+        else b.currentColor = [0.72, 0.48, 0.32, 1.0];
       } else if (b.type === 'SILVER') {
-        if (b.hp === 2) b.currentColor = [0.88, 0.94, 1.0, 1.0];
-        else b.currentColor = [0.65, 0.72, 0.82, 1.0];
+        if (b.hp === 2) b.currentColor = [0.65, 0.42, 0.26, 1.0];
+        else b.currentColor = [0.78, 0.55, 0.38, 1.0];
       }
     }
 
@@ -1089,9 +1152,9 @@
               score += 25;
               sound.hitExplosion();
               vibrate(28);
-              spawnExplosion3D(b.x, b.y, b.w, b.h, b.baseColor, b.type === 'GLASS');
+              spawnExplosion3D(b.x, b.y, b.w, b.h, b.currentColor);
               maybeSpawnItem(b.x, b.y);
-              addPopText("WATERMELON SMASH! +25", b.x, b.y, '#00e676');
+              addPopText("CRUNCH SMASH! +25", b.x, b.y, '#ffd54f');
             } else {
               if (ball.hitCooldown === 0) {
                 b.hp--;
@@ -1103,12 +1166,12 @@
                 vibrate(destroyed ? 18 : 8);
 
                 if (destroyed) {
-                  spawnExplosion3D(b.x, b.y, b.w, b.h, b.baseColor, b.type === 'GLASS');
+                  spawnExplosion3D(b.x, b.y, b.w, b.h, b.currentColor);
                   maybeSpawnItem(b.x, b.y);
                   if (comboCount > 1) {
-                    addPopText(`HOMERUN x${comboCount}!`, b.x, b.y, '#ff4081');
+                    addPopText(`COMBO x${comboCount}!`, b.x, b.y, '#ffb74d');
                   } else {
-                    addPopText("HIT! +10", b.x, b.y, '#ffffff');
+                    addPopText("POP! +10", b.x, b.y, '#fff');
                   }
                 } else {
                   updateBrickColor(b);
@@ -1172,7 +1235,7 @@
       }
     }
 
-    // --- 9. OpenGL 3D 렌더 파이프라인 ---
+    // --- 9. WebGL 3D 렌더링 파이프라인 ---
     function render3D() {
       gl.enable(gl.DEPTH_TEST);
       gl.depthFunc(gl.LEQUAL);
@@ -1194,7 +1257,7 @@
       const isWatermelon = activeEffects.giantPierceTimer > 0;
       if (balls.length > 0) {
         gl.uniform3f(loc.ballPos, balls[0].x, balls[0].y, 10.0);
-        gl.uniform3f(loc.ballColor, isWatermelon ? 0.1 : 1.0, isWatermelon ? 0.95 : 0.9, isWatermelon ? 0.4 : 0.9);
+        gl.uniform3f(loc.ballColor, isWatermelon ? 0.18 : 1.0, isWatermelon ? 0.8 : 0.9, isWatermelon ? 0.32 : 0.85);
       } else {
         gl.uniform3f(loc.ballPos, -999, -999, 0);
         gl.uniform3f(loc.ballColor, 0, 0, 0);
@@ -1215,51 +1278,53 @@
         gl.bindVertexArray(null);
       }
 
-      // 1) 인디고 볼록 범퍼 레일
-      const wallColor = [0.30, 0.22, 0.46, 1.0];
-      const wallD = 18;
+      // 1) 이미지 스타일: 구운 타르트 크러스트 레일 (Golden Pastry Crust)
+      const crustColor = [0.86, 0.65, 0.40, 1.0];
+      const wallD = 20;
 
       let m = Mat4.identity();
       m = Mat4.translate(m, [6, (24 + GAME_H) / 2, 0]);
       m = Mat4.scale(m, [12, GAME_H - 24, wallD]);
-      drawMesh(crispBulgedRailGeo, m, wallColor, 0.0);
+      drawMesh(waferBoxGeo, m, crustColor, 0.0);
 
       m = Mat4.identity();
       m = Mat4.translate(m, [GAME_W - 6, (24 + GAME_H) / 2, 0]);
       m = Mat4.scale(m, [12, GAME_H - 24, wallD]);
-      drawMesh(crispBulgedRailGeo, m, wallColor, 0.0);
+      drawMesh(waferBoxGeo, m, crustColor, 0.0);
 
       m = Mat4.identity();
       m = Mat4.translate(m, [GAME_W / 2, 30, 0]);
       m = Mat4.scale(m, [GAME_W, 12, wallD]);
-      drawMesh(crispBulgedRailGeo, m, wallColor, 0.0);
+      drawMesh(waferBoxGeo, m, crustColor, 0.0);
 
-      // 2) 칼직각 엣지 + 6면 볼록 에나멜 광택 블록
+      // 2) 이미지 속 2단 엠보싱 디저트 블록 렌더링
       for (let b of bricks) {
         if (b.hp <= 0) continue;
         m = Mat4.identity();
         m = Mat4.translate(m, [b.x + b.w / 2, b.y + b.h / 2, 0]);
         m = Mat4.scale(m, [b.w, b.h, BRICK_D]);
-        drawMesh(crispBulgedBrickGeo, m, b.currentColor, 0.0);
+        drawMesh(dessertBiscuitBrickGeo, m, b.currentColor, 0.0);
       }
 
-      // 3) 직각 볼록 패들 (반동 recoilY 반영)
-      let paddleCol = [1.0, 0.18, 0.48, 1.0];
-      if (activeEffects.expandTimer > 0) paddleCol = [0.12, 0.92, 0.52, 1.0];
-      if (activeEffects.hasLightning) paddleCol = [1.0, 0.88, 0.16, 1.0];
-
+      // 3) 이미지 스타일: 웨이퍼 바 위에 초콜릿/크림 블록이 얹어진 듀얼 패들
       const renderPaddleY = paddle.y + paddle.recoilY;
 
+      // 하단 웨이퍼 쿠키 베이스
       m = Mat4.identity();
-      m = Mat4.translate(m, [paddle.x + paddle.w / 2, renderPaddleY + paddle.h / 2, 0]);
+      m = Mat4.translate(m, [paddle.x + paddle.w / 2, renderPaddleY + paddle.h / 2, -2]);
       m = Mat4.scale(m, [paddle.w, paddle.h, paddle.d]);
-      drawMesh(crispBulgedPaddleGeo, m, paddleCol, 0.0);
+      drawMesh(waferBoxGeo, m, [0.82, 0.58, 0.35, 1.0], 0.0);
 
-      // 패들 내부 직각 코어
-      m = Mat4.identity();
-      m = Mat4.translate(m, [paddle.x + paddle.w / 2, renderPaddleY + paddle.h / 2, 2.0]);
-      m = Mat4.scale(m, [Math.max(4, paddle.w - 12), paddle.h - 4, paddle.d]);
-      drawMesh(crispBulgedPaddleGeo, m, [1.0, 0.96, 0.98, 0.95], 0.0);
+      // 상단 초콜릿 & 바닐라 교차 크림 토핑
+      const segCount = 6;
+      const segW = (paddle.w - 4) / segCount;
+      for (let s = 0; s < segCount; s++) {
+        const segCol = s % 2 === 0 ? [0.48, 0.28, 0.18, 1.0] : [0.94, 0.92, 0.85, 1.0];
+        m = Mat4.identity();
+        m = Mat4.translate(m, [paddle.x + 2 + segW * (s + 0.5), renderPaddleY + paddle.h / 2, 3.5]);
+        m = Mat4.scale(m, [segW - 1.2, paddle.h - 3, paddle.d * 0.7]);
+        drawMesh(dessertBiscuitBrickGeo, m, segCol, 0.0);
+      }
 
       // 4) 회전하는 야구공 / 거대 수박 & 에메랄드 잔상
       const currentRadius = isWatermelon ? BASE_BALL_R * 2.7 : BASE_BALL_R;
@@ -1271,7 +1336,7 @@
             const progress = (idx + 1) / b.trail.length;
             const trailR = currentRadius * (1.0 - progress * 0.55);
             const alpha = (1.0 - progress) * 0.45;
-            const trailCol = [0.15, 0.88, 0.42, alpha];
+            const trailCol = [0.18, 0.80, 0.32, alpha];
 
             m = Mat4.identity();
             m = Mat4.translate(m, [pt.x, pt.y, 3 - idx * 0.1]);
@@ -1288,20 +1353,20 @@
         m = Mat4.scale(m, [currentRadius * 2, currentRadius * 2, currentRadius * 2]);
 
         if (isWatermelon) {
-          drawMesh(ballSphereGeo, m, [0.16, 0.82, 0.35, 1.0], 2.0);
+          drawMesh(ballSphereGeo, m, [0.18, 0.80, 0.32, 1.0], 2.0);
         } else {
           drawMesh(ballSphereGeo, m, [1.0, 1.0, 1.0, 1.0], 1.0);
         }
       }
 
-      // 5) 볼록 아이템 큐브
+      // 5) 아이템 (미니 디저트 블록)
       for (let it of items) {
         m = Mat4.identity();
         m = Mat4.translate(m, [it.x, it.y, 0]);
         m = Mat4.rotateX(m, it.rotX);
         m = Mat4.rotateY(m, it.rotY);
         m = Mat4.scale(m, [it.w, it.h, 12.0]);
-        drawMesh(crispBulgedBrickGeo, m, it.color, 0.0);
+        drawMesh(dessertBiscuitBrickGeo, m, it.color, 0.0);
       }
 
       // 6) 3D 파편
@@ -1310,60 +1375,68 @@
         m = Mat4.translate(m, [p.x, p.y, p.z]);
         m = Mat4.rotateX(m, p.rotX);
         m = Mat4.rotateY(m, p.rotY);
-        m = Mat4.scale(m, [4.5, 4.5, 4.5]);
-        drawMesh(ballSphereGeo, m, [p.color[0], p.color[1], p.color[2], p.alpha], 0.0);
+        m = Mat4.scale(m, [4.0, 4.0, 4.0]);
+        drawMesh(waferBoxGeo, m, [p.color[0], p.color[1], p.color[2], p.alpha], 0.0);
       }
     }
 
-    // --- 10. HUD & 텍스트/UI 렌더링 ---
+    // --- 10. 이미지 스타일 우드 & 초콜릿 HUD ---
     function drawHUD() {
       hudCtx.clearRect(0, 0, hudCanvas.width, hudCanvas.height);
       const scale = hudCanvas.width / GAME_W;
       hudCtx.save();
       hudCtx.scale(scale, scale);
 
-      hudCtx.fillStyle = 'rgba(11, 7, 22, 0.94)';
+      // 상단 우드 베이커리 바
+      hudCtx.fillStyle = '#4a2c17';
       hudCtx.fillRect(0, 0, GAME_W, 28);
+      hudCtx.fillStyle = '#361e0e';
+      hudCtx.fillRect(0, 26, GAME_W, 2);
 
-      hudCtx.fillStyle = '#fff';
-      hudCtx.font = 'bold 12px Courier New';
-      hudCtx.fillText(`SCORE:${score}`, 14, 18);
+      // 폰트 스타일: 이미지처럼 굵은 초콜릿 양각 텍스트
+      hudCtx.fillStyle = '#ffecb3';
+      hudCtx.font = '900 12px Courier New';
+      hudCtx.shadowColor = '#241206';
+      hudCtx.shadowOffsetY = 1.5;
+      hudCtx.fillText(`SCORE:${String(score).padStart(6, '0')}`, 14, 18);
       hudCtx.fillStyle = '#ffd54f';
-      hudCtx.fillText(`R${currentStage}`, 115, 18);
-      hudCtx.fillStyle = '#ff2a7a';
-      hudCtx.fillText(`BALL:${'⚾'.repeat(lives)}`, 155, 18);
+      hudCtx.fillText(`R${currentStage}`, 145, 18);
+      hudCtx.fillStyle = '#ffcc80';
+      hudCtx.fillText(`LIVES:${'🍪'.repeat(lives)}`, 185, 18);
+      hudCtx.shadowColor = 'transparent';
 
-      hudCtx.fillStyle = '#221438';
+      // 상단 우측 음소거 / 일시정지 버튼
+      hudCtx.fillStyle = '#361e0e';
       hudCtx.beginPath();
-      hudCtx.roundRect(GAME_W - 68, 4, 30, 20, 6);
-      hudCtx.roundRect(GAME_W - 34, 4, 28, 20, 6);
+      hudCtx.roundRect(GAME_W - 64, 4, 28, 20, 6);
+      hudCtx.roundRect(GAME_W - 32, 4, 26, 20, 6);
       hudCtx.fill();
 
-      hudCtx.fillStyle = '#ffffff';
+      hudCtx.fillStyle = '#ffd54f';
       hudCtx.font = 'bold 10px Courier New';
       hudCtx.textAlign = 'center';
-      hudCtx.fillText(isMuted ? '🔇' : '🔊', GAME_W - 53, 18);
-      hudCtx.fillText(isPaused ? '▶' : '⏸', GAME_W - 20, 18);
+      hudCtx.fillText(isMuted ? '🔇' : '🔊', GAME_W - 50, 18);
+      hudCtx.fillText(isPaused ? '▶' : '⏸', GAME_W - 19, 18);
       hudCtx.textAlign = 'left';
 
       let buffY = 48;
       if (activeEffects.giantPierceTimer > 0) {
-        hudCtx.fillStyle = '#00e676';
+        hudCtx.fillStyle = '#2e7d32';
         hudCtx.fillText(`[🍉 WATERMELON] ${(activeEffects.giantPierceTimer / 60).toFixed(1)}s`, 16, buffY);
         buffY += 16;
       }
       if (activeEffects.expandTimer > 0) {
-        hudCtx.fillStyle = '#69f0ae';
+        hudCtx.fillStyle = '#e65100';
         hudCtx.fillText(`[EXPAND] ${(activeEffects.expandTimer / 60).toFixed(1)}s`, 16, buffY);
         buffY += 16;
       }
       if (activeEffects.slowTimer > 0) {
-        hudCtx.fillStyle = '#00e5ff';
+        hudCtx.fillStyle = '#00838f';
         hudCtx.fillText(`[SLOW] ${(activeEffects.slowTimer / 60).toFixed(1)}s`, 16, buffY);
         buffY += 16;
       }
       if (activeEffects.hasLightning) {
-        hudCtx.fillStyle = '#ffd54f';
+        hudCtx.fillStyle = '#f57f17';
         hudCtx.fillText(`[⚡ LIGHTNING ARMED]`, 16, buffY);
       }
 
@@ -1377,28 +1450,29 @@
         hudCtx.restore();
       }
 
-      hudCtx.fillStyle = 'rgba(255, 42, 122, 0.05)';
+      // 하단 터치 상대 조작 존
+      hudCtx.fillStyle = 'rgba(74, 44, 23, 0.05)';
       hudCtx.beginPath();
       hudCtx.roundRect(14, TOUCH_CONTROL_ZONE_Y, GAME_W - 28, GAME_H - TOUCH_CONTROL_ZONE_Y - 14, 16);
       hudCtx.fill();
 
-      hudCtx.strokeStyle = 'rgba(255, 42, 122, 0.35)';
+      hudCtx.strokeStyle = 'rgba(107, 55, 19, 0.35)';
       hudCtx.lineWidth = 1.5;
       hudCtx.setLineDash([6, 6]);
       hudCtx.stroke();
       hudCtx.setLineDash([]);
 
-      hudCtx.fillStyle = 'rgba(255, 213, 79, 0.9)';
+      hudCtx.fillStyle = 'rgba(107, 55, 19, 0.9)';
       hudCtx.font = 'bold 11px Courier New';
       hudCtx.textAlign = 'center';
-      hudCtx.fillText("⚾ RELATIVE SWIPE ZONE 🍉", GAME_W / 2, TOUCH_CONTROL_ZONE_Y + 28);
+      hudCtx.fillText("🍪 RELATIVE SWIPE ZONE 🍉", GAME_W / 2, TOUCH_CONTROL_ZONE_Y + 28);
       hudCtx.font = '10px Courier New';
-      hudCtx.fillStyle = 'rgba(255, 255, 255, 0.45)';
+      hudCtx.fillStyle = 'rgba(107, 55, 19, 0.55)';
       hudCtx.fillText("(어디든 좌우로 밀면 패들이 즉각 이동합니다)", GAME_W / 2, TOUCH_CONTROL_ZONE_Y + 48);
       hudCtx.textAlign = 'left';
 
       if (isPaused) {
-        hudCtx.fillStyle = 'rgba(11, 7, 22, 0.85)';
+        hudCtx.fillStyle = 'rgba(38, 22, 14, 0.85)';
         hudCtx.fillRect(0, 0, GAME_W, GAME_H);
         hudCtx.fillStyle = '#ffd54f';
         hudCtx.font = 'bold 24px Courier New';
@@ -1408,21 +1482,21 @@
       }
 
       if (stageClearPause) {
-        hudCtx.fillStyle = 'rgba(11, 7, 22, 0.88)';
+        hudCtx.fillStyle = 'rgba(38, 22, 14, 0.9)';
         hudCtx.beginPath();
         hudCtx.roundRect(20, GAME_H / 2 - 45, GAME_W - 40, 70, 16);
         hudCtx.fill();
         hudCtx.fillStyle = '#ffd54f';
         hudCtx.font = 'bold 20px Courier New';
         hudCtx.textAlign = 'center';
-        hudCtx.fillText(`⚾ STAGE ${currentStage} CLEAR! 🍉`, GAME_W / 2, GAME_H / 2 - 4);
+        hudCtx.fillText(`🍪 STAGE ${currentStage} CLEAR! 🍉`, GAME_W / 2, GAME_H / 2 - 4);
         hudCtx.textAlign = 'left';
       }
 
       hudCtx.restore();
     }
 
-    // --- 11. 상대 좌표(Delta Drag) 터치 핸들러 ---
+    // --- 11. 상대 좌표 터치 핸들러 ---
     let lastTouchX = null;
 
     function getTouchGamePos(e) {
@@ -1442,11 +1516,11 @@
       const pos = getTouchGamePos(e);
 
       if (pos.y <= 32) {
-        if (pos.x >= GAME_W - 68 && pos.x <= GAME_W - 38) {
+        if (pos.x >= GAME_W - 64 && pos.x <= GAME_W - 36) {
           toggleMute();
           vibrate(10);
           return;
-        } else if (pos.x >= GAME_W - 34 && pos.x <= GAME_W - 6) {
+        } else if (pos.x >= GAME_W - 32 && pos.x <= GAME_W - 6) {
           isPaused = !isPaused;
           vibrate(10);
           return;
@@ -1553,7 +1627,7 @@
 
     function gameEndVictory() {
       isPlaying = false;
-      overTitle.textContent = "🏆 ALL STAGE SMASH! 🏆";
+      overTitle.textContent = "🏆 GRAND MASTER BAKER! 🏆";
       overTitle.style.color = "#ffd54f";
       finalScore.textContent = `축하합니다! 10개 전 스테이지 클리어 | 점수: ${score}`;
       overBtn.textContent = "처음부터 다시하기";
@@ -1563,9 +1637,9 @@
     function gameOver() {
       isPlaying = false;
       overTitle.textContent = "GAME OVER";
-      overTitle.style.color = "#ff2a7a";
+      overTitle.style.color = "#ff8a65";
       finalScore.textContent = `도달 스테이지: ${currentStage} / 10 | 최종 점수: ${score}`;
-      overBtn.textContent = "다시하기";
+      overBtn.textContent = "다시 굽기";
       gameOverOverlay.style.display = 'flex';
     }
 

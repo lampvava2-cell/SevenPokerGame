@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>3D Dessert Arkanoid</title>
+    <title>3D Dessert Arkanoid - Special Items</title>
     <style>
         * {
             box-sizing: border-box;
@@ -25,7 +25,6 @@
             height: 100%;
             display: block;
         }
-        /* 우드 테이블 상단 초콜릿 스타일 UI */
         #ui-layer {
             position: absolute;
             top: 12px;
@@ -39,24 +38,39 @@
         }
         .hud-text {
             color: #3d1c08;
-            font-size: clamp(15px, 4vw, 22px);
+            font-size: clamp(14px, 3.5vw, 20px);
             font-weight: 900;
             letter-spacing: 1px;
             text-shadow: 1px 1px 0 rgba(255,255,255,0.4);
             background: rgba(240, 220, 190, 0.85);
-            padding: 6px 14px;
+            padding: 6px 12px;
             border-radius: 16px;
             border: 2px solid #5a3118;
             box-shadow: 0 4px 8px rgba(0,0,0,0.35);
         }
-        /* 시작/게임오버 오버레이 */
+        #buff-hud {
+            position: absolute;
+            top: 60px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #ffe6cf;
+            font-size: 15px;
+            font-weight: bold;
+            background: rgba(56, 30, 14, 0.9);
+            padding: 5px 16px;
+            border-radius: 12px;
+            border: 2px solid #f0a354;
+            display: none;
+            z-index: 10;
+            text-align: center;
+        }
         #msg-overlay {
             position: absolute;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(30, 15, 8, 0.85);
+            background: rgba(30, 15, 8, 0.88);
             display: flex;
             flex-direction: column;
             justify-content: center;
@@ -103,17 +117,17 @@
         <div class="hud-text">SCORE: <span id="score-val">000000</span></div>
         <div class="hud-text">LIVES: <span id="lives-val">3</span></div>
     </div>
+    <div id="buff-hud">특수 효과 발동 중!</div>
 
     <div id="msg-overlay">
         <div id="msg-title">SWEET ARKANOID 3D</div>
-        <div id="msg-sub">화면 하단을 좌우로 터치/드래그하여<br>패들을 조작하세요!</div>
+        <div id="msg-sub">블록을 깨고 떨어지는 사탕 아이템을 먹어<br>다양한 10초 특수 능력을 체험하세요!</div>
         <button class="cookie-btn" id="start-btn">TAP TO PLAY</button>
     </div>
 
     <div id="canvas-container"></div>
 
     <script>
-        // --- 보드 파라미터 (세로 화면 비율에 맞춤) ---
         const ARENA_WIDTH = 22;
         const ARENA_HEIGHT = 42;
         const WALL_THICK = 1.3;
@@ -122,14 +136,22 @@
         let score = 0;
         let lives = 3;
         let isRunning = false;
-        let isBallAttached = true;
-
+        
         let scene, camera, renderer;
-        let paddle, ball;
+        let paddle;
+        let balls = []; // 멀티볼 지원을 위해 배열로 관리
         let blocks = [];
+        let destroyedBlocksHistory = []; // 핸디캡(블록 복원)용 파괴된 블록 기록
+        let items = [];
         let particles = [];
-        let ballVel = new THREE.Vector3(0, 0, 0);
-        const BALL_SPEED = 27.0;
+        const BALL_SPEED = 28.5;
+
+        // 버프 시스템 상태 관리
+        let activeBuff = null;
+        let buffTimer = 0;
+
+        let shakeDuration = 0;
+        let shakeIntensity = 0;
 
         const COLOR_PALETTE = [
             0xaf3a41, 0xd9824c, 0xf2b568, 
@@ -137,57 +159,32 @@
             0x7c9b68, 0x53779e, 0xf7f4e9
         ];
 
-        let matCookieCrust, matBiscuitBase, matBall, matFloor;
+        let matCookieCrust, matBiscuitBase, matBallNormal, matBallBlack, matFloor;
 
         function initMaterials() {
-            matCookieCrust = new THREE.MeshStandardMaterial({
-                color: 0xdca263,
-                roughness: 0.8,
-                metalness: 0.05
-            });
-
-            matBiscuitBase = new THREE.MeshStandardMaterial({
-                color: 0xe0ab75,
-                roughness: 0.85,
-                metalness: 0.0
-            });
-
-            matBall = new THREE.MeshStandardMaterial({
-                color: 0x222222, // 흑진주/다크 메탈 볼
-                metalness: 0.9,
-                roughness: 0.15
-            });
-
-            matFloor = new THREE.MeshStandardMaterial({
-                color: 0xfffcf7,
-                roughness: 0.9,
-                metalness: 0.0
-            });
+            matCookieCrust = new THREE.MeshStandardMaterial({ color: 0xdca263, roughness: 0.8, metalness: 0.05 });
+            matBiscuitBase = new THREE.MeshStandardMaterial({ color: 0xe0ab75, roughness: 0.85, metalness: 0.0 });
+            matBallNormal = new THREE.MeshStandardMaterial({ color: 0x222222, metalness: 0.9, roughness: 0.15 });
+            matBallBlack = new THREE.MeshStandardMaterial({ color: 0x111111, emissive: 0x330033, metalness: 1.0, roughness: 0.1 });
+            matFloor = new THREE.MeshStandardMaterial({ color: 0xfffcf7, roughness: 0.9, metalness: 0.0 });
         }
 
-        // 모바일 세로 비율에 꼭 맞추는 카메라 자동 핏팅
         function fitCameraToBoard() {
             const aspect = window.innerWidth / window.innerHeight;
             const targetHeight = ARENA_HEIGHT + 4.5;
             const targetWidth = ARENA_WIDTH + WALL_THICK * 2 + 1.0;
-
-            // 시야각(FOV) 기반 세로/가로 요구 거리 계산
             const fovRad = (camera.fov * Math.PI) / 180;
             const distV = (targetHeight / 2) / Math.tan(fovRad / 2);
             const distH = (targetWidth / 2) / (Math.tan(fovRad / 2) * aspect);
-
-            // 화면에 꽉 차도록 여백 최소화
             const camDistance = Math.max(distV, distH) * 1.02;
+            const tiltAngle = 0.28; 
 
-            // 살짝 비스듬한 3D 입체감을 유지하며 줌인
-            const tiltAngle = 0.28; // 약 16도 틸트
             camera.position.set(0, camDistance * Math.cos(tiltAngle), camDistance * Math.sin(tiltAngle) * 0.45);
             camera.lookAt(0, 0, -1.0);
         }
 
         function initScene() {
             const container = document.getElementById('canvas-container');
-
             scene = new THREE.Scene();
             scene.background = new THREE.Color(0x381e13);
 
@@ -203,27 +200,16 @@
 
             initMaterials();
 
-            // 조명
-            const ambLight = new THREE.AmbientLight(0xfff6ea, 0.75);
+            const ambLight = new THREE.AmbientLight(0xfff6ea, 0.8);
             scene.add(ambLight);
 
-            const dirLight = new THREE.DirectionalLight(0xffeedd, 1.25);
+            const dirLight = new THREE.DirectionalLight(0xffeedd, 1.3);
             dirLight.position.set(12, 35, 20);
             dirLight.castShadow = true;
-            dirLight.shadow.mapSize.width = 1024;
-            dirLight.shadow.mapSize.height = 1024;
-            dirLight.shadow.camera.near = 5;
-            dirLight.shadow.camera.far = 70;
-            dirLight.shadow.camera.left = -15;
-            dirLight.shadow.camera.right = 15;
-            dirLight.shadow.camera.top = 25;
-            dirLight.shadow.camera.bottom = -25;
-            dirLight.shadow.bias = -0.001;
             scene.add(dirLight);
 
             buildBoard();
             buildPaddle();
-            buildBall();
             spawnBlocks();
 
             window.addEventListener('resize', onWindowResize);
@@ -238,69 +224,47 @@
         }
 
         function buildBoard() {
-            // 바닥
             const floorGeo = new THREE.BoxGeometry(ARENA_WIDTH, 0.4, ARENA_HEIGHT);
             const floorMesh = new THREE.Mesh(floorGeo, matFloor);
             floorMesh.position.y = -0.2;
             floorMesh.receiveShadow = true;
             scene.add(floorMesh);
 
-            // 타르트 비스킷 테두리 벽
             const wallMat = matCookieCrust;
             const wallH = WALL_HEIGHT;
             const wallT = WALL_THICK;
 
-            // 상단
             const topGeo = new THREE.BoxGeometry(ARENA_WIDTH + wallT * 2, wallH, wallT);
             const topWall = new THREE.Mesh(topGeo, wallMat);
             topWall.position.set(0, wallH / 2, -ARENA_HEIGHT / 2 - wallT / 2);
-            topWall.castShadow = true;
-            topWall.receiveShadow = true;
             scene.add(topWall);
 
-            // 좌측
             const sideGeo = new THREE.BoxGeometry(wallT, wallH, ARENA_HEIGHT);
             const leftWall = new THREE.Mesh(sideGeo, wallMat);
             leftWall.position.set(-ARENA_WIDTH / 2 - wallT / 2, wallH / 2, 0);
-            leftWall.castShadow = true;
-            leftWall.receiveShadow = true;
             scene.add(leftWall);
 
-            // 우측
             const rightWall = new THREE.Mesh(sideGeo, wallMat);
             rightWall.position.set(ARENA_WIDTH / 2 + wallT / 2, wallH / 2, 0);
-            rightWall.castShadow = true;
-            rightWall.receiveShadow = true;
             scene.add(rightWall);
         }
 
         function buildPaddle() {
             paddle = new THREE.Group();
+            const pW = 5.6, pH = 0.9, pD = 1.5;
 
-            const pW = 5.6;
-            const pH = 0.9;
-            const pD = 1.5;
-
-            // 웨이퍼 비스킷 베이스
             const baseGeo = new THREE.BoxGeometry(pW, pH * 0.45, pD);
             const baseMesh = new THREE.Mesh(baseGeo, matBiscuitBase);
             baseMesh.position.y = pH * 0.225;
-            baseMesh.castShadow = true;
-            baseMesh.receiveShadow = true;
             paddle.add(baseMesh);
 
-            // 초콜릿 세그먼트
             const segCount = 6;
             const segW = (pW - 0.3) / segCount;
             for (let i = 0; i < segCount; i++) {
                 const segGeo = new THREE.BoxGeometry(segW * 0.88, pH * 0.55, pD * 0.85);
-                const segMat = new THREE.MeshStandardMaterial({
-                    color: (i % 2 === 0) ? 0xf5ebd7 : 0x733f20,
-                    roughness: 0.35
-                });
+                const segMat = new THREE.MeshStandardMaterial({ color: (i % 2 === 0) ? 0xf5ebd7 : 0x733f20, roughness: 0.35 });
                 const segMesh = new THREE.Mesh(segGeo, segMat);
                 segMesh.position.set(-pW / 2 + 0.15 + segW * (i + 0.5), pH * 0.7, 0);
-                segMesh.castShadow = true;
                 paddle.add(segMesh);
             }
 
@@ -310,139 +274,126 @@
             scene.add(paddle);
         }
 
-        function buildBall() {
+        function createBall(x, z, isBlack = false) {
             const radius = 0.65;
             const ballGeo = new THREE.SphereGeometry(radius, 32, 32);
-            ball = new THREE.Mesh(ballGeo, matBall);
-            ball.castShadow = true;
-            ball.radius = radius;
-            resetBall();
-            scene.add(ball);
+            const mesh = new THREE.Mesh(ballGeo, isBlack ? matBallBlack : matBallNormal);
+            mesh.castShadow = true;
+            mesh.position.set(x, radius, z);
+            scene.add(mesh);
+
+            return {
+                mesh: mesh,
+                radius: radius,
+                velocity: new THREE.Vector3(0, 0, 0),
+                isAttached: true,
+                isBlack: isBlack
+            };
         }
 
-        function resetBall() {
-            isBallAttached = true;
-            ballVel.set(0, 0, 0);
-            if (paddle) {
-                ball.position.set(paddle.position.x, ball.radius, paddle.position.z - 1.2);
-            }
-        }
-
-        function launchBall() {
-            if (!isBallAttached) return;
-            isBallAttached = false;
-            const angle = (Math.random() * 0.4 - 0.2) * Math.PI;
-            ballVel.set(Math.sin(angle) * BALL_SPEED, 0, -Math.cos(angle) * BALL_SPEED);
+        function resetBalls() {
+            balls.forEach(b => scene.remove(b.mesh));
+            balls = [];
+            const mainBall = createBall(paddle.position.x, paddle.position.z - 1.2);
+            balls.push(mainBall);
+            activeBuff = null;
+            document.getElementById('buff-hud').style.display = 'none';
         }
 
         function spawnBlocks() {
             blocks.forEach(b => scene.remove(b.group));
             blocks = [];
+            destroyedBlocksHistory = [];
 
-            const cols = 8;
-            const rows = 5;
-            const bWidth = 2.3;
-            const bDepth = 1.7;
-            const bHeight = 0.85;
-            const gap = 0.25;
-
+            const cols = 8, rows = 5;
+            const bWidth = 2.3, bDepth = 1.7, bHeight = 0.85, gap = 0.25;
             const startX = -((cols * (bWidth + gap) - gap) / 2) + bWidth / 2;
             const startZ = -ARENA_HEIGHT / 2 + 3.8;
 
             for (let r = 0; r < rows; r++) {
                 for (let c = 0; c < cols; c++) {
                     const blockGroup = new THREE.Group();
-
-                    // 비스킷 베이스
                     const baseGeo = new THREE.BoxGeometry(bWidth, bHeight * 0.45, bDepth);
                     const baseMesh = new THREE.Mesh(baseGeo, matBiscuitBase);
                     baseMesh.position.y = bHeight * 0.225;
-                    baseMesh.castShadow = true;
-                    baseMesh.receiveShadow = true;
                     blockGroup.add(baseMesh);
 
-                    // 초콜릿 토핑
-                    const chocMat = new THREE.MeshStandardMaterial({
-                        color: COLOR_PALETTE[(r * 2 + c) % COLOR_PALETTE.length],
-                        roughness: 0.28,
-                        metalness: 0.1
-                    });
+                    const chocColor = COLOR_PALETTE[(r * 2 + c) % COLOR_PALETTE.length];
+                    const chocMat = new THREE.MeshStandardMaterial({ color: chocColor, roughness: 0.28 });
                     const topGeo = new THREE.BoxGeometry(bWidth * 0.86, bHeight * 0.55, bDepth * 0.86);
                     const topMesh = new THREE.Mesh(topGeo, chocMat);
                     topMesh.position.y = bHeight * 0.725;
-                    topMesh.castShadow = true;
-                    topMesh.receiveShadow = true;
                     blockGroup.add(topMesh);
 
                     const x = startX + c * (bWidth + gap);
                     const z = startZ + r * (bDepth + gap);
                     blockGroup.position.set(x, 0, z);
-
                     scene.add(blockGroup);
 
                     blocks.push({
                         group: blockGroup,
-                        x: x,
-                        z: z,
-                        halfW: bWidth / 2,
-                        halfD: bDepth / 2,
-                        color: chocMat.color
+                        x: x, z: z,
+                        halfW: bWidth / 2, halfD: bDepth / 2,
+                        color: chocColor,
+                        r: r, c: c
                     });
                 }
             }
         }
 
-        function createCrumbExplosion(x, z, color) {
-            const count = 10;
-            const crumbMat = new THREE.MeshStandardMaterial({ color: color, roughness: 0.8 });
+        // 아이템 스폰 (랜덤 1~5번)
+        function spawnItem(x, z) {
+            const itemGeo = new THREE.BoxGeometry(0.9, 0.9, 0.9);
+            const itemType = Math.floor(Math.random() * 5) + 1; // 1 ~ 5
+            const itemColors = [0xff4444, 0x44ff44, 0x4444ff, 0xffff44, 0xff44ff];
+            const itemMat = new THREE.MeshStandardMaterial({ color: itemColors[itemType - 1], emissive: itemColors[itemType - 1], emissiveIntensity: 0.4 });
+            const mesh = new THREE.Mesh(itemGeo, itemMat);
+            mesh.position.set(x, 0.5, z);
+            scene.add(mesh);
 
-            for (let i = 0; i < count; i++) {
-                const size = 0.15 + Math.random() * 0.2;
-                const mesh = new THREE.Mesh(new THREE.BoxGeometry(size, size, size), crumbMat);
-                mesh.position.set(x, 0.5, z);
-                mesh.castShadow = true;
-                scene.add(mesh);
+            items.push({ mesh: mesh, type: itemType, x: x, z: z });
+        }
 
-                const angle = Math.random() * Math.PI * 2;
-                const speed = 3 + Math.random() * 7;
-                particles.push({
-                    mesh: mesh,
-                    vx: Math.cos(angle) * speed,
-                    vy: 3 + Math.random() * 5,
-                    vz: Math.sin(angle) * speed,
-                    life: 1.0
+        function applyBuff(type) {
+            activeBuff = type;
+            buffTimer = 10.0; // 10초 유지
+            const buffNames = [
+                "", 
+                "특수기능 1: 멀티볼 (공 3개)", 
+                "특수기능 2: 자이언트 볼 (크기 2배)", 
+                "특수기능 3: 블랙 홀리건 (무적 파괴)", 
+                "특수기능 4: [핸디캡] 블록 재생 복원", 
+                "특수기능 5: 패들 점착 (캐치)"
+            ];
+            
+            const hud = document.getElementById('buff-hud');
+            hud.innerText = buffNames[type];
+            hud.style.display = 'block';
+
+            if (type === 1) {
+                // 멀티볼: 기존 공 위치에서 2개 추가 생성
+                if (balls.length > 0) {
+                    const refBall = balls[0];
+                    for (let i = 0; i < 2; i++) {
+                        const newBall = createBall(refBall.mesh.position.x, refBall.mesh.position.z);
+                        newBall.isAttached = false;
+                        const angle = (Math.random() - 0.5) * Math.PI * 0.5;
+                        newBall.velocity.set(Math.sin(angle) * BALL_SPEED, 0, -Math.cos(angle) * BALL_SPEED);
+                        balls.push(newBall);
+                    }
+                }
+            } else if (type === 3) {
+                // 무적 블랙 공으로 변경
+                balls.forEach(b => {
+                    b.isBlack = true;
+                    b.mesh.material = matBallBlack;
                 });
             }
         }
 
-        function updateParticles(dt) {
-            for (let i = particles.length - 1; i >= 0; i--) {
-                const p = particles[i];
-                p.life -= dt * 2.2;
-                p.vy -= 22 * dt;
-                p.mesh.position.x += p.vx * dt;
-                p.mesh.position.y += p.vy * dt;
-                p.mesh.position.z += p.vz * dt;
-
-                p.mesh.rotation.x += 4 * dt;
-                p.mesh.rotation.y += 4 * dt;
-
-                if (p.mesh.position.y <= 0.1) {
-                    p.mesh.position.y = 0.1;
-                    p.vy = -p.vy * 0.35;
-                }
-
-                if (p.life <= 0) {
-                    scene.remove(p.mesh);
-                    particles.splice(i, 1);
-                }
-            }
-        }
-
-        // 터치 입력 (패들 X위치와 1:1 매핑)
         let targetPaddleX = 0;
         const raycaster = new THREE.Raycaster();
-        const touchPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0); // y=0 평면
+        const touchPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
         const rayPos = new THREE.Vector3();
 
         function setupInput() {
@@ -456,107 +407,189 @@
                     targetPaddleX = Math.max(-xLimit, Math.min(xLimit, rayPos.x));
                 }
 
-                if (isBallAttached && isRunning) {
-                    launchBall();
-                }
+                // 점착(캐치) 상태이거나 시작 전이면 발사
+                balls.forEach(b => {
+                    if (b.isAttached && isRunning) {
+                        b.isAttached = false;
+                        const angle = (Math.random() * 0.4 - 0.2) * Math.PI;
+                        b.velocity.set(Math.sin(angle) * BALL_SPEED, 0, -Math.cos(angle) * BALL_SPEED);
+                    }
+                });
             }
 
             window.addEventListener('pointerdown', handlePointer);
             window.addEventListener('pointermove', (e) => {
-                if (e.buttons > 0 || e.pointerType === 'touch') {
-                    handlePointer(e);
-                }
+                if (e.buttons > 0 || e.pointerType === 'touch') handlePointer(e);
             });
         }
 
+        function triggerScreenShake(duration, intensity) {
+            shakeDuration = duration;
+            shakeIntensity = intensity;
+        }
+
         function updatePhysics(dt) {
-            paddle.position.x += (targetPaddleX - paddle.position.x) * 22 * dt;
+            paddle.position.x += (targetPaddleX - paddle.position.x) * Math.min(1, 28 * dt);
 
-            if (isBallAttached) {
-                ball.position.x = paddle.position.x;
-                ball.position.z = paddle.position.z - 1.2;
-                return;
-            }
-
-            ball.position.x += ballVel.x * dt;
-            ball.position.z += ballVel.z * dt;
-
-            // 좌우 벽 충돌
-            const xLimit = ARENA_WIDTH / 2 - ball.radius;
-            if (ball.position.x <= -xLimit) {
-                ball.position.x = -xLimit;
-                ballVel.x *= -1;
-            } else if (ball.position.x >= xLimit) {
-                ball.position.x = xLimit;
-                ballVel.x *= -1;
-            }
-
-            // 상단 벽 충돌
-            const topLimit = -ARENA_HEIGHT / 2 + ball.radius;
-            if (ball.position.z <= topLimit) {
-                ball.position.z = topLimit;
-                ballVel.z *= -1;
-            }
-
-            // 패들 충돌
-            const padZ = paddle.position.z;
-            const padHalfW = paddle.width / 2;
-            const padHalfD = paddle.depth / 2;
-
-            if (ball.position.z + ball.radius >= padZ - padHalfD &&
-                ball.position.z - ball.radius <= padZ + padHalfD &&
-                ball.position.x >= paddle.position.x - padHalfW - ball.radius &&
-                ball.position.x <= paddle.position.x + padHalfW + ball.radius &&
-                ballVel.z > 0) {
-
-                ball.position.z = padZ - padHalfD - ball.radius;
-                const hitOffset = (ball.position.x - paddle.position.x) / padHalfW;
-                const bounceAngle = hitOffset * (Math.PI / 3.2);
-
-                const currentSpeed = ballVel.length();
-                ballVel.x = Math.sin(bounceAngle) * currentSpeed;
-                ballVel.z = -Math.cos(bounceAngle) * currentSpeed;
-            }
-
-            // 블록 충돌
-            for (let i = blocks.length - 1; i >= 0; i--) {
-                const b = blocks[i];
-                const dx = ball.position.x - b.x;
-                const dz = ball.position.z - b.z;
-                const overlapX = (b.halfW + ball.radius) - Math.abs(dx);
-                const overlapZ = (b.halfD + ball.radius) - Math.abs(dz);
-
-                if (overlapX > 0 && overlapZ > 0) {
-                    if (overlapX < overlapZ) {
-                        ballVel.x *= -1;
-                        ball.position.x += (dx > 0 ? overlapX : -overlapX);
-                    } else {
-                        ballVel.z *= -1;
-                        ball.position.z += (dz > 0 ? overlapZ : -overlapZ);
+            // 버프 타이머 처리
+            if (activeBuff) {
+                buffTimer -= dt;
+                if (buffTimer <= 0) {
+                    if (activeBuff === 3) {
+                        balls.forEach(b => {
+                            b.isBlack = false;
+                            b.mesh.material = matBallNormal;
+                        });
                     }
-
-                    createCrumbExplosion(b.x, b.z, b.color);
-                    scene.remove(b.group);
-                    blocks.splice(i, 1);
-
-                    score += 150;
-                    document.getElementById('score-val').innerText = score.toString().padStart(6, '0');
-
-                    if (blocks.length === 0) {
-                        showGameOver("STAGE CLEARED!", "모든 비스킷 블록을 부수었습니다!");
-                    }
-                    break;
+                    activeBuff = null;
+                    document.getElementById('buff-hud').style.display = 'none';
                 }
             }
 
-            // 하단 탈락
-            if (ball.position.z > ARENA_HEIGHT / 2 + 1.5) {
-                lives--;
-                document.getElementById('lives-val').innerText = lives;
-                if (lives > 0) {
-                    resetBall();
-                } else {
-                    showGameOver("GAME OVER", "다시 도전해보세요!");
+            // 아이템 낙하 처리
+            for (let i = items.length - 1; i >= 0; i--) {
+                const item = items[i];
+                item.mesh.position.z += 8 * dt;
+                item.mesh.rotation.y += 3 * dt;
+
+                // 패들과 충돌 체크
+                if (item.mesh.position.z >= paddle.position.z - paddle.depth/2 &&
+                    item.mesh.position.z <= paddle.position.z + paddle.depth/2 &&
+                    item.mesh.position.x >= paddle.position.x - paddle.width/2 &&
+                    item.mesh.position.x <= paddle.position.x + paddle.width/2) {
+                    
+                    applyBuff(item.type);
+                    scene.remove(item.mesh);
+                    items.splice(i, 1);
+                    continue;
+                }
+
+                if (item.mesh.position.z > ARENA_HEIGHT / 2) {
+                    scene.remove(item.mesh);
+                    items.splice(i, 1);
+                }
+            }
+
+            // 공 업데이트
+            for (let i = balls.length - 1; i >= 0; i--) {
+                const ball = balls[i];
+                const currentRadius = (activeBuff === 2) ? ball.radius * 2 : ball.radius;
+                ball.mesh.scale.set(activeBuff === 2 ? 2 : 1, activeBuff === 2 ? 2 : 1, activeBuff === 2 ? 2 : 1);
+
+                if (ball.isAttached) {
+                    ball.mesh.position.x = paddle.position.x;
+                    ball.mesh.position.z = paddle.position.z - 1.2;
+                    continue;
+                }
+
+                ball.mesh.position.x += ball.velocity.x * dt;
+                ball.mesh.position.z += ball.velocity.z * dt;
+
+                // 좌우 벽
+                const xLimit = ARENA_WIDTH / 2 - currentRadius;
+                if (ball.mesh.position.x <= -xLimit) {
+                    ball.mesh.position.x = -xLimit;
+                    ball.velocity.x *= -1;
+                } else if (ball.mesh.position.x >= xLimit) {
+                    ball.mesh.position.x = xLimit;
+                    ball.velocity.x *= -1;
+                }
+
+                // 상단 벽
+                const topLimit = -ARENA_HEIGHT / 2 + currentRadius;
+                if (ball.mesh.position.z <= topLimit) {
+                    ball.mesh.position.z = topLimit;
+                    ball.velocity.z *= -1;
+                }
+
+                // 패들 충돌
+                const padZ = paddle.position.z;
+                const padHalfW = paddle.width / 2;
+                const padHalfD = paddle.depth / 2;
+
+                if (ball.mesh.position.z + currentRadius >= padZ - padHalfD &&
+                    ball.mesh.position.z - currentRadius <= padZ + padHalfD &&
+                    ball.mesh.position.x >= paddle.position.x - padHalfW - currentRadius &&
+                    ball.mesh.position.x <= paddle.position.x + padHalfW + currentRadius &&
+                    ball.velocity.z > 0) {
+
+                    // 핸디캡(특수기능 4): 패들에 닿을 때마다 없어진 블록 1개 복원
+                    if (activeBuff === 4 && destroyedBlocksHistory.length > 0) {
+                        const restored = destroyedBlocksHistory.pop();
+                        scene.add(restored.group);
+                        blocks.push(restored);
+                    }
+
+                    // 특수기능 5: 캐치 (패들에 들러붙음)
+                    if (activeBuff === 5) {
+                        ball.isAttached = true;
+                        continue;
+                    }
+
+                    ball.mesh.position.z = padZ - padHalfD - currentRadius;
+                    const hitOffset = (ball.mesh.position.x - paddle.position.x) / padHalfW;
+                    const bounceAngle = hitOffset * (Math.PI / 3.0);
+                    const currentSpeed = ball.velocity.length();
+                    ball.velocity.x = Math.sin(bounceAngle) * currentSpeed;
+                    ball.velocity.z = -Math.cos(bounceAngle) * currentSpeed;
+
+                    triggerScreenShake(0.12, 0.2);
+                }
+
+                // 블록 충돌
+                for (let j = blocks.length - 1; j >= 0; j--) {
+                    const b = blocks[j];
+                    const dx = ball.mesh.position.x - b.x;
+                    const dz = ball.mesh.position.z - b.z;
+                    const overlapX = (b.halfW + currentRadius) - Math.abs(dx);
+                    const overlapZ = (b.halfD + currentRadius) - Math.abs(dz);
+
+                    if (overlapX > 0 && overlapZ > 0) {
+                        // 블랙 홀리건(무적 공)이 아니면 반사 연산 수행
+                        if (!ball.isBlack) {
+                            if (overlapX < overlapZ) {
+                                ball.velocity.x *= -1;
+                                ball.mesh.position.x += (dx > 0 ? overlapX : -overlapX);
+                            } else {
+                                ball.velocity.z *= -1;
+                                ball.mesh.position.z += (dz > 0 ? overlapZ : -overlapZ);
+                            }
+                        }
+
+                        scene.remove(b.group);
+                        blocks.splice(j, 1);
+                        destroyedBlocksHistory.push(b); // 복원용 기록 보관
+
+                        // 확률적으로 아이템 드롭 (30% 확률)
+                        if (Math.random() < 0.3) {
+                            spawnItem(b.x, b.z);
+                        }
+
+                        score += 150;
+                        document.getElementById('score-val').innerText = score.toString().padStart(6, '0');
+                        triggerScreenShake(0.1, 0.15);
+
+                        if (blocks.length === 0) {
+                            showGameOver("STAGE CLEARED!", "모든 비스킷 블록을 부수었습니다!");
+                        }
+                        break;
+                    }
+                }
+
+                // 바닥 탈락
+                if (ball.mesh.position.z > ARENA_HEIGHT / 2 + 1.5) {
+                    scene.remove(ball.mesh);
+                    balls.splice(i, 1);
+
+                    if (balls.length === 0) {
+                        lives--;
+                        document.getElementById('lives-val').innerText = lives;
+                        if (lives > 0) {
+                            resetBalls();
+                        } else {
+                            showGameOver("GAME OVER", "다시 도전해보세요!");
+                        }
+                    }
                 }
             }
         }
@@ -575,14 +608,16 @@
             document.getElementById('score-val').innerText = "000000";
             document.getElementById('lives-val').innerText = "3";
             document.getElementById('msg-overlay').style.display = "none";
+            
+            items.forEach(it => scene.remove(it.mesh));
+            items = [];
+
             spawnBlocks();
-            resetBall();
+            resetBalls();
             isRunning = true;
         }
 
-        document.getElementById('start-btn').addEventListener('click', () => {
-            startGame();
-        });
+        document.getElementById('start-btn').addEventListener('click', startGame);
 
         const clock = new THREE.Clock();
         function animate() {
@@ -592,7 +627,14 @@
             if (isRunning) {
                 updatePhysics(dt);
             }
-            updateParticles(dt);
+
+            if (shakeDuration > 0) {
+                shakeDuration -= dt;
+                camera.position.x += (Math.random() - 0.5) * shakeIntensity;
+                camera.position.y += (Math.random() - 0.5) * shakeIntensity;
+            } else {
+                fitCameraToBoard();
+            }
 
             renderer.render(scene, camera);
         }
